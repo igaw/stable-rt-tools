@@ -1,0 +1,43 @@
+From: Daniel Wagner <wagi@monom.org>
+Subject: [ANNOUNCE] {new_version}
+Data: {date}
+To: LKML <linux-kernel@vger.kernel.org>,
+	linux-rt-users <linux-rt-users@vger.kernel.org>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Carsten Emde <C.Emde@osadl.org>,
+	John Kacur <jkacur@redhat.com>,
+	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
+	Daniel Wagner <daniel.wagner@siemens.com>,
+	Tom Zanussi <tom.zanussi@linux.intel.com>,
+	Julia Cartwright <julia@ni.com>
+
+Hello RT Folks!
+
+I'm pleased to announce the {new_version} stable release.
+
+You can get this release via the git tree at:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+
+  branch: {branch_name}
+  Head SHA1: {branch_head}
+
+Or to build {new_version} directly, the following patches should be applied:
+
+  http://www.kernel.org/pub/linux/kernel/v4.x/linux-{major}.{minor}.tar.xz
+
+  http://www.kernel.org/pub/linux/kernel/v4.x/patch-{major}.{minor}.{patch}.xz
+
+  http://www.kernel.org{prj_dir}/{major}.{minor}/patch-{new_version}.patch.xz
+
+
+You can also build from {old_version} by applying the incremental patch:
+
+  http://www.kernel.org{prj_dir}/{major}.{minor}/incr/patch-{old_version}-rt{new_tag_rt}.patch.xz
+
+Enjoy!
+   Daniel
+
+Changes from v{old_version}:
+---

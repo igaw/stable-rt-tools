@@ -1,1 +1,90 @@
 Repository containing tools to maintain the stable-rt trees.
+
+Configuration
+-------------
+
+srt will look for a config file called 'srt.conf' following directories
+
+   .
+   ~/.config
+   ~
+   /etc/srt
+
+It is a INI type of configuration file. The group encodes
+the upstream tree name and branch name. For example for
+
+origin git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+branch v4.4-rt
+
+The group is called
+
+	[linux-stable-rt/origin/v4.4-rt]
+
+srt expects five keys
+
+	LOCALVERSION
+	GPG_KEY_ID
+	PRJ_GIT_TREE
+	PRJ_DIR
+	ANNOUNCE
+
+LOCALVERSION: The filename of the localversion file, localversion-rt
+GPG_KEY_ID: ID of the GPG which should be used to sign and upload to korg
+PRJ_GIT_TREE: URL of the git upstream repo
+PRJ_DIR: kup folder to upload the release
+ANNOUNCE: Email template for release
+
+Note for each branch you need to define a group (-rt, -rebase, -next)
+
+
+Examples Configuration
+----------------------
+
+[linux-stable-rt/origin/v4.4-rt]
+LOCALVERSION = localversion-rt
+GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
+PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
+ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
+
+[linux-stable-rt/origin/v4.4-rt-rebase]
+LOCALVERSION = localversion-rt
+GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
+PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
+ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
+
+[linux-stable-rt/origin/v4.4-rt-next]
+LOCALVERSION = localversion-rt
+GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
+PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
+ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
+
+
+Workflow Example
+----------------
+$ cd v4.4-rt
+$ git tag -l 'v4\.4\.*' --sort=v:refname | tail
+$ git merge v4.4.117      [fixup conflicts]
+
+$ git push lxcvs -f --follow-tag HEAD:stable-maintenance-4.4.y-rt
+
+$ srt commit
+$ srt tag
+
+$ cd v4.4-rt-rebase
+$ git rebase -i v4.4.120  [fixup conflicts]
+$ srt commit
+$ srt tag
+
+$ srt create 4.4.115-rt130 4.4.120-rt135
+$ srt sign 4.4.115-rt130 4.4.120-rt135
+$ srt upload 4.4.115-rt130 4.4.120-rt135$
+$ srt push 4.4.115-rt130 4.4.120-rt135
+
+# XXX push missing tags
+$ git push origin v4.4.115-rt131 v4.4.116-rt132 v4.4.118-rt133 v4.4.119-rt139
+
+$ srt announce v4.4.115-rt130 v4.4.120-rt135 > ../announce-rt
+$ cat ../announce-rt | msmtp -t --
