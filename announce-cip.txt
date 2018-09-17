@@ -1,0 +1,21 @@
+From: Daniel Wagner <wagi@monom.org>
+Subject: [ANNOUNCE] {new_version}
+Data: {date}
+To: cip-dev@lists.cip-project.org
+
+Hello CIP RT Folks!
+
+I'm pleased to announce the {new_version} stable release.
+
+You can get this release via the git tree at:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/wagi/linux-cip-rt.git
+
+  branch: {branch_name}
+  Head SHA1: {branch_head}
+
+Enjoy!
+   Daniel
+
+Changes from v{old_version}:
+---
