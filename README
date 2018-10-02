@@ -78,10 +78,10 @@ $ git rebase -i v4.4.120  [fixup conflicts]
 $ srt commit
 $ srt tag
 
-$ srt create 4.4.115-rt130 4.4.120-rt135
-$ srt sign 4.4.115-rt130 4.4.120-rt135
-$ srt upload 4.4.115-rt130 4.4.120-rt135
-$ srt push 4.4.115-rt130 4.4.120-rt135
+$ srt create v4.4.115-rt130 v4.4.120-rt135
+$ srt sign v4.4.115-rt130 v4.4.120-rt135
+$ srt upload v4.4.115-rt130 v4.4.120-rt135
+$ srt push v4.4.115-rt130 v4.4.120-rt135
 
 # XXX push missing tags
 $ git push origin v4.4.115-rt131 v4.4.116-rt132 v4.4.118-rt133 v4.4.119-rt134
