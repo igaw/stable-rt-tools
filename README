@@ -33,6 +33,9 @@ GPG_KEY_ID: ID of the GPG which should be used to sign and upload to korg
 PRJ_GIT_TREE: URL of the git upstream repo
 PRJ_DIR: kup folder to upload the release
 ANNOUNCE: Email template for release
+RC_TEXT: Email template for release candicate
+MAIL_TO: Email addresses to which the announces/patches should be send
+
 
 Note for each branch you need to define a group (-rt, -rebase, -next)
 
@@ -40,7 +43,7 @@ Note for each branch you need to define a group (-rt, -rebase, -next)
 Examples Configuration
 ----------------------
 [DEFAULT]
-DEFAULT_MAIL_TO = LKML <linux-kernel@vger.kernel.org>,linux-rt-users <linux-rt-users@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>",Carsten Emde <C.Emde@osadl.org>,John Kacur <jkacur@redhat.com>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Daniel Wagner <daniel.wagner@siemens.com>,Tom Zanussi <tom.zanussi@linux.intel.com>,Julia Cartwright <julia@ni.com>
+MAIL_TO = LKML <linux-kernel@vger.kernel.org>,linux-rt-users <linux-rt-users@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Carsten Emde <C.Emde@osadl.org>,John Kacur <jkacur@redhat.com>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Daniel Wagner <daniel.wagner@siemens.com>,Tom Zanussi <tom.zanussi@linux.intel.com>,Julia Cartwright <julia@ni.com>
 
 [linux-stable-rt/origin/v4.4-rt]
 LOCALVERSION = localversion-rt
@@ -48,7 +51,6 @@ GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
 PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
 PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
 ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
-MAIL_TO= %(DEFAUILT_MAIL_TO)
 
 [linux-stable-rt/origin/v4.4-rt-rebase]
 LOCALVERSION = localversion-rt
@@ -56,7 +58,6 @@ GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
 PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
 PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
 ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
-MAIL_TO= %(DEFAUILT_MAIL_TO)
 
 [linux-stable-rt/origin/v4.4-rt-next]
 LOCALVERSION = localversion-rt
@@ -64,7 +65,7 @@ GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
 PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
 PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
 ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
-MAIL_TO= %(DEFAUILT_MAIL_TO)
+RC_TEXT = /home/wagi/work/rt/stable-rt-tools/announce-srt-rc.txt
 
 
 Workflow Example
