@@ -41,7 +41,7 @@ def create_rc_patches(config, ctx):
         env=srt_env)
 
     cmd(['git', 'format-patch', str(ctx.old_tag) + '..',
-         '-o', ctx.new_dir_mails, '--subject-prefix', '"PATCH RT"',
+         '-o', ctx.new_dir_mails, '--subject-prefix', 'PATCH RT',
          '--cover-letter'])
 
     cmd(['git', 'checkout', branch_name])
