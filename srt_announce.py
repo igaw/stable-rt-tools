@@ -77,7 +77,7 @@ def send_rc_patches(config, ctx):
     gmd += [ctx.new_dir_mails]
 
     print('Dry run')
-    gmdd = gmd
+    gmdd = gmd.copy()
     gmdd.insert(2, '--dry-run')
     print(cmd(gmdd, verbose=True))
     if confirm('OK to send patches?'):
