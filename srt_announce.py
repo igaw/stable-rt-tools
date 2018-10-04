@@ -72,14 +72,14 @@ def write_rc_cover_letter(config, ctx):
 
 
 def send_rc_patches(config, ctx):
-    gmd = ['git', 'send-email']
+    gmd = ['git', 'send-email', '--confirm=never']
     gmd += ['--to="{}"'.format(t) for t in config['MAIL_TO'].split(',')]
     gmd += [ctx.new_dir_mails]
 
     print('Dry run')
     gmdd = gmd
     gmdd.insert(2, '--dry-run')
-    cmd(gmdd, verbose=True)
+    print(cmd(gmdd, verbose=True))
     if confirm('OK to send patches?'):
         cmd(gmd)
 
