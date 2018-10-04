@@ -39,6 +39,7 @@ def announce(config, ctx):
 
     print(stable_rt_text.format(
         date=timestamp,
+        mail_to=config['MAIL_TO'],
         branch_name=get_remote_branch_name(),
         branch_head=cmd(['git', 'rev-parse', 'HEAD']),
         major=ctx.new_tag.major,

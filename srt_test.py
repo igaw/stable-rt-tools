@@ -173,7 +173,8 @@ class TestCommit(unittest.TestCase):
             'GPG_KEY_ID': '5BF67BC5082672CABB45ACAE587C5ECA5D0A306C',
             'PRJ_GIT_TREE': self.rt_repo,
             'PRJ_DIR': '/pub/linux/kernel/people/wagi/test/4.4',
-            'ANNOUNCE': '/home/wagi/work/rt/stable-rt-tools/announce-srt.txt'}
+            'ANNOUNCE': '/home/wagi/work/rt/stable-rt-tools/announce-srt.txt',
+            'MAIL_TO': 'Foo Bar <foo@bar.barf>,example@example.com'}
 
         self.setup_stable_repo()
         self.setup_rt_repo()

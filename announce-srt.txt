@@ -1,16 +1,7 @@
 From: Daniel Wagner <wagi@monom.org>
 Subject: [ANNOUNCE] {new_version}
 Data: {date}
-To: LKML <linux-kernel@vger.kernel.org>,
-	linux-rt-users <linux-rt-users@vger.kernel.org>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Carsten Emde <C.Emde@osadl.org>,
-	John Kacur <jkacur@redhat.com>,
-	Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
-	Daniel Wagner <daniel.wagner@siemens.com>,
-	Tom Zanussi <tom.zanussi@linux.intel.com>,
-	Julia Cartwright <julia@ni.com>
+To: {mail_to}
 
 Hello RT Folks!
 
