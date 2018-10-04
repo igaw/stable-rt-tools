@@ -451,13 +451,12 @@ class TestReleaseCanditate(TestSrtBase):
         stub_stdin(self, 'n')
         stub_stdouts(self)
         announce(self.config, self.ctx)
-        msg ='Dry run\n'
-        msg += ('git send-email --dry-run ' +
+        msg = ('git send-email --dry-run ' +
                 '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
                 '{}/patches/v4.4.14-rt5-rc1/mails\n'.format(self.work_tree))
-        msg += 'OK to send patches? (y/n): '
+        res = sys.stdout.getvalue()
         self.maxDiff = None
-        self.assertEqual(sys.stdout.getvalue(), msg)
+        self.assertTrue(res.find(msg))
 
         patches = ['0000-cover-letter.patch',
                    '0001-Add-file1.txt.patch',
