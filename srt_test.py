@@ -28,6 +28,7 @@ import sys
 import os
 import unittest
 import tempfile
+import textwrap
 from pprint import pformat
 from shutil import rmtree
 
@@ -102,8 +103,7 @@ defconfig:
 
 """
 
-
-class TestCommit(unittest.TestCase):
+class TestSrtBase(unittest.TestCase):
     def setup_stable_repo(self):
         os.mkdir(self.stable_repo)
         os.chdir(self.stable_repo)
@@ -174,6 +174,7 @@ class TestCommit(unittest.TestCase):
             'PRJ_GIT_TREE': self.rt_repo,
             'PRJ_DIR': '/pub/linux/kernel/people/wagi/test/4.4',
             'ANNOUNCE': '/home/wagi/work/rt/stable-rt-tools/announce-srt.txt',
+            'RC_TEXT': '/home/wagi/work/rt/stable-rt-tools/announce-srt-rc.txt',
             'MAIL_TO': 'Foo Bar <foo@bar.barf>,example@example.com'}
 
         self.setup_stable_repo()
@@ -185,6 +186,18 @@ class TestCommit(unittest.TestCase):
     def tearDown(self):
         rmtree(self.tdir)
 
+    def _steps(self):
+        for attr in sorted(dir(self)):
+            if not attr.startswith('step'):
+                continue
+            yield attr
+
+    def test_srt(self):
+        for _s in self._steps():
+            getattr(self, _s)()
+
+
+class TestRelease(TestSrtBase):
     def step1_commit(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
@@ -283,15 +296,180 @@ class TestCommit(unittest.TestCase):
         announce(self.config, self.ctx)
         self.assertNotEqual(sys.stdout.getvalue(), '')
 
-    def _steps(self):
-        for attr in sorted(dir(self)):
-            if not attr.startswith('step'):
-                continue
-            yield attr
 
-    def test_srt(self):
-        for _s in self._steps():
-            getattr(self, _s)()
+class TestReleaseCanditate(TestSrtBase):
+    def setup_release(self):
+        os.chdir(self.work_tree)
+        cmd(['git', 'checkout', self.branch_rt])
+
+        # step1_commit()
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+
+        # step2_tag()
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+
+        # step3_commit_rebase()
+        cmd(['git', 'checkout', self.branch_rt_rebase])
+        cmd(['git', 'rebase', 'v4.4.14'])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+
+        # step4_tag_rebase()
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+
+        # step5_create()
+        ctx = SrtContext()
+        ctx.add_tag('old', 'v4.4.13-rt3')
+        ctx.add_tag('new', 'v4.4.14-rt4')
+        ctx.init()
+
+        # step8_push()
+        os.chdir(self.work_tree)
+        cmd(['git', 'checkout', self.branch_rt])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        push(self.config, ctx)
+
+
+    def setup_add_patches(self):
+        os.chdir(self.work_tree)
+        cmd(['git', 'checkout', self.branch_rt_next])
+        cmd(['git', 'reset', '--hard', self.branch_rt])
+
+        for n in range(1,3):
+            filename = 'file{}.txt'.format(n)
+            with open(filename, 'w') as f:
+                f.write(filename)
+                f.write('\n')
+
+            cmd(['git', 'add', filename])
+            msg = """\
+            Add {}
+
+            Here goes nothing and you are no fun.
+            """.format(filename)
+            msg = textwrap.dedent(msg)
+            cmd(['git', 'commit', '-s', '-m', msg])
+
+
+    def setUp(self):
+        super().setUp()
+
+        self.setup_release()
+
+        cmd(['git', 'checkout', self.branch_rt_next])
+        self.setup_add_patches()
+
+    def step1_commit(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=1)
+        ans = 'git commit -m Linux 4.4.14-rt5-rc1 \nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.14-rt5-rc1'))
+
+    def step2_tag(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+        self.assertTrue(tag_exists('v4.4.14-rt5-rc1'))
+
+    def step3_create(self):
+        self.ctx = SrtContext()
+        self.ctx.add_tag('old', 'v4.4.14-rt4')
+        self.ctx.add_tag('new', 'v4.4.14-rt5-rc1')
+        self.ctx.init()
+
+        create(self.config, self.ctx)
+
+        path = self.work_tree + '/patches/v4.4.14-rt5-rc1/'
+        files = [path + 'patch-4.4.14-rt5-rc1.patch.xz',
+                 path + 'patches-4.4.14-rt5-rc1.tar.xz']
+        for f in files:
+            self.assertEqual(os.path.isfile(f), True)
+
+    def step4_sign(self):
+        sign(self.config, self.ctx)
+
+        path = self.work_tree + '/patches/v4.4.14-rt5-rc1/'
+        files = [path + 'patch-4.4.14-rt5-rc1.patch.sign',
+                 path + 'patches-4.4.14-rt5-rc1.tar.sign']
+        for f in files:
+            self.assertEqual(os.path.isfile(f), True)
+
+    def step5_upload(self):
+        # XXX mocking kup server
+
+        stub_stdin(self, 'n')
+        stub_stdouts(self)
+        upload(self.config, self.ctx)
+
+        path = self.work_tree + '/patches/v4.4.14-rt5-rc1/'
+        prj = self.config['PRJ_DIR']
+        args = ['kup', 'put',
+                path + 'patch-4.4.14-rt5-rc1.patch.xz',
+                path + 'patch-4.4.14-rt5-rc1.patch.sign',
+                prj + '/older/', '--',
+
+                'put',
+                path + 'patches-4.4.14-rt5-rc1.tar.xz',
+                path + 'patches-4.4.14-rt5-rc1.tar.sign',
+                prj + '/older/', '--',
+
+                'put',
+                path + 'patch-4.4.14-rt4-rt5-rc1.patch.xz',
+                path + 'patch-4.4.14-rt4-rt5-rc1.patch.sign',
+                prj + '/older/', '--',
+
+                'ln', prj + '/older/patch-4.4.14-rt5-rc1.patch.xz', '../', '--',
+                'ln', prj + '/older/patches-4.4.14-rt5-rc1.tar.xz', '../', '--',
+                'ls', prj]
+        msg = '{0}\nOK to commit? (y/n): '.format(pformat(args))
+        self.maxDiff = None
+        self.assertEqual(sys.stdout.getvalue(), msg)
+
+    def step6_push(self):
+        os.chdir(self.work_tree)
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        push(self.config, self.ctx)
+
+    def step7_announce(self):
+        os.chdir(self.work_tree)
+
+        stub_stdin(self, 'n')
+        stub_stdouts(self)
+        announce(self.config, self.ctx)
+        msg ='Dry run\n'
+        msg += ('git send-email --dry-run ' +
+                '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
+                '{}/patches/v4.4.14-rt5-rc1/mails\n'.format(self.work_tree))
+        msg += 'OK to send patches? (y/n): '
+        self.maxDiff = None
+        self.assertEqual(sys.stdout.getvalue(), msg)
+
+        patches = ['0000-cover-letter.patch',
+                   '0001-Add-file1.txt.patch',
+                   '0002-Add-file2.txt.patch',
+                   '0003-Linux-4.4.14-rt5-rc1.patch']
+        for p in patches:
+            file_path = self.ctx.new_dir_mails + '/' + p
+            self.assertTrue(os.path.isfile(file_path))
+
+        with open(self.ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:
+            letter = f.read()
+            self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
 
 
 if __name__ == '__main__':

@@ -38,6 +38,7 @@ class SrtContext:
         t = Tag(tag)
         dir_patches = '{0}/patches/{1}'.format(os.getcwd(), tag)
         dir_series = '{0}/patches/{1}/patches'.format(os.getcwd(), tag)
+        dir_mails = '{0}/patches/{1}/mails'.format(os.getcwd(), tag)
         fln_patch = '{0}/patch-{1}.patch.xz'.format(dir_patches, tag[1:])
         fln_tar = '{0}/patches-{1}.tar.xz'.format(dir_patches, tag[1:])
 
@@ -45,6 +46,7 @@ class SrtContext:
         setattr(self, prefix + '_short_tag', tag[1:])
         setattr(self, prefix + '_dir_patches', dir_patches)
         setattr(self, prefix + '_dir_series', dir_series)
+        setattr(self, prefix + '_dir_mails', dir_mails)
         setattr(self, prefix + '_fln_patch', fln_patch)
         setattr(self, prefix + '_fln_tar', fln_tar)
 
@@ -91,6 +93,8 @@ class TestSrtContext(unittest.TestCase):
                          os.getcwd() + '/patches/v4.4.115-rt38')
         self.assertEqual(ctx.new_dir_series,
                          os.getcwd() + '/patches/v4.4.115-rt38/patches')
+        self.assertEqual(ctx.new_dir_mails,
+                         os.getcwd() + '/patches/v4.4.115-rt38/mails')
         self.assertEqual(ctx.new_fln_patch,
                          os.getcwd() +
                          '/patches/v4.4.115-rt38/patch-4.4.115-rt38.patch.xz')

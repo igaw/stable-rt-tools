@@ -1,0 +1,20 @@
+Dear RT Folks,
+
+This is the RT stable review cycle of patch {new_version}.
+
+Please scream at me if I messed something up. Please test the patches
+too.
+
+The -rc release will be uploaded to kernel.org and will be deleted
+when the final release is out. This is just a review release (or
+release candidate).
+
+The pre-releases will not be pushed to the git repository, only the
+final release is.
+
+If all goes well, this patch will be converted to the next main
+release on {release_date}.
+
+Enjoy,
+
+-- Daniel

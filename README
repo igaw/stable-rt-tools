@@ -93,3 +93,21 @@ $ git push origin v4.4.115-rt131 v4.4.116-rt132 v4.4.118-rt133 v4.4.119-rt134
 
 $ srt announce v4.4.115-rt130 v4.4.120-rt135 > ../announce-rt
 $ cat ../announce-rt | msmtp -t --
+
+
+Release candicates series
+-------------------------
+
+$ cd v4.4-rt-next
+$ git reset --hard v4.4-rt
+
+[ backport patches ]
+
+$ srt commit -r 1
+$ srt tag
+
+$ srt create v4.4.148-rt165 v4.4.148-rt166-rc1
+$ srt sign v4.4.148-rt165 v4.4.148-rt166-rc
+$ srt upload v4.4.148-rt165 v4.4.148-rt166-rc1
+$ srt push v4.4.148-rt165 v4.4.148-rt166-rc1
+$ srt announce v4.4.148-rt165 v4.4.148-rt166-rc1

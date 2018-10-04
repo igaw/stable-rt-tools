@@ -63,8 +63,13 @@ def create(config, ctx):
         if not os.path.exists(d):
             os.makedirs(d)
 
-    create_patch_file(ctx.new_tag.base, str(ctx.new_tag), ctx.new_fln_patch)
-    create_series(ctx.new_tag.base, ctx.new_tag.rebase, ctx.new_dir_series)
+    if ctx.new_tag.is_rc:
+        create_patch_file(ctx.old_tag, str(ctx.new_tag), ctx.new_fln_patch)
+        create_series(ctx.old_tag, ctx.new_tag, ctx.new_dir_series)
+    else:
+        create_patch_file(ctx.new_tag.base, str(ctx.new_tag), ctx.new_fln_patch)
+        create_series(ctx.new_tag.base, ctx.new_tag.rebase, ctx.new_dir_series)
+
     create_tar_file(ctx.new_dir_patches, ctx.new_fln_tar)
 
     if ctx.fln_incr:
