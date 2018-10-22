@@ -66,6 +66,8 @@ def main():
 
     config = get_config()
     ctx = get_context(args)
+    if not ctx:
+        sys.exit(1)
 
     for cmd in sub_cmd:
         cmd.execute(args, config, ctx)

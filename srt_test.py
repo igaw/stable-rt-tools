@@ -29,11 +29,12 @@ import os
 import unittest
 import tempfile
 import textwrap
+import argparse
 from pprint import pformat
 from shutil import rmtree
 
 from srt_util_context import SrtContext
-from srt_util import cmd, tag_exists
+from srt_util import cmd, tag_exists, get_context
 from srt_commit import commit
 from srt_tag import tag
 from srt_create import create
@@ -469,6 +470,25 @@ class TestReleaseCanditate(TestSrtBase):
         with open(self.ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:
             letter = f.read()
             self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
+
+
+class TestSrtContext(TestReleaseCanditate):
+    def setUp(self):
+        super().setUp()
+
+    def step0_get_context(self):
+        ap = argparse.ArgumentParser()
+        sap = ap.add_subparsers(dest='cmd')
+        prs = sap.add_parser('create')
+        prs.add_argument('OLD_TAG')
+        prs.add_argument('NEW_TAG')
+
+        args = ap.parse_args(['create',
+                              'v4.4.13-rt3',
+                              'v4.4.14-rt4'])
+        ctx = get_context(args)
+        self.assertTrue(ctx)
+        print(ctx)
 
 
 if __name__ == '__main__':

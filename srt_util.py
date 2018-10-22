@@ -127,12 +127,12 @@ def get_context(args):
 
     tags = [ctx.old_tag, ctx.new_tag, ctx.new_tag.base]
     if not ctx.new_tag.is_rc:
-        tagsappend(ctx.new_tag.rebase)
+        tags.append(ctx.new_tag.rebase)
 
     for tag in tags:
         debug('Check if tag {0} exists'.format(tag))
         if not tag_exists(tag):
             print('tag {0} doesn\'t exists'.format(tag), file=sys.stderr)
-            sys.exit(1)
+            return None
 
     return ctx
