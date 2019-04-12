@@ -47,7 +47,7 @@ def create_series(old_tag, new_tag, dirname):
     cmd(['git', 'format-patch', '-q', '-o', dirname,
          '{0}..{1}'.format(old_tag, new_tag)])
 
-    patches = [f for f in os.listdir(dirname)
+    patches = [f for f in sorted(os.listdir(dirname))
                if os.path.isfile(os.path.join(dirname, f))]
     with open(dirname + '/series', 'w') as file:
         for p in patches:
