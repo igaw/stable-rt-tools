@@ -15,6 +15,19 @@ final release is.
 If all goes well, this patch will be converted to the next main
 release on {release_date}.
 
+To build {new_version} directly, the following patches should be applied:
+
+  https://www.kernel.org/pub/linux/kernel/v{major}.x/linux-{major}.{minor}.tar.xz
+
+  https://www.kernel.org/pub/linux/kernel/v{major}.x/patch-{major}.{minor}.{patch}.xz
+
+  https://www.kernel.org{prj_dir}/patch-{new_version}.patch.xz
+
+
+You can also build from {old_version} by applying the incremental patch:
+
+  https://www.kernel.org{prj_dir}/incr/patch-{old_version}-rt{new_tag_rt}-rc{new_tag_rc}.patch.xz
+
 Enjoy,
 
 -- Daniel
