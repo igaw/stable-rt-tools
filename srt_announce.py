@@ -47,6 +47,16 @@ def create_rc_patches(config, ctx):
     cmd(['git', 'checkout', branch_name])
     cmd(['git', 'branch', '-D', 'next-tmp'])
 
+def cover_letter_replacements(config, ctx):
+    r = {"mail_to" : config['MAIL_TO'],
+         "major" : ctx.new_tag.major,
+         "minor" : ctx.new_tag.minor,
+         "patch" : ctx.new_tag.patch,
+         "new_version" : ctx.new_short_tag,
+         "old_version" : ctx.old_short_tag,
+         "prj_dir" : config['PRJ_DIR'],
+         "new_tag_rt" : ctx.new_tag.rt }
+    return r
 
 def write_rc_cover_letter(config, ctx):
     with open(ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:
@@ -59,10 +69,13 @@ def write_rc_cover_letter(config, ctx):
     with open(config['RC_TEXT'], 'r') as f:
         rc_text = f.read()
 
+    r = cover_letter_replacements(config, ctx)
+
     today = date.today()
     rc_date = today + timedelta(weeks=1)
-    rc_text = rc_text.format(new_version=ctx.new_tag,
-                             release_date=rc_date)
+    r["release_date"] = rc_date
+
+    rc_text = rc_text.format(**r)
 
     coverletter = coverletter.replace('*** BLURB HERE ***',
                                       rc_text)
@@ -105,18 +118,13 @@ def announce(config, ctx, args):
     with open(config['ANNOUNCE'], 'r') as f:
         stable_rt_text = f.read()
 
-    print(stable_rt_text.format(
-        date=timestamp,
-        mail_to=config['MAIL_TO'],
-        branch_name=get_remote_branch_name(),
-        branch_head=cmd(['git', 'rev-parse', 'HEAD']),
-        major=ctx.new_tag.major,
-        minor=ctx.new_tag.minor,
-        patch=ctx.new_tag.patch,
-        new_version=ctx.new_short_tag,
-        old_version=ctx.old_short_tag,
-        prj_dir=config['PRJ_DIR'],
-        new_tag_rt=ctx.new_tag.rt))
+    r = cover_letter_replacements(config, ctx)
+
+    r["date"] = timestamp
+    r["branch_name"] = get_remote_branch_name()
+    r["branch_head"] = cmd(['git', 'rev-parse', 'HEAD'])
+
+    print(stable_rt_text.format(**r))
 
     print(cmd(['git', '--no-pager', 'shortlog', '{0}..{1}'.
                format(ctx.old_tag, ctx.new_tag)]))
