@@ -16,9 +16,9 @@ You can get this release via the git tree at:
 
 Or to build {new_version} directly, the following patches should be applied:
 
-  https://www.kernel.org/pub/linux/kernel/v4.x/linux-{major}.{minor}.tar.xz
+  https://www.kernel.org/pub/linux/kernel/v{major}.x/linux-{major}.{minor}.tar.xz
 
-  https://www.kernel.org/pub/linux/kernel/v4.x/patch-{major}.{minor}.{patch}.xz
+  https://www.kernel.org/pub/linux/kernel/v{major}.x/patch-{major}.{minor}.{patch}.xz
 
   https://www.kernel.org{prj_dir}/patch-{new_version}.patch.xz
 
