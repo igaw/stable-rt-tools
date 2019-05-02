@@ -114,7 +114,7 @@ def commit(config, rc):
 
 def add_argparser(parser):
     prs = parser.add_parser('commit')
-    prs.add_argument('--release-canditate', '-r',
+    prs.add_argument('--release-candidate', '-r',
                      default=None, metavar='N', type=int)
     return prs
 
@@ -123,4 +123,4 @@ def execute(args, config, ctx):
     if args.cmd != 'commit':
         return False
 
-    commit(config, args.release_canditate)
+    commit(config, args.release_candidate)
