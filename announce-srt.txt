@@ -20,12 +20,12 @@ Or to build {new_version} directly, the following patches should be applied:
 
   https://www.kernel.org/pub/linux/kernel/v4.x/patch-{major}.{minor}.{patch}.xz
 
-  https://www.kernel.org{prj_dir}/{major}.{minor}/patch-{new_version}.patch.xz
+  https://www.kernel.org{prj_dir}/patch-{new_version}.patch.xz
 
 
 You can also build from {old_version} by applying the incremental patch:
 
-  https://www.kernel.org{prj_dir}/{major}.{minor}/incr/patch-{old_version}-rt{new_tag_rt}.patch.xz
+  https://www.kernel.org{prj_dir}/incr/patch-{old_version}-rt{new_tag_rt}.patch.xz
 
 Enjoy!
    Daniel
