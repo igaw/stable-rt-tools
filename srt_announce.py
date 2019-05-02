@@ -71,8 +71,10 @@ def write_rc_cover_letter(config, ctx):
         f.write(coverletter)
 
 
-def send_rc_patches(config, ctx):
+def send_rc_patches(config, ctx, args):
     gmd = ['git', 'send-email', '--confirm=never']
+    if args.suppress_cc:
+        gmd += ['--suppress-cc=all']
     gmd += ['--to="{}"'.format(t) for t in config['MAIL_TO'].split(',')]
     gmd += [ctx.new_dir_mails]
 
@@ -84,15 +86,15 @@ def send_rc_patches(config, ctx):
         cmd(gmd)
 
 
-def announce_rc(config, ctx):
+def announce_rc(config, ctx, args):
     create_rc_patches(config, ctx)
     write_rc_cover_letter(config, ctx)
-    send_rc_patches(config, ctx)
+    send_rc_patches(config, ctx, args)
 
 
-def announce(config, ctx):
+def announce(config, ctx, args):
     if ctx.is_rc:
-        announce_rc(config, ctx)
+        announce_rc(config, ctx, args)
         return
 
     # rfc2822.html
@@ -134,6 +136,8 @@ def add_argparser(parser):
     prs = parser.add_parser('announce')
     prs.add_argument('OLD_TAG')
     prs.add_argument('NEW_TAG')
+    prs.add_argument('--suppress-cc', '-s', action="store_true", default=False,
+                     help='Don''t auto-cc anyone (for testing)')
     return prs
 
 
@@ -141,4 +145,4 @@ def execute(args, config, ctx):
     if args.cmd != 'announce':
         return False
 
-    announce(config, ctx)
+    announce(config, ctx, args)
