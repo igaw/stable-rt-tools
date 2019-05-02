@@ -97,7 +97,7 @@ def get_config():
         debug('Using configuration {0}'.format(config_name))
         config = read_config()[config_name]
     except:
-        error('Could not retrieve configuration')
+        error('Could not retrieve configuration {0} from srt.conf'.format(config_name))
         sys.exit(1)
 
     return config
