@@ -55,7 +55,8 @@ def cover_letter_replacements(config, ctx):
          "new_version" : ctx.new_short_tag,
          "old_version" : ctx.old_short_tag,
          "prj_dir" : config['PRJ_DIR'],
-         "new_tag_rt" : ctx.new_tag.rt }
+         "new_tag_rt" : ctx.new_tag.rt,
+         "new_tag_rc" : ctx.new_tag.rc }
     return r
 
 def write_rc_cover_letter(config, ctx):
