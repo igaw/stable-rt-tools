@@ -39,13 +39,18 @@ def upload(config, ctx):
 
     path = config['PRJ_DIR']
     older_path = path + '/' + 'older'
+    incr_path = path + '/' + 'incr'
 
     kup = ['kup']
 
-    for f in ctx.get_files():
+    for i, f in enumerate(ctx.get_files()):
         basename = os.path.splitext(f)[0]
-        kup.extend(['put', basename + '.xz', basename + '.sign',
-                    older_path + '/', '--'])
+        if i == 2:
+            kup.extend(['put', basename + '.xz', basename + '.sign',
+                        incr_path + '/', '--'])
+        else:
+            kup.extend(['put', basename + '.xz', basename + '.sign',
+                        older_path + '/', '--'])
 
     # skip incr_file
     for f in ctx.get_files()[:2]:
