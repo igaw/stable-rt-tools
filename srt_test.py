@@ -301,7 +301,10 @@ class TestRelease(TestSrtBase):
         stub_stdin(self, '')
         stub_stdouts(self)
         announce(self.config, self.ctx, args)
-        self.assertNotEqual(sys.stdout.getvalue(), '')
+
+        letter = sys.stdout.getvalue()
+        logging.debug(letter)
+        self.assertNotEqual(letter, '')
 
 
 class TestReleaseCanditate(TestSrtBase):
@@ -481,6 +484,7 @@ class TestReleaseCanditate(TestSrtBase):
 
         with open(self.ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:
             letter = f.read()
+            logging.debug(letter)
             self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
 
 
