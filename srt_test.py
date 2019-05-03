@@ -430,7 +430,7 @@ class TestReleaseCanditate(TestSrtBase):
                 'put',
                 path + 'patch-4.4.14-rt4-rt5-rc1.patch.xz',
                 path + 'patch-4.4.14-rt4-rt5-rc1.patch.sign',
-                prj + '/older/', '--',
+                prj + '/incr/', '--',
 
                 'ln', prj + '/older/patch-4.4.14-rt5-rc1.patch.xz', '../', '--',
                 'ln', prj + '/older/patches-4.4.14-rt5-rc1.tar.xz', '../', '--',
