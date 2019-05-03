@@ -296,7 +296,7 @@ class TestRelease(TestSrtBase):
         ap.add_argument('--suppress-cc', '-s', action="store_true",
                         default=False,
                         help='Don''t auto-cc anyone (for testing)')
-        args = ap.parse_args()
+        args = ap.parse_args("")
 
         stub_stdin(self, '')
         stub_stdouts(self)
@@ -459,7 +459,7 @@ class TestReleaseCanditate(TestSrtBase):
         ap.add_argument('--suppress-cc', '-s', action="store_true",
                         default=False,
                         help='Don''t auto-cc anyone (for testing)')
-        args = ap.parse_args()
+        args = ap.parse_args("")
 
         stub_stdin(self, 'n')
         stub_stdouts(self)
