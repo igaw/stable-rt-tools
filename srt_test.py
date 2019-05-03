@@ -292,9 +292,15 @@ class TestRelease(TestSrtBase):
         push(self.config, self.ctx)
 
     def step9_announce(self):
+        ap = argparse.ArgumentParser()
+        ap.add_argument('--suppress-cc', '-s', action="store_true",
+                        default=False,
+                        help='Don''t auto-cc anyone (for testing)')
+        args = ap.parse_args()
+
         stub_stdin(self, '')
         stub_stdouts(self)
-        announce(self.config, self.ctx)
+        announce(self.config, self.ctx, args)
         self.assertNotEqual(sys.stdout.getvalue(), '')
 
 
@@ -449,9 +455,15 @@ class TestReleaseCanditate(TestSrtBase):
     def step7_announce(self):
         os.chdir(self.work_tree)
 
+        ap = argparse.ArgumentParser()
+        ap.add_argument('--suppress-cc', '-s', action="store_true",
+                        default=False,
+                        help='Don''t auto-cc anyone (for testing)')
+        args = ap.parse_args()
+
         stub_stdin(self, 'n')
         stub_stdouts(self)
-        announce(self.config, self.ctx)
+        announce(self.config, self.ctx, args)
         msg = ('git send-email --dry-run ' +
                 '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
                 '{}/patches/v4.4.14-rt5-rc1/mails\n'.format(self.work_tree))
