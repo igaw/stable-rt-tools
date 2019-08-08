@@ -35,7 +35,8 @@ def gpg_sign(key_id, filename):
 
     c1 = ['xz', '-dc', '--', filename]
     c2 = ['gpg2',
-          '--local-user', key_id, '--quiet', '--armor', '--detach-sign',
+          '--local-user', '{}!'.format(key_id),
+          '--quiet', '--armor', '--detach-sign',
           '-o', '{0}.sign'.format(f),
           '--set-filename', basename, '-']
 
