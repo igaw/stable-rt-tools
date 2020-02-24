@@ -23,96 +23,12 @@
 # SOFTWARE
 
 
-import re
-import unittest
+from unittest import TestCase
+
+from stable_rt_tools.srt_util_tag import Tag, TagBaseError, TagAttrError
 
 
-class TagParseError(Exception):
-    pass
-
-
-class TagAttrError(Exception):
-    pass
-
-
-class TagBaseError(Exception):
-    pass
-
-
-class Tag:
-    def __init__(self, _tag):
-        parts = _tag.split('-')
-        m = re.match(r'^v([0-9]+)\.([0-9]+)\.([0-9]+)$', parts[0])
-        if not m:
-            raise(TagParseError('Failed to parse {0}'.format(parts[0])))
-        self.major = int(m.group(1))
-        self.minor = int(m.group(2))
-        self.patch = int(m.group(3))
-
-        self._order = []
-        for p in parts[1:]:
-            m = re.match('^([a-z]+)([0-9]+)$', p)
-            if not m:
-                raise(TagParseError('Failed to parse {0}'.format(p)))
-            setattr(self, m.group(1), int(m.group(2)))
-            self._order.append(m.group(1))
-
-    def __getattr__(self, name):
-        """Returns the attribute matching passed name."""
-        value = self.__dict__.get(name)
-        if not value:
-            raise TagAttrError('No such attribute {0}'.format(name))
-        return value
-
-    def _build(self, fix):
-        tag = 'v{0}.{1}.{2}'.format(self.major,
-                                    self.minor,
-                                    self.patch)
-        for o in self._order:
-            if fix == o:
-                return tag
-            tag = '{0}-{1}{2}'.format(tag, o, getattr(self, o))
-
-        return str(tag)
-
-    def prev(self, cur):
-        try:
-            i = self._order.index(cur) - 1
-            if i == -1:
-                return None
-            return self._order[i]
-        except ValueError:
-            pass
-
-    @property
-    def is_rc(self):
-        for o in self._order:
-            if o == 'rc':
-                return True
-        return False
-
-    @property
-    def last(self):
-        if not self._order:
-            return None
-        return self._order[-1]
-
-    @property
-    def base(self):
-        """Return the tag upto -rt without trailing postfixes, e.g. -rc."""
-        if 'rt' not in self._order:
-            raise(TagBaseError('No rt base tag {0}'.format(str(self))))
-        return self._build('rt')
-
-    @property
-    def rebase(self):
-        return self._build(None) + '-rebase'
-
-    def __str__(self):
-        return self._build(None)
-
-
-class TestTag(unittest.TestCase):
+class TestTag(TestCase):
     def test_stable(self):
         tag = Tag('v4.4.144')
         self.assertEqual(str(tag), 'v4.4.144')
@@ -196,6 +112,3 @@ class TestTag(unittest.TestCase):
         tag = Tag('v4.4.144-cip13-rt134')
         self.assertEqual(tag.is_rc, False)
 
-
-if __name__ == '__main__':
-    unittest.main()

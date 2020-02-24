@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 #
-# srt - stable rt tooling
+# srt - support out of tree patch workflows
 #
-# Copyright (c) Siemens AG, 2018
+# Copyright (c) Daniel Wagner <dwagner@suse.de>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,35 +20,14 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE
+# SOFTWARE.
+"""
+    srt - support out of tree patch workflows
+"""
 
+from .__version__ import __version__
 
-import re
+__license__ = 'MIT'
+__copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
 
-from srt_util import confirm, cmd
-
-
-def tag(config):
-    p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
-    lines = cmd(['git', 'log', '-1', '--pretty=%B'])
-    for msg in iter(lines.splitlines()):
-        m = p.match(msg)
-        if not m:
-            continue
-
-        tag = 'v' + m.group(1) + ('-rebase' if m.group(2) else '')
-        print('tagging as {0} with message \'{1}\''.format(tag, msg))
-        if confirm('OK to tag?'):
-            cmd(['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
-                 '-m', msg, tag])
-
-
-def add_argparser(parser):
-    return parser.add_parser('tag')
-
-
-def execute(args, config, ctx):
-    if args.cmd != 'tag':
-        return False
-
-    tag(config)
+__all__ = ['__version__']

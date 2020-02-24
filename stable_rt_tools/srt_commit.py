@@ -27,7 +27,8 @@ import sys
 import os
 import re
 
-from srt_util import confirm, get_remote_branch_name, is_dirty, cmd
+from stable_rt_tools.srt_util import (confirm, get_remote_branch_name,
+                                      is_dirty, cmd)
 
 
 def localversion_set(filename, version):

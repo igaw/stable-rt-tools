@@ -29,7 +29,7 @@ from logging import error, debug
 from configparser import SafeConfigParser
 from subprocess import PIPE, run, CalledProcessError
 
-from srt_util_context import SrtContext
+from stable_rt_tools.srt_util_context import SrtContext
 
 
 def cmd(args, verbose=False, env=None):

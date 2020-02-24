@@ -27,7 +27,8 @@ import os
 from time import gmtime, strftime
 from datetime import date, timedelta
 
-from srt_util import confirm, get_local_branch_name, get_remote_branch_name, cmd
+from stable_rt_tools.srt_util import (confirm, get_local_branch_name,
+                                      get_remote_branch_name, cmd)
 
 def create_rc_patches(config, ctx):
     branch_name = get_local_branch_name()

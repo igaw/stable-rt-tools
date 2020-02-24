@@ -30,18 +30,19 @@ import unittest
 import tempfile
 import textwrap
 import argparse
+import logging
 from pprint import pformat
 from shutil import rmtree
 
-from srt_util_context import SrtContext
-from srt_util import cmd, tag_exists, get_context
-from srt_commit import commit
-from srt_tag import tag
-from srt_create import create
-from srt_sign import sign
-from srt_upload import upload
-from srt_push import push
-from srt_announce import announce
+from stable_rt_tools.srt_util_context import SrtContext
+from stable_rt_tools.srt_util import cmd, tag_exists, get_context
+from stable_rt_tools.srt_commit import commit
+from stable_rt_tools.srt_tag import tag
+from stable_rt_tools.srt_create import create
+from stable_rt_tools.srt_sign import sign
+from stable_rt_tools.srt_upload import upload
+from stable_rt_tools.srt_push import push
+from stable_rt_tools.srt_announce import announce
 
 
 class StringIO(io.StringIO):
@@ -171,7 +172,7 @@ class TestSrtBase(unittest.TestCase):
 
         self.config = {
             'LOCALVERSION': 'localversion-rt',
-            'GPG_KEY_ID': '5BF67BC5082672CABB45ACAE587C5ECA5D0A306C',
+            'GPG_KEY_ID': 'FF385242AD296C96',
             'PRJ_GIT_TREE': self.rt_repo,
             'PRJ_DIR': '/pub/linux/kernel/people/wagi/test/4.4',
             'ANNOUNCE': '/home/wagi/work/rt/stable-rt-tools/announce-srt.txt',
@@ -505,9 +506,3 @@ class TestSrtContext(TestReleaseCanditate):
         ctx = get_context(args)
         self.assertTrue(ctx)
         print(ctx)
-
-
-if __name__ == '__main__':
-    import logging
-    logging.getLogger().setLevel(logging.DEBUG)
-    unittest.main(verbosity=1)

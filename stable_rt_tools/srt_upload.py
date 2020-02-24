@@ -28,7 +28,7 @@ import os
 from pprint import pformat
 from subprocess import CalledProcessError
 
-from srt_util import cmd, confirm
+from stable_rt_tools.srt_util import cmd, confirm
 
 
 def upload(config, ctx):

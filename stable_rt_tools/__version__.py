@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
 #
 # srt - stable rt tooling
 #
-# Copyright (c) Siemens AG, 2018
+# Copyright (c) Daniel Wagner <dwagner@suse.de>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,45 +20,11 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
+"""
+   srt - support out of tree patch workflows
+"""
 
-from srt_util import get_remote_branch_name, confirm, cmd
+__license__ = 'MIT'
+__copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
 
-
-def push(config, ctx):
-    branch = get_remote_branch_name()
-
-    args = None
-    if ctx.is_rc:
-        args = [config['PRJ_GIT_TREE'],
-                '{0}^{{}}:{1}'.format(ctx.new_tag, branch),
-                'tag', str(ctx.new_tag)]
-    else:
-        args = [config['PRJ_GIT_TREE'],
-                '{0}^{{}}:{1}'.format(ctx.new_tag, branch),
-                '+{0}-rebase^{{}}:{1}-rebase'.format(ctx.new_tag, branch),
-                'tag', str(ctx.new_tag),
-                'tag', '{0}-rebase'.format(ctx.new_tag)]
-
-    gcp = ['git', 'push']
-    if ctx.is_rc:
-        gcp += ['-f']
-
-    print('Dry run')
-    cmd(gcp + ['-n'] + args, verbose=True)
-
-    if confirm('OK to push?'):
-        cmd(gcp + args)
-
-
-def add_argparser(parser):
-    prs = parser.add_parser('push')
-    prs.add_argument('OLD_TAG')
-    prs.add_argument('NEW_TAG')
-    return prs
-
-
-def execute(args, config, ctx):
-    if args.cmd != 'push':
-        return False
-
-    push(config, ctx)
+__version__ = '0.1.0'

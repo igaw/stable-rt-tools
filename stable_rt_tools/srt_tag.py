@@ -22,56 +22,33 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-import sys
-import argparse
-import logging
 
-import srt_announce
-import srt_commit
-import srt_create
-import srt_push
-import srt_sign
-import srt_tag
-import srt_upload
+import re
 
-from srt_util import get_config, get_context
+from stable_rt_tools.srt_util import confirm, cmd
 
 
-def main():
-    parser = argparse.ArgumentParser(description='srt - stable -rt tool')
-    parser.add_argument('-d', '--debug',
-                        action='store_true',
-                        help='Enable debug logging')
+def tag(config):
+    p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
+    lines = cmd(['git', 'log', '-1', '--pretty=%B'])
+    for msg in iter(lines.splitlines()):
+        m = p.match(msg)
+        if not m:
+            continue
 
-    subparser = parser.add_subparsers(help='sub command help', dest='cmd')
-
-    sub_cmd = [
-        srt_commit,
-        srt_tag,
-        srt_create,
-        srt_sign,
-        srt_upload,
-        srt_push,
-        srt_announce,
-    ]
-
-    for cmd in sub_cmd:
-        cmd.add_argparser(subparser)
-
-    args = parser.parse_args(sys.argv[1:])
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-    else:
-        logging.getLogger().setLevel(logging.INFO)
-
-    config = get_config()
-    ctx = get_context(args)
-    if not ctx:
-        sys.exit(1)
-
-    for cmd in sub_cmd:
-        cmd.execute(args, config, ctx)
+        tag = 'v' + m.group(1) + ('-rebase' if m.group(2) else '')
+        print('tagging as {0} with message \'{1}\''.format(tag, msg))
+        if confirm('OK to tag?'):
+            cmd(['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
+                 '-m', msg, tag])
 
 
-if __name__ == "__main__":
-    main()
+def add_argparser(parser):
+    return parser.add_parser('tag')
+
+
+def execute(args, config, ctx):
+    if args.cmd != 'tag':
+        return False
+
+    tag(config)
