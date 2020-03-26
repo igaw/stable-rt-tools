@@ -26,6 +26,7 @@
 import os
 from time import gmtime, strftime
 from datetime import date, timedelta
+from email.utils import make_msgid
 
 from stable_rt_tools.srt_util import (confirm, get_local_branch_name,
                                       get_remote_branch_name, cmd)
@@ -56,6 +57,9 @@ def cover_letter_replacements(config, ctx):
          "new_version" : ctx.new_short_tag,
          "old_version" : ctx.old_short_tag,
          "prj_dir" : config['PRJ_DIR'],
+         "message_id" : make_msgid(),
+         "sender" : config['SENDER'],
+         "name" : config['NAME'],
          "new_tag_rt" : ctx.new_tag.rt}
     if ctx.is_rc:
         r["new_tag_rc"] = ctx.new_tag.rc

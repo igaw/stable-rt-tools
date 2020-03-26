@@ -1,6 +1,7 @@
-From: Daniel Wagner <wagi@monom.org>
+From: {sender}
 Subject: [ANNOUNCE] {new_version}
-Data: {date}
+Date: {date}
+Message-ID: {message_id}
 To: cip-dev@lists.cip-project.org
 
 Hello CIP RT Folks!
@@ -15,7 +16,7 @@ You can get this release via the git tree at:
   Head SHA1: {branch_head}
 
 Enjoy!
-   Daniel
+   {name}
 
 Changes from v{old_version}:
 ---

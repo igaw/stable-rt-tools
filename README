@@ -20,13 +20,15 @@ The group is called
 
 	[linux-stable-rt/origin/v4.4-rt]
 
-srt expects five keys
+srt expects the following keys
 
 	LOCALVERSION
 	GPG_KEY_ID
 	PRJ_GIT_TREE
 	PRJ_DIR
 	ANNOUNCE
+	SENDER
+	NAME
 
 LOCALVERSION: The filename of the localversion file, localversion-rt
 GPG_KEY_ID: ID of the GPG which should be used to sign and upload to korg
@@ -35,7 +37,8 @@ PRJ_DIR: kup folder to upload the release
 ANNOUNCE: Email template for release
 RC_TEXT: Email template for release candicate
 MAIL_TO: Email addresses to which the announces/patches should be send
-
+SENDER: Your name and email address
+NAME:  Your first name or nickname
 
 Note for each branch you need to define a group (-rt, -rebase, -next)
 
@@ -43,7 +46,7 @@ Note for each branch you need to define a group (-rt, -rebase, -next)
 Examples Configuration
 ----------------------
 [DEFAULT]
-MAIL_TO = LKML <linux-kernel@vger.kernel.org>,linux-rt-users <linux-rt-users@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Carsten Emde <C.Emde@osadl.org>,John Kacur <jkacur@redhat.com>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Daniel Wagner <daniel.wagner@siemens.com>,Tom Zanussi <tom.zanussi@linux.intel.com>,Julia Cartwright <julia@ni.com>
+MAIL_TO = LKML <linux-kernel@vger.kernel.org>,linux-rt-users <linux-rt-users@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Carsten Emde <C.Emde@osadl.org>,John Kacur <jkacur@redhat.com>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Daniel Wagner <daniel.wagner@siemens.com>,Tom Zanussi <tom.zanussi@linux.intel.com>,Clark Williams <williams@redhat.com>
 
 [linux-stable-rt/origin/v4.4-rt]
 LOCALVERSION = localversion-rt

@@ -1,9 +1,10 @@
-From: Daniel Wagner <wagi@monom.org>
+From: {sender}
 Subject: [ANNOUNCE] {new_version}
-Data: {date}
+Date: {date}
+Message-ID: {message_id}
 To: {mail_to}
 
-Hello RT Folks!
+Hello RT-list!
 
 I'm pleased to announce the {new_version} stable release.
 
@@ -28,7 +29,7 @@ You can also build from {old_version} by applying the incremental patch:
   https://www.kernel.org{prj_dir}/incr/patch-{old_version}-rt{new_tag_rt}.patch.xz
 
 Enjoy!
-   Daniel
+{name}
 
 Changes from v{old_version}:
 ---
