@@ -29,15 +29,16 @@ from stable_rt_tools.srt_util_tag import Tag
 
 
 class SrtContext:
-    def __init__(self):
+    def __init__(self, path=os.getcwd()):
         self.is_rc = False
         self.fln_incr = None
+        self.path = path
 
     def add_tag(self, prefix, tag):
         t = Tag(tag)
-        dir_patches = '{0}/patches/{1}'.format(os.getcwd(), tag)
-        dir_series = '{0}/patches/{1}/patches'.format(os.getcwd(), tag)
-        dir_mails = '{0}/patches/{1}/mails'.format(os.getcwd(), tag)
+        dir_patches = '{0}/patches/{1}'.format(self.path, tag)
+        dir_series = '{0}/patches/{1}/patches'.format(self.path, tag)
+        dir_mails = '{0}/patches/{1}/mails'.format(self.path, tag)
         fln_patch = '{0}/patch-{1}.patch.xz'.format(dir_patches, tag[1:])
         fln_tar = '{0}/patches-{1}.tar.xz'.format(dir_patches, tag[1:])
 
