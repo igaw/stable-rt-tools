@@ -177,7 +177,9 @@ class TestSrtBase(unittest.TestCase):
             'PRJ_DIR': '/pub/linux/kernel/people/wagi/test/4.4',
             'ANNOUNCE': '/home/wagi/work/rt/stable-rt-tools/announce-srt.txt',
             'RC_TEXT': '/home/wagi/work/rt/stable-rt-tools/announce-srt-rc.txt',
-            'MAIL_TO': 'Foo Bar <foo@bar.barf>,example@example.com'}
+            'MAIL_TO': 'Foo Bar <foo@bar.barf>,example@example.com',
+            'SENDER': 'Mighty Eagle <me@incredible.com>',
+            'NAME': 'Mighty Eagle'}
 
         self.setup_stable_repo()
         self.setup_rt_repo()
