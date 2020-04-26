@@ -46,7 +46,7 @@ Note for each branch you need to define a group (-rt, -rebase, -next)
 Examples Configuration
 ----------------------
 [DEFAULT]
-MAIL_TO = LKML <linux-kernel@vger.kernel.org>,linux-rt-users <linux-rt-users@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Carsten Emde <C.Emde@osadl.org>,John Kacur <jkacur@redhat.com>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Daniel Wagner <daniel.wagner@siemens.com>,Tom Zanussi <tom.zanussi@linux.intel.com>,Clark Williams <williams@redhat.com>
+MAIL_TO = LKML <linux-kernel@vger.kernel.org>,linux-rt-users <linux-rt-users@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Carsten Emde <C.Emde@osadl.org>,John Kacur <jkacur@redhat.com>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Daniel Wagner <dwagner@suse.de>,Tom Zanussi <tom.zanussi@linux.intel.com>,Clark Williams <williams@redhat.com>
 
 [linux-stable-rt/origin/v4.4-rt]
 LOCALVERSION = localversion-rt

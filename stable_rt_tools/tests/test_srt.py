@@ -177,7 +177,9 @@ class TestSrtBase(unittest.TestCase):
             'PRJ_DIR': '/pub/linux/kernel/people/wagi/test/4.4',
             'ANNOUNCE': '/home/wagi/work/rt/stable-rt-tools/announce-srt.txt',
             'RC_TEXT': '/home/wagi/work/rt/stable-rt-tools/announce-srt-rc.txt',
-            'MAIL_TO': 'Foo Bar <foo@bar.barf>,example@example.com'}
+            'MAIL_TO': 'Foo Bar <foo@bar.barf>,example@example.com',
+            'SENDER': 'Mighty Eagle <me@incredible.com>',
+            'NAME': 'Mighty Eagle'}
 
         self.setup_stable_repo()
         self.setup_rt_repo()
@@ -234,7 +236,7 @@ class TestRelease(TestSrtBase):
         self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
 
     def step5_create(self):
-        self.ctx = SrtContext()
+        self.ctx = SrtContext(self.work_tree)
         self.ctx.add_tag('old', 'v4.4.13-rt3')
         self.ctx.add_tag('new', 'v4.4.14-rt4')
         self.ctx.init()
@@ -337,7 +339,7 @@ class TestReleaseCanditate(TestSrtBase):
         tag(self.config)
 
         # step5_create()
-        ctx = SrtContext()
+        ctx = SrtContext(self.work_tree)
         ctx.add_tag('old', 'v4.4.13-rt3')
         ctx.add_tag('new', 'v4.4.14-rt4')
         ctx.init()
@@ -396,7 +398,7 @@ class TestReleaseCanditate(TestSrtBase):
         self.assertTrue(tag_exists('v4.4.14-rt5-rc1'))
 
     def step3_create(self):
-        self.ctx = SrtContext()
+        self.ctx = SrtContext(self.work_tree)
         self.ctx.add_tag('old', 'v4.4.14-rt4')
         self.ctx.add_tag('new', 'v4.4.14-rt5-rc1')
         self.ctx.init()
