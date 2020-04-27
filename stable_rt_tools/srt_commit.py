@@ -68,8 +68,8 @@ def last_commit_was_release_commit():
 
 def get_last_rt(branch_name, postfix):
     base_branch = branch_name[:-len(postfix)]
-    last_tag = cmd(['git', 'describe', base_branch])
-    m = re.search(r'(-rt[-a-z0-9]+)$', last_tag)
+    last_tag = cmd(['git', 'describe', '--abbrev=0', '--tags', base_branch])
+    m = re.search(r'(-rt[0-9]+)$', last_tag)
     if not m:
         print('Last tag tag {0} does not end in -rt[0-9]+ on {1}'.
               format(last_tag, branch_name),
