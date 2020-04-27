@@ -26,6 +26,8 @@
 import sys
 import os
 import re
+import shutil
+import tempfile
 
 from stable_rt_tools.srt_util import (confirm, get_remote_branch_name,
                                       is_dirty, cmd)
@@ -47,11 +49,10 @@ def localversion_inc(filename):
 
 
 def get_kernel_version():
-    if not os.path.exists('/tmp/build'):
-        os.makedirs('/tmp/build')
-
-    cmd(['make', 'O=/tmp/build', 'defconfig'])
-    line = cmd(['make', '-s', 'O=/tmp/build', 'kernelrelease'])
+    tmp = tempfile.mkdtemp()
+    cmd(['make', 'O=%s' % tmp, 'defconfig'])
+    line = cmd(['make', '-s', 'O=%s' % tmp, 'kernelrelease'])
+    shutil.rmtree(tmp)
     return line.strip()[:-1]
 
 
