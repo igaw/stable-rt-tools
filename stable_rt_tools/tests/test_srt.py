@@ -105,6 +105,19 @@ defconfig:
 
 """
 
+gnupg_config = """
+Key-Type: DSA
+Key-Length: 1024
+Subkey-Type: ELG-E
+Subkey-Length: 1024
+Name-Real: Mighty Eagle
+Name-Email: me@incredible.com
+Expire-Date: 0
+%no-protection
+%commit
+%echo done
+"""
+
 class TestSrtBase(unittest.TestCase):
     def setup_stable_repo(self):
         os.mkdir(self.stable_repo)
@@ -160,6 +173,30 @@ class TestSrtBase(unittest.TestCase):
         cmd(['git', 'fetch', '--all'])
         cmd(['git', 'merge', 'v4.4.14'])
 
+    def setup_gpg(self):
+        self.gnupghome = tempfile.mkdtemp()
+        os.chmod(self.gnupghome, 0o700)
+
+        cfg_file = self.gnupghome + '/gpg.batch'
+        with open(cfg_file, 'w') as f:
+            f.write(gnupg_config)
+
+        cmd(['gpg2', '--batch', '--generate-key', cfg_file],
+             env={'GNUPGHOME': self.gnupghome})
+        lines = cmd(['gpg2', '--list-secret-keys', '--with-colons'],
+                    env={'GNUPGHOME': self.gnupghome})
+
+        key = ''
+        for l in lines.splitlines():
+            c = l.split(':')
+            if c[0] != 'fpr':
+                continue
+            key = c[-2]
+            break
+
+        self.config['GPG_KEY_ID'] = key
+        self.config['GNUPGHOME'] = self.gnupghome
+
     def setUp(self):
         self.tdir = tempfile.mkdtemp()
         self.stable_repo = self.tdir + '/stable-repo'
@@ -172,7 +209,6 @@ class TestSrtBase(unittest.TestCase):
 
         self.config = {
             'LOCALVERSION': 'localversion-rt',
-            'GPG_KEY_ID': 'FF385242AD296C96',
             'PRJ_GIT_TREE': self.rt_repo,
             'PRJ_DIR': '/pub/linux/kernel/people/wagi/test/4.4',
             'ANNOUNCE': '/home/wagi/work/rt/stable-rt-tools/announce-srt.txt',
@@ -181,6 +217,7 @@ class TestSrtBase(unittest.TestCase):
             'SENDER': 'Mighty Eagle <me@incredible.com>',
             'NAME': 'Mighty Eagle'}
 
+        self.setup_gpg()
         self.setup_stable_repo()
         self.setup_rt_repo()
         self.setup_work_tree()
@@ -189,6 +226,7 @@ class TestSrtBase(unittest.TestCase):
 
     def tearDown(self):
         rmtree(self.tdir)
+        rmtree(self.gnupghome)
 
     def _steps(self):
         for attr in sorted(dir(self)):
