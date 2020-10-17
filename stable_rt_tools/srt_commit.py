@@ -30,8 +30,7 @@ import shutil
 import tempfile
 
 from stable_rt_tools.srt_util import (confirm, get_remote_branch_name,
-                                      is_dirty, cmd)
-
+                                      is_dirty, cmd, get_gnupghome)
 
 def localversion_set(filename, version):
     with open(filename, 'w') as f:
@@ -109,7 +108,8 @@ def commit(config, rc):
     print('git commit -m {0}'.format(msg))
     if confirm('OK to commit?'):
         cmd(['git', 'add', config['LOCALVERSION']])
-        cmd(['git', 'commit', '-s', '-m', msg])
+        cmd(['git', 'commit', '-s', '-m', msg],
+             env={'GNUPGHOME': get_gnupghome(config)})
     else:
         cmd(['git', 'reset', '--hard', old_head])
 

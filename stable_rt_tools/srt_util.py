@@ -103,6 +103,13 @@ def get_config():
     return config
 
 
+def get_gnupghome(config):
+    gnupghome = os.getenv('GNUPGHOME', '~/.gnupg')
+    if 'GNUPGHOME' in config:
+        gnupghome = config['GNUPGHOME']
+    return gnupghome
+
+
 def confirm(text):
     try:
         while True:

@@ -27,15 +27,17 @@ import sys
 import os
 from logging import error, debug
 from subprocess import Popen, PIPE
+from stable_rt_tools.srt_util import get_gnupghome
 
 
-def gpg_sign(key_id, filename):
+def gpg_sign(config, filename):
     f = os.path.splitext(filename)[0]
     basename = os.path.splitext(os.path.basename(filename))[0]
 
     c1 = ['xz', '-dc', '--', filename]
     c2 = ['gpg2',
-          '--local-user', '{}!'.format(key_id),
+          '--homedir', get_gnupghome(config),
+          '--local-user', '{}!'.format(config['GPG_KEY_ID']),
           '--quiet', '--armor', '--detach-sign',
           '-o', '{0}.sign'.format(f),
           '--set-filename', basename, '-']
@@ -55,7 +57,7 @@ def sign(config, ctx):
             sys.exit(1)
 
     for f in ctx.get_files():
-        gpg_sign(config['GPG_KEY_ID'], f)
+        gpg_sign(config, f)
 
 
 def add_argparser(parser):
