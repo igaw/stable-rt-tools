@@ -27,6 +27,10 @@ import os
 from time import gmtime, strftime
 from datetime import date, timedelta
 from email.utils import make_msgid
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    import importlib_resources as pkg_resources
 
 from stable_rt_tools.srt_util import (confirm, get_local_branch_name,
                                       get_remote_branch_name, cmd)
@@ -73,7 +77,7 @@ def write_rc_cover_letter(config, ctx):
                                       'Linux ' + str(ctx.new_tag))
 
     rc_text = ''
-    with open(config['RC_TEXT'], 'r') as f:
+    with open(get_rc_templ_path(config), 'r') as f:
         rc_text = f.read()
 
     r = cover_letter_replacements(config, ctx)
@@ -112,6 +116,22 @@ def announce_rc(config, ctx, args):
     send_rc_patches(config, ctx, args)
 
 
+def get_announce_tmpl_path(config):
+    if 'ANNOUNCE' in config:
+        return config['ANNOUNCE']
+
+    with pkg_resources.path('stable_rt_tools', 'announce-srt.txt') as p:
+        return str(p)
+
+
+def get_rc_templ_path(config):
+    if 'RC_TEXT' in config:
+        return config['RC_TEXT']
+
+    with pkg_resources.path('stable_rt_tools', 'announce-srt-rc.txt') as p:
+        return str(p)
+
+
 def announce(config, ctx, args):
     if ctx.is_rc:
         announce_rc(config, ctx, args)
@@ -122,7 +142,7 @@ def announce(config, ctx, args):
     timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
 
     stable_rt_text = ''
-    with open(config['ANNOUNCE'], 'r') as f:
+    with open(get_announce_tmpl_path(config), 'r') as f:
         stable_rt_text = f.read()
 
     r = cover_letter_replacements(config, ctx)

@@ -26,7 +26,6 @@ srt expects the following keys
 	GPG_KEY_ID
 	PRJ_GIT_TREE
 	PRJ_DIR
-	ANNOUNCE
 	SENDER
 	NAME
 
@@ -53,22 +52,18 @@ LOCALVERSION = localversion-rt
 GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
 PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
 PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
-ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
 
 [linux-stable-rt/origin/v4.4-rt-rebase]
 LOCALVERSION = localversion-rt
 GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
 PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
 PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
-ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
 
 [linux-stable-rt/origin/v4.4-rt-next]
 LOCALVERSION = localversion-rt
 GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
 PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
 PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
-ANNOUNCE = /home/wagi/work/rt/stable-rt-tools/announce-srt.txt
-RC_TEXT = /home/wagi/work/rt/stable-rt-tools/announce-srt-rc.txt
 
 
 Workflow Example

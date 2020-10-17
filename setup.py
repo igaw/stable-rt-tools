@@ -87,6 +87,8 @@ setup(
     install_requires=[
     ],
 
+    extras_require={':python_version<"3.9"': ['importlib-resources']},
+
     # At least python 3.4 is needed for asyncio:
     python_requires='>=3.4',
 
