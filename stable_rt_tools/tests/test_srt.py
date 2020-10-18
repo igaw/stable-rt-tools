@@ -127,11 +127,10 @@ Expire-Date: 0
 """
 
 class TestSrtBase(unittest.TestCase):
-    def setup_stable_repo(self):
+    def setup_stable_repo(self, version):
         os.mkdir(self.stable_repo)
         os.chdir(self.stable_repo)
         cmd(['git', 'init'])
-        version = '4.4.13'
         with open('version', 'w') as f:
             f.write(version)
             f.write('\n\n')
@@ -143,9 +142,8 @@ class TestSrtBase(unittest.TestCase):
         cmd(['git', 'commit', '-m', 'Initial stable commit'])
         cmd(['git', 'tag', '-a', '-m', 'v'+version, 'v'+version])
 
-    def setup_stable_new_release(self):
+    def setup_stable_new_release(self, version):
         os.chdir(self.stable_repo)
-        version = '4.4.14'
         with open('version', 'w') as f:
             f.write(version)
             f.write('\n\n')
@@ -175,11 +173,11 @@ class TestSrtBase(unittest.TestCase):
         os.chdir(self.work_tree)
         cmd(['git', 'remote', 'add', 'stable', self.stable_repo])
 
-    def do_merge(self):
+    def do_merge(self, version):
         os.chdir(self.work_tree)
         cmd(['git', 'checkout', self.branch_rt])
         cmd(['git', 'fetch', '--all'])
-        cmd(['git', 'merge', 'v4.4.14'])
+        cmd(['git', 'merge', 'v'+version])
 
     def setup_gpg(self):
         self.gnupghome = tempfile.mkdtemp()
@@ -224,11 +222,11 @@ class TestSrtBase(unittest.TestCase):
             'NAME': 'Mighty Eagle'}
 
         self.setup_gpg()
-        self.setup_stable_repo()
+        self.setup_stable_repo('4.4.13')
         self.setup_rt_repo()
         self.setup_work_tree()
-        self.setup_stable_new_release()
-        self.do_merge()
+        self.setup_stable_new_release('4.4.14')
+        self.do_merge('4.4.14')
 
     def tearDown(self):
         rmtree(self.tdir)
@@ -395,12 +393,12 @@ class TestReleaseCanditate(TestSrtBase):
         push(self.config, ctx)
 
 
-    def setup_add_patches(self):
+    def setup_add_patches(self, start, stop):
         os.chdir(self.work_tree)
         cmd(['git', 'checkout', self.branch_rt_next])
         cmd(['git', 'reset', '--hard', self.branch_rt])
 
-        for n in range(1,3):
+        for n in range(start, stop):
             filename = 'file{}.txt'.format(n)
             with open(filename, 'w') as f:
                 f.write(filename)
@@ -422,7 +420,7 @@ class TestReleaseCanditate(TestSrtBase):
         self.setup_release()
 
         cmd(['git', 'checkout', self.branch_rt_next])
-        self.setup_add_patches()
+        self.setup_add_patches(1, 3)
 
     def step1_commit(self):
         stub_stdin(self, 'y')
