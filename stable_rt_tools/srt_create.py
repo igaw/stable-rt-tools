@@ -28,6 +28,7 @@ from logging import debug
 from subprocess import Popen, PIPE
 
 from stable_rt_tools.srt_util import cmd, get_config, check_context
+from stable_rt_tools.srt_util_context import SrtContext
 
 
 def create_patch_file(old_tag, new_tag, filename):

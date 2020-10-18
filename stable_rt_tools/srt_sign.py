@@ -28,6 +28,7 @@ import os
 from logging import error, debug
 from subprocess import Popen, PIPE
 from stable_rt_tools.srt_util import get_gnupghome, get_config, check_context
+from stable_rt_tools.srt_util_context import SrtContext
 
 
 def gpg_sign(config, filename):

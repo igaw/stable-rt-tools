@@ -24,6 +24,7 @@
 
 from stable_rt_tools.srt_util import (get_remote_branch_name, confirm, cmd,
                                       get_config, check_context)
+from stable_rt_tools.srt_util_context import SrtContext
 
 
 def push(config, ctx):

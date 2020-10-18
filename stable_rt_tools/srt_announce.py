@@ -35,6 +35,7 @@ except ImportError:
 from stable_rt_tools.srt_util import (confirm, get_local_branch_name,
                                       get_remote_branch_name, cmd, get_config,
                                       check_context)
+from stable_rt_tools.srt_util_context import SrtContext
 
 def create_rc_patches(config, ctx):
     branch_name = get_local_branch_name()

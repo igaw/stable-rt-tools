@@ -29,6 +29,7 @@ from pprint import pformat
 from subprocess import CalledProcessError
 
 from stable_rt_tools.srt_util import cmd, confirm, get_config, check_context
+from stable_rt_tools.srt_util_context import SrtContext
 
 
 def upload(config, ctx):
