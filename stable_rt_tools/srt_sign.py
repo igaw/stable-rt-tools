@@ -27,7 +27,7 @@ import sys
 import os
 from logging import error, debug
 from subprocess import Popen, PIPE
-from stable_rt_tools.srt_util import get_gnupghome
+from stable_rt_tools.srt_util import get_gnupghome, get_config, get_context
 
 
 def gpg_sign(config, filename):
@@ -67,8 +67,9 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args, config, ctx):
-    if args.cmd != 'sign':
-        return False
+def execute(args):
+    ctx = get_context(args)
+    if not ctx:
+        sys.exit(1)
 
-    sign(config, ctx)
+    sign(get_config(), ctx)

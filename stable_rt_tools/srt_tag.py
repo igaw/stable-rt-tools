@@ -25,7 +25,7 @@
 
 import re
 
-from stable_rt_tools.srt_util import confirm, cmd, get_gnupghome
+from stable_rt_tools.srt_util import confirm, cmd, get_gnupghome, get_config
 
 
 def tag(config):
@@ -48,8 +48,5 @@ def add_argparser(parser):
     return parser.add_parser('tag')
 
 
-def execute(args, config, ctx):
-    if args.cmd != 'tag':
-        return False
-
-    tag(config)
+def execute(args):
+    tag(get_config())

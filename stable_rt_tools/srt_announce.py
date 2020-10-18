@@ -33,7 +33,8 @@ except ImportError:
     import importlib_resources as pkg_resources
 
 from stable_rt_tools.srt_util import (confirm, get_local_branch_name,
-                                      get_remote_branch_name, cmd)
+                                      get_remote_branch_name, cmd, get_config,
+                                      get_context)
 
 def create_rc_patches(config, ctx):
     branch_name = get_local_branch_name()
@@ -176,8 +177,9 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args, config, ctx):
-    if args.cmd != 'announce':
-        return False
+def execute(args):
+    ctx = get_context(args)
+    if not ctx:
+        sys.exit(1)
 
-    announce(config, ctx, args)
+    announce(get_config(), ctx, args)

@@ -34,8 +34,6 @@ from stable_rt_tools import srt_sign
 from stable_rt_tools import srt_tag
 from stable_rt_tools import srt_upload
 
-from stable_rt_tools.srt_util import get_config, get_context
-
 
 def main():
     parser = argparse.ArgumentParser(description='srt - stable -rt tool')
@@ -45,17 +43,17 @@ def main():
 
     subparser = parser.add_subparsers(help='sub command help', dest='cmd')
 
-    sub_cmd = [
-        srt_commit,
-        srt_tag,
-        srt_create,
-        srt_sign,
-        srt_upload,
-        srt_push,
-        srt_announce,
-    ]
+    sub_cmd = {
+        'commit': srt_commit,
+        'tag': srt_tag,
+        'create': srt_create,
+        'sign': srt_sign,
+        'upload': srt_upload,
+        'push': srt_push,
+        'announce': srt_announce,
+    }
 
-    for cmd in sub_cmd:
+    for _,cmd in sub_cmd.items():
         cmd.add_argparser(subparser)
 
     args = parser.parse_args(sys.argv[1:])
@@ -64,13 +62,8 @@ def main():
     else:
         logging.getLogger().setLevel(logging.INFO)
 
-    config = get_config()
-    ctx = get_context(args)
-    if not ctx:
-        sys.exit(1)
-
-    for cmd in sub_cmd:
-        cmd.execute(args, config, ctx)
+    if args.cmd in sub_cmd:
+        sub_cmd[args.cmd].execute(args)
 
 
 if __name__ == "__main__":

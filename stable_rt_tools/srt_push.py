@@ -22,7 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-from stable_rt_tools.srt_util import get_remote_branch_name, confirm, cmd
+from stable_rt_tools.srt_util import (get_remote_branch_name, confirm, cmd,
+                                      get_config, get_context)
 
 
 def push(config, ctx):
@@ -58,8 +59,9 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args, config, ctx):
-    if args.cmd != 'push':
-        return False
+def execute(args):
+    ctx = get_context(args)
+    if not ctx:
+        sys.exit(1)
 
-    push(config, ctx)
+    push(get_config(), ctx)

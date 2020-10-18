@@ -30,7 +30,7 @@ import shutil
 import tempfile
 
 from stable_rt_tools.srt_util import (confirm, get_remote_branch_name,
-                                      is_dirty, cmd, get_gnupghome)
+                                      is_dirty, cmd, get_gnupghome, get_config)
 
 def localversion_set(filename, version):
     with open(filename, 'w') as f:
@@ -121,8 +121,5 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args, config, ctx):
-    if args.cmd != 'commit':
-        return False
-
-    commit(config, args.release_candidate)
+def execute(args):
+    commit(get_config(), args.release_candidate)

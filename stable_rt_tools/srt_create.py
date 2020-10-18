@@ -27,7 +27,7 @@ import os
 from logging import debug
 from subprocess import Popen, PIPE
 
-from stable_rt_tools.srt_util import cmd
+from stable_rt_tools.srt_util import cmd, get_config, get_context
 
 
 def create_patch_file(old_tag, new_tag, filename):
@@ -88,8 +88,9 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args, config, ctx):
-    if args.cmd != 'create':
-        return False
+def execute(args):
+    ctx = get_context(args)
+    if not ctx:
+        sys.exit(1)
 
-    create(config, ctx)
+    create(get_config(), ctx)
