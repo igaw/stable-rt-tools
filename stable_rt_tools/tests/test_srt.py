@@ -31,6 +31,7 @@ import tempfile
 import textwrap
 import argparse
 import logging
+import re
 from pprint import pformat
 from shutil import rmtree
 
@@ -43,6 +44,13 @@ from stable_rt_tools.srt_sign import sign
 from stable_rt_tools.srt_upload import upload
 from stable_rt_tools.srt_push import push
 from stable_rt_tools.srt_announce import announce
+
+
+def sort_steps(entries):
+    entries = list(filter(lambda x: x.startswith('step'), entries))
+    convert = lambda text: int(text) if text.isdigit() else text
+    key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+    return sorted(entries, key = key)
 
 
 class StringIO(io.StringIO):
@@ -227,9 +235,7 @@ class TestSrtBase(unittest.TestCase):
         rmtree(self.gnupghome)
 
     def _steps(self):
-        for attr in sorted(dir(self)):
-            if not attr.startswith('step'):
-                continue
+        for attr in sort_steps(dir(self)):
             yield attr
 
     def test_srt(self):
