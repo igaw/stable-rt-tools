@@ -25,11 +25,10 @@
 
 import os
 import sys
+import re
 from logging import error, debug
 from configparser import SafeConfigParser
 from subprocess import PIPE, run, CalledProcessError
-
-from stable_rt_tools.srt_util_context import SrtContext
 
 
 def cmd(args, verbose=False, env=None):
@@ -68,6 +67,63 @@ def tag_exists(tag):
     except CalledProcessError:
         return False
     return True
+
+
+def get_last_tag(branch_name, postfix=None):
+    if postfix:
+        base_branch = branch_name[:-len(postfix)]
+    else:
+        base_branch = branch_name
+    last_tag = cmd(['git', 'describe', '--abbrev=0', '--tags', base_branch])
+    return last_tag
+
+
+def get_last_rt_tag(branch_name, postfix=None):
+    last_tag = get_last_tag(branch_name, postfix)
+    m = re.search(r'(-rt[0-9]+)$', last_tag)
+    if not m:
+        print('Last tag {0} does not end in -rt[0-9]+ on {1}'.
+              format(last_tag, branch_name),
+              file=sys.stderr)
+        sys.exit(1)
+    return m.group(1)
+
+
+def get_old_tag():
+    last_tag = get_last_tag(get_remote_branch_name())
+
+    import logging
+    log = logging.getLogger()
+    log.debug(last_tag)
+
+    m = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)$', last_tag)
+    major = int(m.group(1))
+    minor = int(m.group(2))
+    base_version = 'v{}.{}'.format(major, minor)
+
+    tags = cmd(['git', 'ls-remote', '--tags'])
+    match = r'.*({}\.\d+-rt\d+)$'.format(base_version)
+    m = re.findall(match, tags, re.MULTILINE)
+    if not m:
+        print('Last remote tag -rt[0-9]+ not found on {}'.
+              format(branch_name))
+        sys.exit(1)
+
+    last_patch = 0
+    last_rt = 0
+    for f in m:
+        m2 = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)$', f)
+        patch = int(m2.group(3))
+        rt = int(m2.group(4))
+
+        if patch > last_patch:
+            last_patch = patch
+            last_rt = rt
+
+        if rt > last_rt:
+            last_rt = rt
+
+    return '{}.{}-rt{}'.format(base_version, last_patch, last_rt)
 
 
 def is_dirty():
@@ -122,15 +178,13 @@ def confirm(text):
         return False
 
 
-def get_context(args):
-    ctx = SrtContext()
-    if not hasattr(args, 'OLD_TAG') or not hasattr(args, 'NEW_TAG'):
-        return ctx
-
-    ctx.add_tag('old', args.OLD_TAG)
-    ctx.add_tag('new', args.NEW_TAG)
-    ctx.init()
-    debug(ctx.dump())
+def check_context(ctx):
+    if ctx.old_tag == ctx.new_tag:
+        text = ('Something went wrong. OLD_TAG and NEW_TAG are the same ({}).\n'
+                'Did you push your changes already? In this case you need to\n'
+                'provide the OLD_TAG and NEW_TAG')
+        print(text.format(old_tag))
+        exit(1)
 
     tags = [ctx.old_tag, ctx.new_tag, ctx.new_tag.base]
     if not ctx.new_tag.is_rc:

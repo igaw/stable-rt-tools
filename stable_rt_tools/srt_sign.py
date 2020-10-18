@@ -27,7 +27,7 @@ import sys
 import os
 from logging import error, debug
 from subprocess import Popen, PIPE
-from stable_rt_tools.srt_util import get_gnupghome, get_config, get_context
+from stable_rt_tools.srt_util import get_gnupghome, get_config, check_context
 
 
 def gpg_sign(config, filename):
@@ -62,14 +62,13 @@ def sign(config, ctx):
 
 def add_argparser(parser):
     prs = parser.add_parser('sign')
-    prs.add_argument('OLD_TAG')
-    prs.add_argument('NEW_TAG')
+    prs.add_argument('OLD_TAG', nargs='?')
+    prs.add_argument('NEW_TAG', nargs='?')
     return prs
 
 
 def execute(args):
-    ctx = get_context(args)
-    if not ctx:
-        sys.exit(1)
+    ctx = SrtContext(args)
+    check_context(ctx)
 
     sign(get_config(), ctx)

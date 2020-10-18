@@ -23,7 +23,7 @@
 # SOFTWARE
 
 from stable_rt_tools.srt_util import (get_remote_branch_name, confirm, cmd,
-                                      get_config, get_context)
+                                      get_config, check_context)
 
 
 def push(config, ctx):
@@ -54,14 +54,13 @@ def push(config, ctx):
 
 def add_argparser(parser):
     prs = parser.add_parser('push')
-    prs.add_argument('OLD_TAG')
-    prs.add_argument('NEW_TAG')
+    prs.add_argument('OLD_TAG', nargs='?')
+    prs.add_argument('NEW_TAG', nargs='?')
     return prs
 
 
 def execute(args):
-    ctx = get_context(args)
-    if not ctx:
-        sys.exit(1)
+    ctx = SrtContext(args)
+    check_context(ctx)
 
     push(get_config(), ctx)

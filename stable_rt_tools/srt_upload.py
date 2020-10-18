@@ -28,7 +28,7 @@ import os
 from pprint import pformat
 from subprocess import CalledProcessError
 
-from stable_rt_tools.srt_util import cmd, confirm, get_config, get_context
+from stable_rt_tools.srt_util import cmd, confirm, get_config, check_context
 
 
 def upload(config, ctx):
@@ -76,14 +76,13 @@ def upload(config, ctx):
 
 def add_argparser(parser):
     prs = parser.add_parser('upload')
-    prs.add_argument('OLD_TAG')
-    prs.add_argument('NEW_TAG')
+    prs.add_argument('OLD_TAG', nargs='?')
+    prs.add_argument('NEW_TAG', nargs='?')
     return prs
 
 
 def execute(args):
-    ctx = get_context(args)
-    if not ctx:
-        sys.exit(1)
+    ctx = SrtContext(args)
+    check_context(ctx)
 
     upload(get_config(), ctx)

@@ -30,13 +30,13 @@ import unittest
 import tempfile
 import textwrap
 import argparse
-import logging
 import re
 from pprint import pformat
 from shutil import rmtree
+from logging import error, debug
 
 from stable_rt_tools.srt_util_context import SrtContext
-from stable_rt_tools.srt_util import cmd, tag_exists, get_context
+from stable_rt_tools.srt_util import cmd, tag_exists, check_context
 from stable_rt_tools.srt_commit import commit
 from stable_rt_tools.srt_tag import tag
 from stable_rt_tools.srt_create import create
@@ -51,6 +51,10 @@ def sort_steps(entries):
     convert = lambda text: int(text) if text.isdigit() else text
     key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     return sorted(entries, key = key)
+
+
+def make_args(old_tag=None, new_tag=None):
+    return argparse.Namespace(OLD_TAG=old_tag, NEW_TAG=new_tag)
 
 
 class StringIO(io.StringIO):
@@ -276,10 +280,8 @@ class TestRelease(TestSrtBase):
         self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
 
     def step5_create(self):
-        self.ctx = SrtContext(self.work_tree)
-        self.ctx.add_tag('old', 'v4.4.13-rt3')
-        self.ctx.add_tag('new', 'v4.4.14-rt4')
-        self.ctx.init()
+        self.ctx = SrtContext(make_args('v4.4.13-rt3', 'v4.4.14-rt4'),
+                              path=self.work_tree)
 
         create(self.config, self.ctx)
 
@@ -346,7 +348,7 @@ class TestRelease(TestSrtBase):
         announce(self.config, self.ctx, args)
 
         letter = sys.stdout.getvalue()
-        logging.debug(letter)
+        debug(letter)
         self.assertNotEqual(letter, '')
 
 
@@ -379,10 +381,8 @@ class TestReleaseCanditate(TestSrtBase):
         tag(self.config)
 
         # step5_create()
-        ctx = SrtContext(self.work_tree)
-        ctx.add_tag('old', 'v4.4.13-rt3')
-        ctx.add_tag('new', 'v4.4.14-rt4')
-        ctx.init()
+        ctx = SrtContext(make_args('v4.4.13-rt3', 'v4.4.14-rt4'),
+                         path=self.work_tree)
 
         # step8_push()
         os.chdir(self.work_tree)
@@ -438,10 +438,8 @@ class TestReleaseCanditate(TestSrtBase):
         self.assertTrue(tag_exists('v4.4.14-rt5-rc1'))
 
     def step3_create(self):
-        self.ctx = SrtContext(self.work_tree)
-        self.ctx.add_tag('old', 'v4.4.14-rt4')
-        self.ctx.add_tag('new', 'v4.4.14-rt5-rc1')
-        self.ctx.init()
+        self.ctx = SrtContext(make_args('v4.4.14-rt4', 'v4.4.14-rt5-rc1'),
+                              path=self.work_tree)
 
         create(self.config, self.ctx)
 
@@ -527,7 +525,7 @@ class TestReleaseCanditate(TestSrtBase):
 
         with open(self.ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:
             letter = f.read()
-            logging.debug(letter)
+            debug(letter)
             self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
 
 
@@ -545,7 +543,7 @@ class TestSrtContext(TestReleaseCanditate):
         args = ap.parse_args(['create',
                               'v4.4.13-rt3',
                               'v4.4.14-rt4'])
-        ctx = get_context(args)
+        ctx = SrtContext(args)
         self.assertTrue(ctx)
         print(ctx)
 
@@ -588,10 +586,8 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
         self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
 
     def step5_create(self):
-        self.ctx = SrtContext(self.work_tree)
-        self.ctx.add_tag('old', 'v4.4.13-rt3')
-        self.ctx.add_tag('new', 'v4.4.14-rt4')
-        self.ctx.init()
+        cmd(['git', 'checkout', self.branch_rt])
+        self.ctx = SrtContext(make_args(), path=self.work_tree)
 
         create(self.config, self.ctx)
 
@@ -678,10 +674,8 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         self.assertTrue(tag_exists('v4.4.15-rt5-rebase'))
 
     def step10_create(self):
-        self.ctx = SrtContext(self.work_tree)
-        self.ctx.add_tag('old', 'v4.4.13-rt3')
-        self.ctx.add_tag('new', 'v4.4.15-rt5')
-        self.ctx.init()
+        cmd(['git', 'checkout', self.branch_rt])
+        self.ctx = SrtContext(make_args(), path=self.work_tree)
 
         create(self.config, self.ctx)
 
@@ -703,4 +697,6 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
 
 
 if __name__ == '__main__':
+    import logging
+    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
     unittest.main()

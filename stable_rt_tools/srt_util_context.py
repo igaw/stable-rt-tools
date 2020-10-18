@@ -24,17 +24,38 @@
 
 
 import os
+from logging import error, debug
 
 from stable_rt_tools.srt_util_tag import Tag
+from stable_rt_tools.srt_util import (get_last_tag, get_old_tag,
+                                      get_remote_branch_name)
 
 
 class SrtContext:
-    def __init__(self, path=os.getcwd()):
+    def __init__(self, args, path=os.getcwd()):
         self.is_rc = False
         self.fln_incr = None
         self.path = path
 
-    def add_tag(self, prefix, tag):
+        old_tag = None
+        new_tag = None
+
+        if args.OLD_TAG:
+            old_tag = args.OLD_TAG
+        else:
+            old_tag = get_old_tag()
+
+        if args.NEW_TAG:
+            new_tag = args.NEW_TAG
+        else:
+            new_tag = get_last_tag(get_remote_branch_name())
+
+        self._add_tag('old', old_tag)
+        self._add_tag('new', new_tag)
+        self._update_tags()
+        debug(self._dump())
+
+    def _add_tag(self, prefix, tag):
         t = Tag(tag)
         dir_patches = '{0}/patches/{1}'.format(self.path, tag)
         dir_series = '{0}/patches/{1}/patches'.format(self.path, tag)
@@ -50,7 +71,7 @@ class SrtContext:
         setattr(self, prefix + '_fln_patch', fln_patch)
         setattr(self, prefix + '_fln_tar', fln_tar)
 
-    def init(self):
+    def _update_tags(self):
         if self.old_tag.base == self.new_tag.base:
             postfix = '-rt{0}'.format(self.new_tag.rt)
             if self.new_tag.is_rc:
@@ -75,7 +96,7 @@ class SrtContext:
             files.append(self.fln_incr)
         return files
 
-    def dump(self):
+    def _dump(self):
         out = '\n'
         for key, val in self.__dict__.items():
             out = out + '\t{0}: {1}\n'.format(key, val)

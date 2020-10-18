@@ -23,14 +23,19 @@
 # SOFTWARE
 
 import os
+import argparse
 from unittest import TestCase
 
 from stable_rt_tools.srt_util_context import SrtContext
 
+
+def make_args(old_tag=None, new_tag=None):
+    return argparse.Namespace(OLD_TAG=old_tag, NEW_TAG=new_tag)
+
+
 class TestSrtContext(TestCase):
     def test_tag(self):
-        ctx = SrtContext('/tmp')
-        ctx.add_tag('new', 'v4.4.115-rt38')
+        ctx = SrtContext(make_args('v4.4.114-rt37', 'v4.4.115-rt38'), '/tmp')
         self.assertEqual(str(ctx.new_tag), 'v4.4.115-rt38')
         self.assertEqual(ctx.new_short_tag, '4.4.115-rt38')
         self.assertEqual(ctx.new_dir_patches,
@@ -45,29 +50,20 @@ class TestSrtContext(TestCase):
                          '/tmp/patches/v4.4.115-rt38/patches-4.4.115-rt38.tar.xz')
 
     def test_incr(self):
-        ctx = SrtContext('/tmp')
-        ctx.add_tag('old', 'v4.4.115-rt38')
-        ctx.add_tag('new', 'v4.4.115-rt39')
-        ctx.init()
+        ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39'), '/tmp')
         fname = ('/tmp/patches/v4.4.115-rt39/' +
                  'patch-4.4.115-rt38-rt39.patch.xz')
         self.assertEqual(ctx.fln_incr, fname)
 
     def test_is_rc(self):
-        ctx = SrtContext('/tmp')
-        ctx.add_tag('old', 'v4.4.115-rt38')
-        ctx.add_tag('new', 'v4.4.115-rt39-rc1')
-        ctx.init()
+        ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39-rc1'), '/tmp')
         fname = ('/tmp/patches/v4.4.115-rt39-rc1/' +
                  'patch-4.4.115-rt38-rt39-rc1.patch.xz')
         self.assertEqual(ctx.fln_incr, fname)
         self.assertEqual(ctx.is_rc, True)
 
     def test_get_files(self):
-        ctx = SrtContext('/tmp')
-        ctx.add_tag('old', 'v4.4.115-rt38')
-        ctx.add_tag('new', 'v4.4.115-rt39')
-        ctx.init()
+        ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39'), '/tmp')
 
         path = '/tmp/patches/v4.4.115-rt39/'
         files = [path + 'patch-4.4.115-rt39.patch.xz',

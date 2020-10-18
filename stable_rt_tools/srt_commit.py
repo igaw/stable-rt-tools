@@ -30,7 +30,8 @@ import shutil
 import tempfile
 
 from stable_rt_tools.srt_util import (confirm, get_remote_branch_name,
-                                      is_dirty, cmd, get_gnupghome, get_config)
+                                      is_dirty, cmd, get_gnupghome, get_config,
+                                      get_last_rt_tag)
 
 def localversion_set(filename, version):
     with open(filename, 'w') as f:
@@ -66,18 +67,6 @@ def last_commit_was_release_commit():
     return False
 
 
-def get_last_rt(branch_name, postfix):
-    base_branch = branch_name[:-len(postfix)]
-    last_tag = cmd(['git', 'describe', '--abbrev=0', '--tags', base_branch])
-    m = re.search(r'(-rt[0-9]+)$', last_tag)
-    if not m:
-        print('Last tag tag {0} does not end in -rt[0-9]+ on {1}'.
-              format(last_tag, branch_name),
-              file=sys.stderr)
-        sys.exit(1)
-    return m.group(1)
-
-
 def commit(config, rc):
     if is_dirty():
         print('repo is dirty -> abort', file=sys.stderr)
@@ -90,12 +79,12 @@ def commit(config, rc):
     old_head = cmd(['git', 'rev-parse', 'HEAD'])
 
     if branch_rebase:
-        rt = get_last_rt(branch_name, '-rebase')
+        rt = get_last_rt_tag(branch_name, '-rebase')
         if last_commit_was_release_commit():
             cmd(['git', 'reset', 'HEAD~'])
         localversion_set(config['LOCALVERSION'], rt)
     elif rc:
-        rt = get_last_rt(branch_name, '-next')
+        rt = get_last_rt_tag(branch_name, '-next')
         rt = rt[3:]
         rt = int(rt) + 1
         localversion_set(config['LOCALVERSION'], '-rt{0}-rc{1}'.format(rt, rc))
