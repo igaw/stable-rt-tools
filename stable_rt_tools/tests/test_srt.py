@@ -548,3 +548,159 @@ class TestSrtContext(TestReleaseCanditate):
         ctx = get_context(args)
         self.assertTrue(ctx)
         print(ctx)
+
+
+class TestNoTagsOneMergeCanditate(TestSrtBase):
+    # Test if 'srt create' works if only one stable release
+    # has been merged. No intermedeated commits and tags
+
+    def step1_commit(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+        ans = 'git commit -m Linux 4.4.14-rt4 \nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
+
+    def step2_tag(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+        self.assertTrue(tag_exists('v4.4.14-rt4'))
+
+    def step3_commit_rebase(self):
+        cmd(['git', 'checkout', self.branch_rt_rebase])
+        cmd(['git', 'rebase', 'v4.4.14'])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+        ans = 'git commit -m Linux 4.4.14-rt4 REBASE\nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4 REBASE'))
+
+    def step4_tag_rebase(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+        self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
+
+    def step5_create(self):
+        self.ctx = SrtContext(self.work_tree)
+        self.ctx.add_tag('old', 'v4.4.13-rt3')
+        self.ctx.add_tag('new', 'v4.4.14-rt4')
+        self.ctx.init()
+
+        create(self.config, self.ctx)
+
+        path = self.work_tree + '/patches/v4.4.14-rt4/'
+        files = [path + 'patch-4.4.14-rt4.patch.xz',
+                 path + 'patches-4.4.14-rt4.tar.xz']
+        for f in files:
+            self.assertEqual(os.path.isfile(f), True)
+
+
+class TestNoTagsManyMergesCanditate(TestSrtBase):
+    # Test if 'srt create' works if more than one stable release
+    # has been merged and some intermediates commits have been
+    # done
+
+    def step1_commit(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+        ans = 'git commit -m Linux 4.4.14-rt4 \nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
+
+    def step2_tag(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+        self.assertTrue(tag_exists('v4.4.14-rt4'))
+
+    def step3_commit_rebase(self):
+        cmd(['git', 'checkout', self.branch_rt_rebase])
+        cmd(['git', 'rebase', 'v4.4.14'])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+        ans = 'git commit -m Linux 4.4.14-rt4 REBASE\nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4 REBASE'))
+
+    def step4_tag_rebase(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+        self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
+
+    def step5_new_stable_release(self):
+        self.setup_stable_new_release('4.4.15')
+        self.do_merge('4.4.15')
+
+    def step6_commit2(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+        ans = 'git commit -m Linux 4.4.15-rt5 \nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.15-rt5'))
+
+    def step7_tag(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+        self.assertTrue(tag_exists('v4.4.15-rt5'))
+
+    def step8_commit_rebase2(self):
+        cmd(['git', 'checkout', self.branch_rt_rebase])
+        cmd(['git', 'rebase', 'v4.4.15'])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+        ans = 'git commit -m Linux 4.4.15-rt5 REBASE\nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.15-rt5 REBASE'))
+
+    def step9_tag_rebase2(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config)
+        self.assertTrue(tag_exists('v4.4.15-rt5-rebase'))
+
+    def step10_create(self):
+        self.ctx = SrtContext(self.work_tree)
+        self.ctx.add_tag('old', 'v4.4.13-rt3')
+        self.ctx.add_tag('new', 'v4.4.15-rt5')
+        self.ctx.init()
+
+        create(self.config, self.ctx)
+
+        path = self.work_tree + '/patches/v4.4.15-rt5/'
+        files = [path + 'patch-4.4.15-rt5.patch.xz',
+                 path + 'patches-4.4.15-rt5.tar.xz']
+        for f in files:
+            self.assertEqual(os.path.isfile(f), True)
+
+    def step11_push(self):
+        os.chdir(self.work_tree)
+        cmd(['git', 'checkout', self.branch_rt])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        push(self.config, self.ctx)
+
+        # XXX check if missing intermedeate tags are pushed as well
+
+
+if __name__ == '__main__':
+    unittest.main()
