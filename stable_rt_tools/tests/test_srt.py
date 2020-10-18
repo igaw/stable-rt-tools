@@ -411,7 +411,7 @@ class TestReleaseCanditate(TestSrtBase):
             Here goes nothing and you are no fun.
             """.format(filename)
             msg = textwrap.dedent(msg)
-            cmd(['git', 'commit', '-s', '-m', msg])
+            cmd(['git', 'commit', '-m', msg])
 
 
     def setUp(self):
