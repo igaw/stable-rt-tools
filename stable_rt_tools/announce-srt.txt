@@ -28,6 +28,10 @@ You can also build from {old_version} by applying the incremental patch:
 
   https://www.kernel.org{prj_dir}/incr/patch-{old_version}-rt{new_tag_rt}.patch.xz
 
+Signing key fingerprint:
+
+  {gpg_key_fingerprint}
+
 Enjoy!
 {name}
 

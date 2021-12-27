@@ -34,7 +34,7 @@ except ImportError:
 
 from stable_rt_tools.srt_util import (confirm, get_local_branch_name,
                                       get_remote_branch_name, cmd, get_config,
-                                      check_context)
+                                      check_context, get_gpg_fingerprint)
 from stable_rt_tools.srt_util_context import SrtContext
 
 def create_rc_patches(config, ctx):
@@ -66,7 +66,8 @@ def cover_letter_replacements(config, ctx):
          "message_id" : make_msgid(),
          "sender" : config['SENDER'],
          "name" : config['NAME'],
-         "new_tag_rt" : ctx.new_tag.rt}
+         "new_tag_rt" : ctx.new_tag.rt,
+         "gpg_key_fingerprint" : get_gpg_fingerprint(config)}
     if ctx.is_rc:
         r["new_tag_rc"] = ctx.new_tag.rc
     return r

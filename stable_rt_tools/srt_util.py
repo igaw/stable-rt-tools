@@ -166,6 +166,23 @@ def get_gnupghome(config):
     return gnupghome
 
 
+def get_gpg_fingerprint(config):
+    out = cmd(['gpg2',
+               '--homedir', get_gnupghome(config),
+               '--local-user', '{}'.format(config['GPG_KEY_ID']),
+               '--fingerprint'])
+
+    # thank you gpg for nothing!
+    fingerprint = ''
+    cnt = 0
+    for line in out.splitlines():
+        if cnt == 3:
+            fingerprint = line.strip()
+            break
+        cnt += 1
+    return fingerprint
+
+
 def confirm(text):
     try:
         while True:
