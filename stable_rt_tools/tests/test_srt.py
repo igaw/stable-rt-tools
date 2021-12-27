@@ -134,7 +134,7 @@ class TestSrtBase(unittest.TestCase):
     def setup_stable_repo(self, version):
         os.mkdir(self.stable_repo)
         os.chdir(self.stable_repo)
-        cmd(['git', 'init'])
+        cmd(['git', 'init', '--initial-branch=master'])
         with open('version', 'w') as f:
             f.write(version)
             f.write('\n\n')
