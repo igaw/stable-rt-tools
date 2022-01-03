@@ -1,5 +1,37 @@
 Repository containing tools to maintain the stable-rt trees.
 
+Assumptions
+-----------
+
+SRT needs kup installed and working.  This will mean you have write access to
+some parts of kernel.org's directory structures an thus have a kernel.org
+trusted gpg key and account.
+
+Find kup here: git://git.kernel.org/pub/scm/utils/kup/kup.git
+
+There are some branch name assumptions you need to satisfy:
+Follow the following pattern: 
+v<lts-id>-rt, and v<lts-id>-rt-rebase, and v<lts-id>-rt-next
+For example; v4.9-rt, v4.9-rt-rebase, and v4.9-rt-next for example.
+
+Also these branches must be tracking branches from the respective upstream
+stable-rt branches of the same names.
+
+Your git project needs an "origin", use the gitolite origin below to be safe.
+
+SRT also assumes your work spaces for each branch is setup using git worktree
+based off your parent local git project.  Set up your working directories this
+way:
+git worktree add --track -b <branch> <path> <remote>/<branch>
+i.e. git worktree add --track -b v4.9-rt ../v4.9-rt k.org/v4.9-rt
+i.e. git worktree add --track -b v4.9-rt-rebase ../v4.9-rt k.org/v4.9-rt-rebase
+i.e. git worktree add --track -b v4.9-rt-next ../v4.9-rt k.org/v4.9-rt-next
+
+Where k.org in this case was:
+git://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+It likely would have worked find if I just used "origin" instead of having a
+separate read only remote.
+
 Configuration
 -------------
 
@@ -92,6 +124,8 @@ $ git push origin v4.4.115-rt131 v4.4.116-rt132 v4.4.118-rt133 v4.4.119-rt134
 
 $ srt announce v4.4.115-rt130 v4.4.120-rt135 > ../announce-rt
 $ cat ../announce-rt | msmtp -t --
+or
+$ mutt -H ../announce-rt
 
 
 Release candicates series
@@ -110,3 +144,23 @@ $ srt sign v4.4.148-rt165 v4.4.148-rt166-rc
 $ srt upload v4.4.148-rt165 v4.4.148-rt166-rc1
 $ srt push v4.4.148-rt165 v4.4.148-rt166-rc1
 $ srt announce v4.4.148-rt165 v4.4.148-rt166-rc1
+
+Trouble shooting
+----------------
+
+srt announce fails:  it attempts to figure out your name and email from
+specific configurations you might not have (say if you using Ubuntu) if
+srt announce fails try adding SENDER and NAME's to your srt.config groups.
+
+srt commit fails: check for missing remote named "origin" if so add one using
+git remote add origin pointing anywhere.  One maintainer used a local mirror to
+Linus' tree.  Its used as a handle to disambiguate multiple workflows.
+
+srt upload attempts fail: verify kup works following the README in kup, then
+check your str.config has the appropriate PRJ_DIR for your LTS version of
+stable-rt you are working with.  And if that fails check you have proper access
+to the PRJ_DIR on kernel.org through the helpdesk.
+
+There is a debug option you can add to the srt command line that turns on some
+tracing,  "-d".  One new maintainer bumped into each of the above and the
+tracking branch assumption and used the -d option to debug their issues.
