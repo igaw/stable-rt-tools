@@ -35,7 +35,7 @@ from stable_rt_tools import srt_tag
 from stable_rt_tools import srt_upload
 
 
-def main():
+def srt_get_argparser():
     parser = argparse.ArgumentParser(description='srt - stable -rt tool')
     parser.add_argument('-d', '--debug',
                         action='store_true',
@@ -56,6 +56,11 @@ def main():
     for _,cmd in sub_cmd.items():
         cmd.add_argparser(subparser)
 
+    return parser
+
+
+def main():
+    parser = srt_get_argparser()
     args = parser.parse_args(sys.argv[1:])
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
