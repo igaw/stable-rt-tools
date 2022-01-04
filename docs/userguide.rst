@@ -1,4 +1,23 @@
-Repository containing tools to maintain the stable-rt trees.
+User Guide
+==========
+
+Dependencies & installation
+---------------------------
+
+This project depends on
+
+- Python 3
+- distro Python 3 package
+
+To install kas into your python site-package repository, run::
+
+    $ sudo pip3 install .
+
+
+Installation
+------------
+
+- Install it locally via pip to get the ``stable-rt-tools`` command.
 
 Assumptions
 -----------
@@ -10,7 +29,7 @@ trusted gpg key and account.
 Find kup here: git://git.kernel.org/pub/scm/utils/kup/kup.git
 
 There are some branch name assumptions you need to satisfy:
-Follow the following pattern: 
+Follow the following pattern:
 v<lts-id>-rt, and v<lts-id>-rt-rebase, and v<lts-id>-rt-next
 For example; v4.9-rt, v4.9-rt-rebase, and v4.9-rt-next for example.
 
@@ -145,6 +164,7 @@ $ srt upload v4.4.148-rt165 v4.4.148-rt166-rc1
 $ srt push v4.4.148-rt165 v4.4.148-rt166-rc1
 $ srt announce v4.4.148-rt165 v4.4.148-rt166-rc1
 
+
 Trouble shooting
 ----------------
 
@@ -164,3 +184,4 @@ to the PRJ_DIR on kernel.org through the helpdesk.
 There is a debug option you can add to the srt command line that turns on some
 tracing,  "-d".  One new maintainer bumped into each of the above and the
 tracking branch assumption and used the -d option to debug their issues.
+

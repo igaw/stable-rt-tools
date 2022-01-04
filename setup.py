@@ -33,7 +33,7 @@ __copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
 __version__ = 0.1
 
 HERE = path.abspath(path.dirname(__file__))
-with open(path.join(HERE, 'README')) as f:
+with open(path.join(HERE, 'README.rst')) as f:
     LONG_DESCRIPTION = f.read()
 
 
