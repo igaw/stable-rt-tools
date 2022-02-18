@@ -88,6 +88,9 @@ class SrtContext:
     def get_files(self):
         return [self.new_fln_patch, self.new_fln_tar]
 
+    def get_old_files(self):
+        return [self.old_fln_patch, self.old_fln_tar]
+
     def _dump(self):
         out = '\n'
         for key, val in self.__dict__.items():
