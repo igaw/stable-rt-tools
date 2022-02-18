@@ -34,7 +34,6 @@ from stable_rt_tools.srt_util import (get_last_tag, get_old_tag,
 class SrtContext:
     def __init__(self, args, path=os.getcwd()):
         self.is_rc = False
-        self.fln_incr = None
         self.path = path
 
         old_tag = None
@@ -77,10 +76,6 @@ class SrtContext:
             if self.new_tag.is_rc:
                 postfix = '-rt{0}-rc{1}'.format(self.new_tag.rt,
                                                 self.new_tag.rc)
-            self.fln_incr = ('{0}/patch-{1}{2}.patch.xz'.
-                             format(self.new_dir_patches,
-                                    self.old_short_tag,
-                                    postfix))
             self.is_rc = self.new_tag.is_rc
 
     def __getattr__(self, name):
@@ -91,10 +86,7 @@ class SrtContext:
         return value
 
     def get_files(self):
-        files = [self.new_fln_patch, self.new_fln_tar]
-        if self.fln_incr:
-            files.append(self.fln_incr)
-        return files
+        return [self.new_fln_patch, self.new_fln_tar]
 
     def _dump(self):
         out = '\n'

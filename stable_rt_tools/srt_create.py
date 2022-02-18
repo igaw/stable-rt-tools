@@ -73,9 +73,6 @@ def create(config, ctx):
 
     create_tar_file(ctx.new_dir_patches, ctx.new_fln_tar)
 
-    if ctx.fln_incr:
-        create_patch_file(str(ctx.old_tag), str(ctx.new_tag), ctx.fln_incr)
-
     print('Created the following files in {0}'.format(ctx.new_dir_patches))
     for f in ctx.get_files():
         print('\t{0}'.format(f))

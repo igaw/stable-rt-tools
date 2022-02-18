@@ -49,24 +49,17 @@ class TestSrtContext(TestCase):
         self.assertEqual(ctx.new_fln_tar,
                          '/tmp/patches/v4.4.115-rt38/patches-4.4.115-rt38.tar.xz')
 
-    def test_incr(self):
-        ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39'), '/tmp')
-        fname = ('/tmp/patches/v4.4.115-rt39/' +
-                 'patch-4.4.115-rt38-rt39.patch.xz')
-        self.assertEqual(ctx.fln_incr, fname)
-
     def test_is_rc(self):
         ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39-rc1'), '/tmp')
-        fname = ('/tmp/patches/v4.4.115-rt39-rc1/' +
-                 'patch-4.4.115-rt38-rt39-rc1.patch.xz')
-        self.assertEqual(ctx.fln_incr, fname)
-        self.assertEqual(ctx.is_rc, True)
+        path = '/tmp/patches/v4.4.115-rt39-rc1/'
+        files = [path + 'patch-4.4.115-rt39-rc1.patch.xz',
+                 path + 'patches-4.4.115-rt39-rc1.tar.xz']
+        self.assertEqual(ctx.get_files(), files)
 
     def test_get_files(self):
         ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39'), '/tmp')
 
         path = '/tmp/patches/v4.4.115-rt39/'
         files = [path + 'patch-4.4.115-rt39.patch.xz',
-                 path + 'patches-4.4.115-rt39.tar.xz',
-                 path + 'patch-4.4.115-rt38-rt39.patch.xz']
+                 path + 'patches-4.4.115-rt39.tar.xz']
         self.assertEqual(ctx.get_files(), files)
