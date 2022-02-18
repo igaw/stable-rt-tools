@@ -53,12 +53,9 @@ def upload(config, ctx):
     for f in ctx.get_files():
         kup.extend(['ln', older_path + '/' + os.path.basename(f), '../', '--'])
 
-    # If we're uploading an -rc release, don't delete the old release.
-    if not ctx.is_rc:
-        kup.extend(['rm', path + '/' + os.path.basename(ctx.old_fln_patch),
-                    '--'])
-        kup.extend(['rm', path + '/' + os.path.basename(ctx.old_fln_tar),
-                    '--'])
+    # remove previous release from latest dir
+    for f in ctx.get_old_files():
+        kup.extend(['rm', path + '/' + os.path.basename(f), '--'])
 
     kup.extend(['ls', path])
 

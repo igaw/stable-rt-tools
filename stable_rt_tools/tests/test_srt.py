@@ -479,6 +479,10 @@ class TestReleaseCanditate(TestSrtBase):
 
                 'ln', prj + '/older/patch-4.4.14-rt5-rc1.patch.xz', '../', '--',
                 'ln', prj + '/older/patches-4.4.14-rt5-rc1.tar.xz', '../', '--',
+
+                'rm', prj + '/patch-4.4.14-rt4.patch.xz', '--',
+                'rm', prj + '/patches-4.4.14-rt4.tar.xz', '--',
+
                 'ls', prj]
         msg = '{0}\nOK to commit? (y/n): '.format(pformat(args))
         self.maxDiff = None
