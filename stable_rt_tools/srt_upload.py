@@ -40,21 +40,17 @@ def upload(config, ctx):
 
     path = config['PRJ_DIR']
     older_path = path + '/' + 'older'
-    incr_path = path + '/' + 'incr'
 
     kup = ['kup']
 
+    # upload files to archive
     for i, f in enumerate(ctx.get_files()):
         basename = os.path.splitext(f)[0]
-        if i == 2:
-            kup.extend(['put', basename + '.xz', basename + '.sign',
-                        incr_path + '/', '--'])
-        else:
-            kup.extend(['put', basename + '.xz', basename + '.sign',
-                        older_path + '/', '--'])
+        kup.extend(['put', basename + '.xz', basename + '.sign',
+                    older_path + '/', '--'])
 
-    # skip incr_file
-    for f in ctx.get_files()[:2]:
+    # create links from archive to latest dir.
+    for f in ctx.get_files():
         kup.extend(['ln', older_path + '/' + os.path.basename(f), '../', '--'])
 
     # If we're uploading an -rc release, don't delete the old release.
