@@ -34,6 +34,16 @@ from stable_rt_tools import srt_sign
 from stable_rt_tools import srt_tag
 from stable_rt_tools import srt_upload
 
+sub_cmd = {
+    'commit': srt_commit,
+    'tag': srt_tag,
+    'create': srt_create,
+    'sign': srt_sign,
+    'upload': srt_upload,
+    'push': srt_push,
+    'announce': srt_announce,
+}
+
 
 def srt_get_argparser():
     parser = argparse.ArgumentParser(description='srt - stable -rt tool')
@@ -42,16 +52,6 @@ def srt_get_argparser():
                         help='Enable debug logging')
 
     subparser = parser.add_subparsers(help='sub command help', dest='cmd')
-
-    sub_cmd = {
-        'commit': srt_commit,
-        'tag': srt_tag,
-        'create': srt_create,
-        'sign': srt_sign,
-        'upload': srt_upload,
-        'push': srt_push,
-        'announce': srt_announce,
-    }
 
     for _,cmd in sub_cmd.items():
         cmd.add_argparser(subparser)
