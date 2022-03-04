@@ -152,7 +152,7 @@ def get_config():
         config_name = '{0}/{1}'.format(repo_name, branch_name)
         debug('Using configuration {0}'.format(config_name))
         config = read_config()[config_name]
-    except:
+    except CalledProcessError:
         error('Could not retrieve configuration {0} from srt.conf'.format(
             config_name))
         sys.exit(1)
