@@ -136,8 +136,7 @@ class TestSrtBase(unittest.TestCase):
         os.mkdir(self.stable_repo)
         os.chdir(self.stable_repo)
         cmd(['git', 'init', '--initial-branch=master'])
-        cmd(['git', 'config', 'user.name', 'Mighty Eagle'])
-        cmd(['git', 'config', 'user.email', 'me@incredible.com'])
+        self.setup_git_tree()
         with open('version', 'w') as f:
             f.write(version)
             f.write('\n\n')
@@ -162,6 +161,7 @@ class TestSrtBase(unittest.TestCase):
         os.chdir(self.tdir)
         cmd(['git', 'clone', self.stable_repo, os.path.basename(self.rt_repo)])
         os.chdir(self.rt_repo)
+        self.setup_git_tree()
         with open('rt.patch', 'w') as f:
             f.write('adding magic rt feature\n')
         with open(self.config['LOCALVERSION'], 'w') as f:
@@ -178,7 +178,12 @@ class TestSrtBase(unittest.TestCase):
         os.chdir(self.tdir)
         cmd(['git', 'clone', self.rt_repo, os.path.basename(self.work_tree)])
         os.chdir(self.work_tree)
+        self.setup_git_tree()
         cmd(['git', 'remote', 'add', 'stable', self.stable_repo])
+
+    def setup_git_tree(self):
+        cmd(['git', 'config', 'user.name', 'Mighty Eagle'])
+        cmd(['git', 'config', 'user.email', 'me@incredible.com'])
 
     def do_merge(self, version):
         os.chdir(self.work_tree)
