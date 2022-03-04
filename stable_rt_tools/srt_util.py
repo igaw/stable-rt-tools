@@ -106,7 +106,7 @@ def get_old_tag():
     m = re.findall(match, tags, re.MULTILINE)
     if not m:
         print('Last remote tag -rt[0-9]+ not found on {}'.
-              format(branch_name))
+              format(get_remote_branch_name()))
         sys.exit(1)
 
     last_patch = 0
@@ -200,7 +200,7 @@ def check_context(ctx):
         text = ('Something went wrong. OLD_TAG and NEW_TAG are the same ({}).\n'
                 'Did you push your changes already? In this case you need to\n'
                 'provide the OLD_TAG and NEW_TAG')
-        print(text.format(old_tag))
+        print(text.format(ctx.old_tag))
         exit(1)
 
     tags = [ctx.old_tag, ctx.new_tag, ctx.new_tag.base]
