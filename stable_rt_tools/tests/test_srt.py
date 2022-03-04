@@ -115,7 +115,7 @@ kernelrelease:
 
 defconfig:
 
-"""
+"""  # noqa: W191,E101
 
 gnupg_config = """
 Key-Type: DSA
