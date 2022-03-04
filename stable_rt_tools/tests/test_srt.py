@@ -136,6 +136,8 @@ class TestSrtBase(unittest.TestCase):
         os.mkdir(self.stable_repo)
         os.chdir(self.stable_repo)
         cmd(['git', 'init', '--initial-branch=master'])
+        cmd(['git', 'config', 'user.name', 'Mighty Eagle'])
+        cmd(['git', 'config', 'user.email', 'me@incredible.com'])
         with open('version', 'w') as f:
             f.write(version)
             f.write('\n\n')
