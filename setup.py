@@ -30,7 +30,7 @@ from setuptools import setup, find_packages
 
 __license__ = 'MIT'
 __copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
-__version__ = 0.1
+__version__ = 1.0
 
 HERE = path.abspath(path.dirname(__file__))
 with open(path.join(HERE, 'README.rst')) as f:
@@ -47,7 +47,7 @@ setup(
     maintainer='Daniel Wagner',
     maintainer_email='dwagner@suse.de',
 
-    url='git@github.com:igaw/stable-rt-tools.git',
+    url='https://stable-rt-tools.readthedocs.io',
     download_url=('https://github.com/igaw/stable-rt-tools/releases'
                   '/archive/{version}.tar.gz'.format(version=__version__)),
 
