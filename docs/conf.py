@@ -332,7 +332,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'stable-rt-tools', 'stable-rt-tools Documentation',
-     author, 'stable-rt-tools', 'This tool provides an easy mechanism to maintain stable RT trees.',
+     author, 'stable-rt-tools',
+     'This tool provides an easy mechanism to maintain stable RT trees.',
      'Miscellaneous'),
 ]
 
