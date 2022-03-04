@@ -23,11 +23,12 @@
 # SOFTWARE
 
 
-import sys
 import os
-from logging import error, debug
-from subprocess import Popen, PIPE
-from stable_rt_tools.srt_util import get_gnupghome, get_config, check_context
+import sys
+from logging import debug, error
+from subprocess import PIPE, Popen
+
+from stable_rt_tools.srt_util import check_context, get_config, get_gnupghome
 from stable_rt_tools.srt_util_context import SrtContext
 
 

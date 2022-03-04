@@ -22,7 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-import os
 import argparse
 from unittest import TestCase
 
@@ -50,7 +49,8 @@ class TestSrtContext(TestCase):
                          '/tmp/patches/v4.4.115-rt38/patches-4.4.115-rt38.tar.xz')
 
     def test_is_rc(self):
-        ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39-rc1'), '/tmp')
+        ctx = SrtContext(
+            make_args('v4.4.115-rt38', 'v4.4.115-rt39-rc1'), '/tmp')
         path = '/tmp/patches/v4.4.115-rt39-rc1/'
         files = [path + 'patch-4.4.115-rt39-rc1.patch.xz',
                  path + 'patches-4.4.115-rt39-rc1.tar.xz']

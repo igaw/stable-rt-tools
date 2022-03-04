@@ -24,11 +24,11 @@
 
 
 import os
-from logging import error, debug
+from logging import debug
 
-from stable_rt_tools.srt_util_tag import Tag
 from stable_rt_tools.srt_util import (get_last_tag, get_old_tag,
                                       get_remote_branch_name)
+from stable_rt_tools.srt_util_tag import Tag
 
 
 class SrtContext:
@@ -72,10 +72,6 @@ class SrtContext:
 
     def _update_tags(self):
         if self.old_tag.base == self.new_tag.base:
-            postfix = '-rt{0}'.format(self.new_tag.rt)
-            if self.new_tag.is_rc:
-                postfix = '-rt{0}-rc{1}'.format(self.new_tag.rt,
-                                                self.new_tag.rc)
             self.is_rc = self.new_tag.is_rc
 
     def __getattr__(self, name):

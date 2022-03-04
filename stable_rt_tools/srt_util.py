@@ -24,11 +24,11 @@
 
 
 import os
-import sys
 import re
-from logging import error, debug
+import sys
 from configparser import SafeConfigParser
-from subprocess import PIPE, run, CalledProcessError
+from logging import debug, error
+from subprocess import PIPE, CalledProcessError, run
 
 
 def cmd(args, verbose=False, env=None):
@@ -153,7 +153,8 @@ def get_config():
         debug('Using configuration {0}'.format(config_name))
         config = read_config()[config_name]
     except:
-        error('Could not retrieve configuration {0} from srt.conf'.format(config_name))
+        error('Could not retrieve configuration {0} from srt.conf'.format(
+            config_name))
         sys.exit(1)
 
     return config

@@ -23,15 +23,15 @@
 # SOFTWARE
 
 
-import sys
-import os
 import re
 import shutil
+import sys
 import tempfile
 
-from stable_rt_tools.srt_util import (confirm, get_remote_branch_name,
-                                      is_dirty, cmd, get_gnupghome, get_config,
-                                      get_last_rt_tag)
+from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gnupghome,
+                                      get_last_rt_tag, get_remote_branch_name,
+                                      is_dirty)
+
 
 def localversion_set(filename, version):
     with open(filename, 'w') as f:
@@ -98,7 +98,7 @@ def commit(config, rc):
     if confirm('OK to commit?'):
         cmd(['git', 'add', config['LOCALVERSION']])
         cmd(['git', 'commit', '-s', '-m', msg],
-             env={'GNUPGHOME': get_gnupghome(config)})
+            env={'GNUPGHOME': get_gnupghome(config)})
     else:
         cmd(['git', 'reset', '--hard', old_head])
 

@@ -22,8 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-from stable_rt_tools.srt_util import (get_remote_branch_name, confirm, cmd,
-                                      get_config, check_context)
+from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
+                                      get_remote_branch_name)
 from stable_rt_tools.srt_util_context import SrtContext
 
 

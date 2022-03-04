@@ -24,18 +24,21 @@
 
 
 import os
-from time import gmtime, strftime
 from datetime import date, timedelta
 from email.utils import make_msgid
+from time import gmtime, strftime
+
 try:
     import importlib.resources as pkg_resources
 except ImportError:
     import importlib_resources as pkg_resources
 
-from stable_rt_tools.srt_util import (confirm, get_local_branch_name,
-                                      get_remote_branch_name, cmd, get_config,
-                                      check_context, get_gpg_fingerprint)
+from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
+                                      get_gpg_fingerprint,
+                                      get_local_branch_name,
+                                      get_remote_branch_name)
 from stable_rt_tools.srt_util_context import SrtContext
+
 
 def create_rc_patches(config, ctx):
     branch_name = get_local_branch_name()
@@ -55,22 +58,24 @@ def create_rc_patches(config, ctx):
     cmd(['git', 'checkout', branch_name])
     cmd(['git', 'branch', '-D', 'next-tmp'])
 
+
 def cover_letter_replacements(config, ctx):
-    r = {"mail_to" : config['MAIL_TO'],
-         "major" : ctx.new_tag.major,
-         "minor" : ctx.new_tag.minor,
-         "patch" : ctx.new_tag.patch,
-         "new_version" : ctx.new_short_tag,
-         "old_version" : ctx.old_short_tag,
-         "prj_dir" : config['PRJ_DIR'],
-         "message_id" : make_msgid(),
-         "sender" : config['SENDER'],
-         "name" : config['NAME'],
-         "new_tag_rt" : ctx.new_tag.rt,
-         "gpg_key_fingerprint" : get_gpg_fingerprint(config)}
+    r = {"mail_to": config['MAIL_TO'],
+         "major": ctx.new_tag.major,
+         "minor": ctx.new_tag.minor,
+         "patch": ctx.new_tag.patch,
+         "new_version": ctx.new_short_tag,
+         "old_version": ctx.old_short_tag,
+         "prj_dir": config['PRJ_DIR'],
+         "message_id": make_msgid(),
+         "sender": config['SENDER'],
+         "name": config['NAME'],
+         "new_tag_rt": ctx.new_tag.rt,
+         "gpg_key_fingerprint": get_gpg_fingerprint(config)}
     if ctx.is_rc:
         r["new_tag_rc"] = ctx.new_tag.rc
     return r
+
 
 def write_rc_cover_letter(config, ctx):
     with open(ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:

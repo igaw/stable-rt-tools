@@ -25,9 +25,9 @@
 
 import os
 from logging import debug
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
 
-from stable_rt_tools.srt_util import cmd, get_config, check_context
+from stable_rt_tools.srt_util import check_context, cmd, get_config
 from stable_rt_tools.srt_util_context import SrtContext
 
 
@@ -65,10 +65,12 @@ def create(config, ctx):
             os.makedirs(d)
 
     if ctx.new_tag.is_rc:
-        create_patch_file(ctx.old_tag.base, str(ctx.new_tag), ctx.new_fln_patch)
+        create_patch_file(ctx.old_tag.base, str(
+            ctx.new_tag), ctx.new_fln_patch)
         create_series(ctx.old_tag, ctx.new_tag, ctx.new_dir_series)
     else:
-        create_patch_file(ctx.new_tag.base, str(ctx.new_tag), ctx.new_fln_patch)
+        create_patch_file(ctx.new_tag.base, str(
+            ctx.new_tag), ctx.new_fln_patch)
         create_series(ctx.new_tag.base, ctx.new_tag.rebase, ctx.new_dir_series)
 
     create_tar_file(ctx.new_dir_patches, ctx.new_fln_tar)
