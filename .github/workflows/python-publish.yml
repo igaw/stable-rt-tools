@@ -12,10 +12,7 @@ on:
   release:
     types: [published]
   push:
-    branches: [ master ]
     tags: [ 'v*.*' ]
-  pull_request:
-    branches: [ master ]
 
   workflow_dispatch:
 
@@ -37,12 +34,6 @@ jobs:
         pip install build
     - name: Build package
       run: python -m build --sdist
-    # - name: Publish package to TestPyPI
-    #   uses: pypa/gh-action-pypi-publish@release/v1
-    #   with:
-    #     user: __token__
-    #     password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-    #     repository_url: https://test.pypi.org/legacy/
     - name: Publish package to PyPI
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@release/v1
