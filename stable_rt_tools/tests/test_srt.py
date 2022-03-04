@@ -472,24 +472,24 @@ class TestReleaseCanditate(TestSrtBase):
         upload(self.config, self.ctx)
 
         path = self.work_tree + '/patches/v4.4.14-rt5-rc1/'
-        prj = self.config['PRJ_DIR']
+        prj = self.config['PRJ_DIR'] + '/'
         args = ['kup', 'put',
                 path + 'patch-4.4.14-rt5-rc1.patch.xz',
                 path + 'patch-4.4.14-rt5-rc1.patch.sign',
-                prj + '/older/', '--',
+                prj + 'older/', '--',
 
                 'put',
                 path + 'patches-4.4.14-rt5-rc1.tar.xz',
                 path + 'patches-4.4.14-rt5-rc1.tar.sign',
-                prj + '/older/', '--',
+                prj + 'older/', '--',
 
-                'ln', prj + '/older/patch-4.4.14-rt5-rc1.patch.xz', '../', '--',
-                'ln', prj + '/older/patches-4.4.14-rt5-rc1.tar.xz', '../', '--',
+                'ln', prj + 'older/patch-4.4.14-rt5-rc1.patch.xz', '../', '--',
+                'ln', prj + 'older/patches-4.4.14-rt5-rc1.tar.xz', '../', '--',
 
-                'rm', prj + '/patch-4.4.14-rt4.patch.xz', '--',
-                'rm', prj + '/patches-4.4.14-rt4.tar.xz', '--',
+                'rm', prj + 'patch-4.4.14-rt4.patch.xz', '--',
+                'rm', prj + 'patches-4.4.14-rt4.tar.xz', '--',
 
-                'ls', prj]
+                'ls', prj[:-1]]
         msg = '{0}\nOK to commit? (y/n): '.format(pformat(args))
         self.maxDiff = None
         self.assertEqual(sys.stdout.getvalue(), msg)
@@ -528,7 +528,8 @@ class TestReleaseCanditate(TestSrtBase):
             file_path = self.ctx.new_dir_mails + '/' + p
             self.assertTrue(os.path.isfile(file_path))
 
-        with open(self.ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:
+        filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
+        with open(filename, 'r') as f:
             letter = f.read()
             debug(letter)
             self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))

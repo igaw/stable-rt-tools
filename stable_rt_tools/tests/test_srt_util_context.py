@@ -35,18 +35,16 @@ def make_args(old_tag=None, new_tag=None):
 class TestSrtContext(TestCase):
     def test_tag(self):
         ctx = SrtContext(make_args('v4.4.114-rt37', 'v4.4.115-rt38'), '/tmp')
+        path = '/tmp/patches/v4.4.115-rt38'
         self.assertEqual(str(ctx.new_tag), 'v4.4.115-rt38')
         self.assertEqual(ctx.new_short_tag, '4.4.115-rt38')
-        self.assertEqual(ctx.new_dir_patches,
-                         '/tmp/patches/v4.4.115-rt38')
-        self.assertEqual(ctx.new_dir_series,
-                         '/tmp/patches/v4.4.115-rt38/patches')
-        self.assertEqual(ctx.new_dir_mails,
-                         '/tmp/patches/v4.4.115-rt38/mails')
+        self.assertEqual(ctx.new_dir_patches, path)
+        self.assertEqual(ctx.new_dir_series, path + '/patches')
+        self.assertEqual(ctx.new_dir_mails, path + '/mails')
         self.assertEqual(ctx.new_fln_patch,
-                         '/tmp/patches/v4.4.115-rt38/patch-4.4.115-rt38.patch.xz')
+                         path + '/patch-4.4.115-rt38.patch.xz')
         self.assertEqual(ctx.new_fln_tar,
-                         '/tmp/patches/v4.4.115-rt38/patches-4.4.115-rt38.tar.xz')
+                         path + '/patches-4.4.115-rt38.tar.xz')
 
     def test_is_rc(self):
         ctx = SrtContext(
