@@ -198,7 +198,8 @@ def confirm(text):
 
 def check_context(ctx):
     if ctx.old_tag == ctx.new_tag:
-        text = ('Something went wrong. OLD_TAG and NEW_TAG are the same ({}).\n'
+        text = ('Something went wrong. '
+                'OLD_TAG and NEW_TAG are the same ({}).\n'
                 'Did you push your changes already? In this case you need to\n'
                 'provide the OLD_TAG and NEW_TAG')
         print(text.format(ctx.old_tag))
