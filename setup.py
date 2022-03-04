@@ -30,7 +30,7 @@ from setuptools import setup, find_packages
 
 __license__ = 'MIT'
 __copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
-__version__ = 1.0
+__version__ = 1.1
 
 HERE = path.abspath(path.dirname(__file__))
 with open(path.join(HERE, 'README.rst')) as f:
@@ -55,11 +55,7 @@ setup(
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
-        # How mature is this project? Common values are
-        #   3 - Alpha
-        #   4 - Beta
-        #   5 - Production/Stable
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
