@@ -26,9 +26,8 @@
 import os
 import sys
 
-
 review_tag = os.environ['SRT_REVIEW_TAG']
-message   = sys.stdin.readlines()
+message = sys.stdin.readlines()
 
 msg = """\
 {} stable review patch.

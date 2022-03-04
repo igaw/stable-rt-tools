@@ -24,12 +24,11 @@
 
 import os
 import tempfile
+from logging import debug
+from shutil import rmtree
 from unittest import TestCase
-from logging import error, debug
 
 from stable_rt_tools.srt_util import cmd, get_gpg_fingerprint
-from shutil import rmtree
-
 
 gnupg_config = """
 Key-Type: DSA
@@ -43,6 +42,7 @@ Expire-Date: 0
 %commit
 %echo done
 """
+
 
 class TestUtil(TestCase):
     def setUp(self):
@@ -78,13 +78,13 @@ class TestUtil(TestCase):
             f.write(gnupg_config)
 
         cmd(['gpg2', '--batch', '--generate-key', cfg_file],
-             env={'GNUPGHOME': self.gnupghome})
+            env={'GNUPGHOME': self.gnupghome})
         lines = cmd(['gpg2', '--list-secret-keys', '--with-colons'],
                     env={'GNUPGHOME': self.gnupghome})
 
         key = ''
-        for l in lines.splitlines():
-            c = l.split(':')
+        for line in lines.splitlines():
+            c = line.split(':')
             if c[0] != 'fpr':
                 continue
             key = c[-2]
@@ -97,4 +97,5 @@ class TestUtil(TestCase):
         fingerprint = get_gpg_fingerprint(self.config)
         debug('GPG_KEY_ID:  ' + self.config['GPG_KEY_ID'])
         debug('fingerprint: ' + fingerprint)
-        self.assertTrue(fingerprint.replace(' ', '')  == self.config['GPG_KEY_ID'])
+        self.assertTrue(fingerprint.replace(' ', '')
+                        == self.config['GPG_KEY_ID'])

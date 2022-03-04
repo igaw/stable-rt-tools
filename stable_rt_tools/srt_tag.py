@@ -25,7 +25,7 @@
 
 import re
 
-from stable_rt_tools.srt_util import confirm, cmd, get_gnupghome, get_config
+from stable_rt_tools.srt_util import cmd, confirm, get_config, get_gnupghome
 
 
 def tag(config):

@@ -22,17 +22,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-import sys
 import argparse
 import logging
+import sys
 
-from stable_rt_tools import srt_announce
-from stable_rt_tools import srt_commit
-from stable_rt_tools import srt_create
-from stable_rt_tools import srt_push
-from stable_rt_tools import srt_sign
-from stable_rt_tools import srt_tag
-from stable_rt_tools import srt_upload
+from stable_rt_tools import (srt_announce, srt_commit, srt_create, srt_push,
+                             srt_sign, srt_tag, srt_upload)
 
 sub_cmd = {
     'commit': srt_commit,
@@ -53,7 +48,7 @@ def srt_get_argparser():
 
     subparser = parser.add_subparsers(help='sub command help', dest='cmd')
 
-    for _,cmd in sub_cmd.items():
+    for _, cmd in sub_cmd.items():
         cmd.add_argparser(subparser)
 
     return parser

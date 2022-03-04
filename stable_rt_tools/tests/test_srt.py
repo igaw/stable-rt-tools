@@ -23,34 +23,34 @@
 # SOFTWARE
 
 
+import argparse
 import io
-import sys
 import os
-import unittest
+import re
+import sys
 import tempfile
 import textwrap
-import argparse
-import re
+import unittest
+from logging import debug
 from pprint import pformat
 from shutil import rmtree
-from logging import error, debug
 
-from stable_rt_tools.srt_util_context import SrtContext
-from stable_rt_tools.srt_util import cmd, tag_exists, check_context
-from stable_rt_tools.srt_commit import commit
-from stable_rt_tools.srt_tag import tag
-from stable_rt_tools.srt_create import create
-from stable_rt_tools.srt_sign import sign
-from stable_rt_tools.srt_upload import upload
-from stable_rt_tools.srt_push import push
 from stable_rt_tools.srt_announce import announce
+from stable_rt_tools.srt_commit import commit
+from stable_rt_tools.srt_create import create
+from stable_rt_tools.srt_push import push
+from stable_rt_tools.srt_sign import sign
+from stable_rt_tools.srt_tag import tag
+from stable_rt_tools.srt_upload import upload
+from stable_rt_tools.srt_util import cmd, tag_exists
+from stable_rt_tools.srt_util_context import SrtContext
 
 
 def sort_steps(entries):
     entries = list(filter(lambda x: x.startswith('step'), entries))
-    convert = lambda text: int(text) if text.isdigit() else text
-    key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
-    return sorted(entries, key = key)
+    def convert(text): return int(text) if text.isdigit() else text
+    def key(key): return [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(entries, key=key)
 
 
 def make_args(old_tag=None, new_tag=None):
@@ -95,8 +95,8 @@ def stub_stdouts(testcase_inst):
 
 
 def find_string(lines, token):
-    for l in lines.splitlines():
-        if l.strip() == token:
+    for line in lines.splitlines():
+        if line.strip() == token:
             return True
     return False
 
@@ -129,6 +129,7 @@ Expire-Date: 0
 %commit
 %echo done
 """
+
 
 class TestSrtBase(unittest.TestCase):
     def setup_stable_repo(self, version):
@@ -192,13 +193,13 @@ class TestSrtBase(unittest.TestCase):
             f.write(gnupg_config)
 
         cmd(['gpg2', '--batch', '--generate-key', cfg_file],
-             env={'GNUPGHOME': self.gnupghome})
+            env={'GNUPGHOME': self.gnupghome})
         lines = cmd(['gpg2', '--list-secret-keys', '--with-colons'],
                     env={'GNUPGHOME': self.gnupghome})
 
         key = ''
-        for l in lines.splitlines():
-            c = l.split(':')
+        for line in lines.splitlines():
+            c = line.split(':')
             if c[0] != 'fpr':
                 continue
             key = c[-2]
@@ -392,7 +393,6 @@ class TestReleaseCanditate(TestSrtBase):
         stub_stdouts(self)
         push(self.config, ctx)
 
-
     def setup_add_patches(self, start, stop):
         os.chdir(self.work_tree)
         cmd(['git', 'checkout', self.branch_rt_next])
@@ -412,7 +412,6 @@ class TestReleaseCanditate(TestSrtBase):
             """.format(filename)
             msg = textwrap.dedent(msg)
             cmd(['git', 'commit', '-m', msg])
-
 
     def setUp(self):
         super().setUp()
@@ -508,8 +507,8 @@ class TestReleaseCanditate(TestSrtBase):
         stub_stdouts(self)
         announce(self.config, self.ctx, args)
         msg = ('git send-email --dry-run ' +
-                '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
-                '{}/patches/v4.4.14-rt5-rc1/mails\n'.format(self.work_tree))
+               '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
+               '{}/patches/v4.4.14-rt5-rc1/mails\n'.format(self.work_tree))
         res = sys.stdout.getvalue()
         self.maxDiff = None
         self.assertTrue(res.find(msg))

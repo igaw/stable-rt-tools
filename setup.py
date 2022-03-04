@@ -74,7 +74,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
-   ],
+    ],
     keywords='Linux development',
 
     packages=find_packages(),

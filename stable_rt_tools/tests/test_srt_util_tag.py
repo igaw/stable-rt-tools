@@ -25,7 +25,7 @@
 
 from unittest import TestCase
 
-from stable_rt_tools.srt_util_tag import Tag, TagBaseError, TagAttrError
+from stable_rt_tools.srt_util_tag import Tag, TagAttrError, TagBaseError
 
 
 class TestTag(TestCase):
@@ -111,4 +111,3 @@ class TestTag(TestCase):
     def test_is_not_rc(self):
         tag = Tag('v4.4.144-cip13-rt134')
         self.assertEqual(tag.is_rc, False)
-
