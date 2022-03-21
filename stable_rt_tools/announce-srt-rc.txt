@@ -27,7 +27,8 @@ Signing key fingerprint:
 
   {gpg_key_fingerprint}
 
-All keys used for the uploads can be found on the following git repository:
+All keys used for the above files and repositories can be found on the
+following git repository:
 
    git://git.kernel.org/pub/scm/docs/kernel/pgpkeys.git
 
