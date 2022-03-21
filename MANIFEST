@@ -1,1 +1,1 @@
-include *.txt
+include stable_rt_tools/*.txt
