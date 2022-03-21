@@ -30,7 +30,7 @@ from setuptools import setup, find_packages
 
 __license__ = 'MIT'
 __copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
-__version__ = 1.1
+__version__ = 1.2
 
 HERE = path.abspath(path.dirname(__file__))
 with open(path.join(HERE, 'README.rst')) as f:
