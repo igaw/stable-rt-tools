@@ -92,7 +92,9 @@ def commit(config, rc):
         localversion_inc(config['LOCALVERSION'])
 
     version = get_kernel_version()
-    msg = 'Linux {0} {1}'.format(version, 'REBASE' if branch_rebase else '')
+    msg = 'Linux {0}'.format(version)
+    if branch_rebase:
+        msg = msg + ' REBASE'
 
     print('git commit -m {0}'.format(msg))
     if confirm('OK to commit?'):

@@ -258,7 +258,7 @@ class TestRelease(TestSrtBase):
         stub_stdin(self, 'y')
         stub_stdouts(self)
         commit(self.config, rc=False)
-        ans = 'git commit -m Linux 4.4.14-rt4 \nOK to commit? (y/n): '
+        ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
         self.assertEqual(sys.stdout.getvalue(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
@@ -432,7 +432,7 @@ class TestReleaseCanditate(TestSrtBase):
         stub_stdin(self, 'y')
         stub_stdouts(self)
         commit(self.config, rc=1)
-        ans = 'git commit -m Linux 4.4.14-rt5-rc1 \nOK to commit? (y/n): '
+        ans = 'git commit -m Linux 4.4.14-rt5-rc1\nOK to commit? (y/n): '
         self.assertEqual(sys.stdout.getvalue(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt5-rc1'))
@@ -562,7 +562,7 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
         stub_stdin(self, 'y')
         stub_stdouts(self)
         commit(self.config, rc=False)
-        ans = 'git commit -m Linux 4.4.14-rt4 \nOK to commit? (y/n): '
+        ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
         self.assertEqual(sys.stdout.getvalue(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
@@ -613,7 +613,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdin(self, 'y')
         stub_stdouts(self)
         commit(self.config, rc=False)
-        ans = 'git commit -m Linux 4.4.14-rt4 \nOK to commit? (y/n): '
+        ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
         self.assertEqual(sys.stdout.getvalue(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
@@ -650,7 +650,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdin(self, 'y')
         stub_stdouts(self)
         commit(self.config, rc=False)
-        ans = 'git commit -m Linux 4.4.15-rt5 \nOK to commit? (y/n): '
+        ans = 'git commit -m Linux 4.4.15-rt5\nOK to commit? (y/n): '
         self.assertEqual(sys.stdout.getvalue(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.15-rt5'))
