@@ -36,7 +36,7 @@ __all__ = [
     '__copyright__',
 ]
 
-__version__ = '1.3'
+__version__ = '1.4'
 
 __title__ = 'stable-rt-tools'
 __summary__ = 'Support out of tree patch workflows'
