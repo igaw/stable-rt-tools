@@ -79,7 +79,8 @@ setup(
         ],
     },
 
-    package_data={'': ['stable_rt_tools/*.txt']},
+    package_data={'': ['stable_rt_tools/announce-srt-rc.txt',
+                       'stable_rt_tools/announce-srt.txt']},
     include_package_data=True,
 
     install_requires=[
