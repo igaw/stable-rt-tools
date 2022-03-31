@@ -42,6 +42,7 @@ setup(
 
     description=about['__summary__'],
     long_description=LONG_DESCRIPTION,
+    long_description_content_type='text/x-rst',
 
     maintainer=about['__author__'],
     maintainer_email=about['__email__'],
