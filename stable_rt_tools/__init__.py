@@ -24,10 +24,3 @@
 """
     srt - support out of tree patch workflows
 """
-
-from .__version__ import __version__
-
-__license__ = 'MIT'
-__copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
-
-__all__ = ['__version__']

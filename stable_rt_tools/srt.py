@@ -27,7 +27,7 @@ import logging
 import sys
 
 from stable_rt_tools import (srt_announce, srt_commit, srt_create, srt_push,
-                             srt_sign, srt_tag, srt_upload)
+                             srt_sign, srt_tag, srt_upload, about)
 
 sub_cmd = {
     'commit': srt_commit,
@@ -45,6 +45,9 @@ def srt_get_argparser():
     parser.add_argument('-d', '--debug',
                         action='store_true',
                         help='Enable debug logging')
+    parser.add_argument('-v', '--version',
+                        action='store_true',
+                        help='Show stable-rt-tools version')
 
     subparser = parser.add_subparsers(help='sub command help', dest='cmd')
 
@@ -57,6 +60,10 @@ def srt_get_argparser():
 def main():
     parser = srt_get_argparser()
     args = parser.parse_args(sys.argv[1:])
+    if args.version:
+        print('stable-rt-tools version {}'.format(about.__version__))
+        return
+
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
     else:

@@ -28,30 +28,28 @@ from os import path
 from setuptools import setup, find_packages
 
 
-__license__ = 'MIT'
-__copyright__ = 'Copyright (c) Daniel Wagner <dwagner@suse.de>'
-__version__ = 1.3
+about = {}
+with open('stable_rt_tools/about.py') as fp:
+    exec(fp.read(), about)
 
 HERE = path.abspath(path.dirname(__file__))
 with open(path.join(HERE, 'README.rst')) as f:
     LONG_DESCRIPTION = f.read()
 
-
 setup(
-    name='stable-rt-tools',
-    version=__version__,
+    name=about['__title__'],
+    version=about['__version__'],
 
-    description='Support out of tree patch workflows',
+    description=about['__summary__'],
     long_description=LONG_DESCRIPTION,
 
-    maintainer='Daniel Wagner',
-    maintainer_email='dwagner@suse.de',
+    maintainer=about['__author__'],
+    maintainer_email=about['__email__'],
 
-    url='https://stable-rt-tools.readthedocs.io',
-    download_url=('https://github.com/igaw/stable-rt-tools/releases'
-                  '/archive/{version}.tar.gz'.format(version=__version__)),
+    url=about['__doc_uri__'],
+    download_url=about['__uri__'],
 
-    license='MIT',
+    license=about['__license__'],
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
