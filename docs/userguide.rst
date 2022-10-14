@@ -45,8 +45,8 @@ way::
 
   git worktree add --track -b <branch> <path> <remote>/<branch>
   i.e. git worktree add --track -b v4.9-rt ../v4.9-rt k.org/v4.9-rt
-  i.e. git worktree add --track -b v4.9-rt-rebase ../v4.9-rt k.org/v4.9-rt-rebase
-  i.e. git worktree add --track -b v4.9-rt-next ../v4.9-rt k.org/v4.9-rt-next
+  i.e. git worktree add --track -b v4.9-rt-rebase ../v4.9-rt-rebase k.org/v4.9-rt-rebase
+  i.e. git worktree add --track -b v4.9-rt-next ../v4.9-rt-next k.org/v4.9-rt-next
 
 Where k.org in this case
 `git://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
