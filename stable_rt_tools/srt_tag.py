@@ -25,10 +25,10 @@
 
 import re
 
-from stable_rt_tools.srt_util import cmd, confirm, get_config, get_gnupghome
+from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gnupghome)
 
 
-def tag(config):
+def tag(config, rc):
     p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
     lines = cmd(['git', 'log', '-1', '--pretty=%B'])
     for msg in iter(lines.splitlines()):
@@ -37,6 +37,8 @@ def tag(config):
             continue
 
         tag = 'v' + m.group(1) + ('-rebase' if m.group(2) else '')
+        if rc:
+            tag = tag + '-rc{0}'.format(rc)
         print('tagging as {0} with message \'{1}\''.format(tag, msg))
         if confirm('OK to tag?'):
             cmd(['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
@@ -45,8 +47,11 @@ def tag(config):
 
 
 def add_argparser(parser):
-    return parser.add_parser('tag')
+    prs = parser.add_parser('tag')
+    prs.add_argument('--release-candidate', '-r',
+                     default=None, metavar='N', type=int)
+    return prs
 
 
 def execute(args):
-    tag(get_config())
+    tag(get_config(), args.release_candidate)

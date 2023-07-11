@@ -266,7 +266,7 @@ class TestRelease(TestSrtBase):
     def step2_tag(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4'))
 
     def step3_commit_rebase(self):
@@ -284,7 +284,7 @@ class TestRelease(TestSrtBase):
     def step4_tag_rebase(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
 
     def step5_create(self):
@@ -373,7 +373,7 @@ class TestReleaseCanditate(TestSrtBase):
         # step2_tag()
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
 
         # step3_commit_rebase()
         cmd(['git', 'checkout', self.branch_rt_rebase])
@@ -386,7 +386,7 @@ class TestReleaseCanditate(TestSrtBase):
         # step4_tag_rebase()
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
 
         # step5_create()
         ctx = SrtContext(make_args('v4.4.13-rt3', 'v4.4.14-rt4'),
@@ -440,7 +440,7 @@ class TestReleaseCanditate(TestSrtBase):
     def step2_tag(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt5-rc1'))
 
     def step3_create(self):
@@ -570,7 +570,7 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
     def step2_tag(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4'))
 
     def step3_commit_rebase(self):
@@ -588,7 +588,7 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
     def step4_tag_rebase(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
 
     def step5_create(self):
@@ -621,7 +621,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
     def step2_tag(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4'))
 
     def step3_commit_rebase(self):
@@ -639,7 +639,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
     def step4_tag_rebase(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4-rebase'))
 
     def step5_new_stable_release(self):
@@ -658,7 +658,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
     def step7_tag(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.15-rt5'))
 
     def step8_commit_rebase2(self):
@@ -676,7 +676,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
     def step9_tag_rebase2(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        tag(self.config)
+        tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.15-rt5-rebase'))
 
     def step10_create(self):
