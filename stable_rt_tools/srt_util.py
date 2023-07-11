@@ -96,7 +96,7 @@ def get_old_tag():
     log = logging.getLogger()
     log.debug(last_tag)
 
-    m = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)$', last_tag)
+    m = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)(-rc(\d+))?$', last_tag)
     major = int(m.group(1))
     minor = int(m.group(2))
     base_version = 'v{}.{}'.format(major, minor)
@@ -111,8 +111,9 @@ def get_old_tag():
 
     last_patch = 0
     last_rt = 0
+    last_rc = None
     for f in m:
-        m2 = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)$', f)
+        m2 = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)(-rc(\d+))?$', f)
         patch = int(m2.group(3))
         rt = int(m2.group(4))
 
@@ -123,7 +124,15 @@ def get_old_tag():
         if rt > last_rt:
             last_rt = rt
 
-    return '{}.{}-rt{}'.format(base_version, last_patch, last_rt)
+        if len(m2.groups()) > 4:
+            rc = m2.group(5)
+            if last_rc and rc > last_rc:
+                last_rc = rc
+
+    tag = '{}.{}-rt{}'.format(base_version, last_patch, last_rt)
+    if last_rc:
+        tag = tag + '-rc{}'.format(last_rc)
+    return tag
 
 
 def is_dirty():

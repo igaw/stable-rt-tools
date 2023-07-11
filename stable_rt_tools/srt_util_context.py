@@ -71,8 +71,7 @@ class SrtContext:
         setattr(self, prefix + '_fln_tar', fln_tar)
 
     def _update_tags(self):
-        if self.old_tag.base == self.new_tag.base:
-            self.is_rc = self.new_tag.is_rc
+        self.is_rc = self.new_tag.is_rc
 
     def __getattr__(self, name):
         """Returns the attribute matching passed name."""
