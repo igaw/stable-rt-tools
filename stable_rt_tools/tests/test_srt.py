@@ -702,6 +702,66 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         # XXX check if missing intermedeate tags are pushed as well
 
 
+class TestReleaseCanditateNewProcess(TestSrtBase):
+    def setUp(self):
+        super().setUp()
+
+        os.chdir(self.work_tree)
+        cmd(['git', 'checkout', self.branch_rt_next])
+        self.do_merge('4.4.14')
+
+    def step1_commit(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+        ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
+        self.assertEqual(sys.stdout.getvalue(), ans)
+        lines = cmd(['git', 'show'])
+        self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
+
+    def step2_tag(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config, rc=1)
+        self.assertTrue(tag_exists('v4.4.14-rt4-rc1'))
+
+    def step3_context(self):
+        self.ctx = SrtContext(make_args('v4.4.13-rt3', 'v4.4.14-rt4-rc1'),
+                              path=self.work_tree)
+
+    def step4_push(self):
+        os.chdir(self.work_tree)
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        push(self.config, self.ctx)
+
+    def step5_announce(self):
+        os.chdir(self.work_tree)
+
+        ap = argparse.ArgumentParser()
+        ap.add_argument('--suppress-cc', '-s', action="store_true",
+                        default=False,
+                        help='Don''t auto-cc anyone (for testing)')
+        args = ap.parse_args("")
+
+        stub_stdin(self, 'n')
+        stub_stdouts(self)
+        announce(self.config, self.ctx, args)
+
+        patches = ['0000-cover-letter.patch',
+                   '0001-Linux-4.4.14-rt4.patch']
+        for p in patches:
+            file_path = self.ctx.new_dir_mails + '/' + p
+            self.assertTrue(os.path.isfile(file_path))
+
+        filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
+        with open(filename, 'r') as f:
+            letter = f.read()
+            debug(letter)
+            self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
+
+
 if __name__ == '__main__':
     import logging
     logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
