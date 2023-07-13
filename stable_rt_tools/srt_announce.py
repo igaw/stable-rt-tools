@@ -40,6 +40,20 @@ from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
 from stable_rt_tools.srt_util_context import SrtContext
 
 
+def find_starting_ref(ctx):
+    # find starting point. first check for stable update only
+    ref = cmd(['git', 'log', '--pretty=format:%H', '--merges', '-n', '1'])
+
+    # if patches have been added, we find the old tag and should start there
+    # and not the last merge
+    commits = cmd(['git', 'log', '--simplify-by-decoration',
+                   '--oneline', str(ref) + '..'])
+    if ' '.join(commits.split('\n')).find(str(ctx.old_short_tag)) != -1:
+        ref = str(ctx.old_tag)
+
+    return ref
+
+
 def create_rc_patches(config, ctx):
     branch_name = get_local_branch_name()
     cmd(['git', 'checkout', '-b', 'next-tmp'])
@@ -48,11 +62,13 @@ def create_rc_patches(config, ctx):
     srt_env['SRT_REVIEW_TAG'] = str(ctx.new_tag)
     srt_env['FILTER_BRANCH_SQUELCH_WARNING'] = str(1)
     srt_path = os.path.dirname(os.path.realpath(__file__))
+
+    ref = find_starting_ref(ctx)
     cmd(['git', 'filter-branch', '-f', '--msg-filter',
-         srt_path + '/srt_git_filter.py', str(ctx.old_tag) + '..'],
+         srt_path + '/srt_git_filter.py', str(ref) + '..'],
         env=srt_env)
 
-    cmd(['git', 'format-patch', str(ctx.old_tag) + '..',
+    cmd(['git', 'format-patch', str(ref) + '..',
          '-o', ctx.new_dir_mails, '--subject-prefix', 'PATCH RT',
          '--cover-letter'])
 
@@ -162,18 +178,19 @@ def announce(config, ctx, args):
 
     print(stable_rt_text.format(**r))
 
+    ref = find_starting_ref(ctx)
     print(cmd(['git', '--no-pager', 'shortlog', '{0}..{1}'.
-               format(ctx.old_tag, ctx.new_tag)]))
+               format(ref, ctx.new_tag)]))
 
     print('---')
 
     print(cmd(['git', '--no-pager', 'diff', '--stat', '{0}..{1}'.
-               format(ctx.old_tag, ctx.new_tag)]))
+               format(ref, ctx.new_tag)]))
 
     print('---')
 
     print(cmd(['git', '--no-pager', 'diff', '{0}..{1}'.
-               format(ctx.old_tag, ctx.new_tag)]))
+               format(ref, ctx.new_tag)]))
 
 
 def add_argparser(parser):
