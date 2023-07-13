@@ -46,6 +46,7 @@ def create_rc_patches(config, ctx):
 
     srt_env = os.environ.copy()
     srt_env['SRT_REVIEW_TAG'] = str(ctx.new_tag)
+    srt_env['FILTER_BRANCH_SQUELCH_WARNING'] = str(1)
     srt_path = os.path.dirname(os.path.realpath(__file__))
     cmd(['git', 'filter-branch', '-f', '--msg-filter',
          srt_path + '/srt_git_filter.py', str(ctx.old_tag) + '..'],
