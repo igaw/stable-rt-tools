@@ -43,7 +43,7 @@ class Tag:
         parts = _tag.split('-')
         m = re.match(r'^v([0-9]+)\.([0-9]+)\.([0-9]+)$', parts[0])
         if not m:
-            raise(TagParseError('Failed to parse {0}'.format(parts[0])))
+            raise TagParseError('Failed to parse {0}'.format(parts[0]))
         self.major = int(m.group(1))
         self.minor = int(m.group(2))
         self.patch = int(m.group(3))
@@ -52,7 +52,7 @@ class Tag:
         for p in parts[1:]:
             m = re.match('^([a-z]+)([0-9]+)$', p)
             if not m:
-                raise(TagParseError('Failed to parse {0}'.format(p)))
+                raise TagParseError('Failed to parse {0}'.format(p))
             setattr(self, m.group(1), int(m.group(2)))
             self._order.append(m.group(1))
 
@@ -100,7 +100,7 @@ class Tag:
     def base(self):
         """Return the tag upto -rt without trailing postfixes, e.g. -rc."""
         if 'rt' not in self._order:
-            raise(TagBaseError('No rt base tag {0}'.format(str(self))))
+            raise TagBaseError('No rt base tag {0}'.format(str(self)))
         return self._build('rt')
 
     @property
