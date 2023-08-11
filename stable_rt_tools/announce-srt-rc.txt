@@ -5,23 +5,14 @@ This is the RT stable review cycle of patch {new_version}.
 Please scream at me if I messed something up. Please test the patches
 too.
 
-The -rc release will be uploaded to kernel.org and will be deleted
-when the final release is out. This is just a review release (or
-release candidate).
+The -rc release is also available on kernel.org
 
-The pre-releases will not be pushed to the git repository, only the
-final release is.
+  https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+
+on the v{major}.{minor}-rt-next branch.
 
 If all goes well, this patch will be converted to the next main
 release on {release_date}.
-
-To build {new_version} directly, the following patches should be applied:
-
-  https://www.kernel.org/pub/linux/kernel/v{major}.x/linux-{major}.{minor}.tar.xz
-
-  https://www.kernel.org/pub/linux/kernel/v{major}.x/patch-{major}.{minor}.{patch}.xz
-
-  https://www.kernel.org{prj_dir}/older/patch-{new_version}.patch.xz
 
 Signing key fingerprint:
 
