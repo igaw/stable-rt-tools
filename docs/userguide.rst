@@ -183,6 +183,8 @@ bot will monitor the -next branches and triggers a build.
 Announce the candidate on the mailing list and do the proper release after a
 week or so.
 
+.. code-block:: console
+
   $ cd v4.19-rt-next
   $ git fetch --all
   $ git reset --hard v4.19-rt
