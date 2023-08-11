@@ -173,6 +173,91 @@ Release candicates series
   $ srt announce v4.4.148-rt165 v4.4.148-rt166-rc1
 
 
+New release work flow
+---------------------
+
+With the new release workflow, a release candidate is always created and pushed
+to the -next branch. Publish this branch and do your local testing. The kernelci
+bot will monitor the -next branches and triggers a build.
+
+Announce the candidate on the mailing list and do the proper release after a
+week or so.
+
+  $ cd v4.19-rt-next
+  $ git fetch --all
+  $ git reset --hard v4.19-rt
+
+  $ git tag -l --sort=v:refname v4\.19\.\* | tail -10
+  v4.19.285
+  v4.19.286
+  v4.19.287
+  v4.19.288
+  v4.19.288-rt126
+  v4.19.288-rt126-rc1
+  v4.19.288-rt126-rebase
+  v4.19.289
+  v4.19.290
+  v4.19.291
+
+  $ while-loop v4.19 291 289
+  for v4.19.291 to v4.19.289
+  Continue? [y/N] y
+  MERGING: v4.19.291
+  Auto-merging arch/Kconfig
+  Auto-merging arch/arm/Kconfig
+  Auto-merging arch/mips/Kconfig
+  Auto-merging arch/x86/Kconfig
+  [...]
+  SUCCESS: v4.19.291   USE: v4.19.291
+  HEAD is now at 83db5d9eb0ed Linux 4.19.288-rt126
+
+  $ git merge v4.19.291
+
+  $ srt commit -r 1
+  git commit -m Linux 4.19.291-rt127-rc1
+  OK to commit? (y/n): y
+
+  $ srt tag
+  tagging as v4.19.291-rt127-rc1 with message 'Linux 4.19.291-rt127-rc1'
+  OK to tag? (y/n): y
+
+  [do local testing]
+
+  $ srt announce
+  From git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+  Switched to a new branch 'next-tmp'
+  Switched to branch 'v4.19-rt-next'
+  Dry run
+  [...]
+  MIME-Version: 1.0
+  Content-Transfer-Encoding: 8bit
+
+  Result: OK
+  OK to send patches? (y/n): y
+
+  $ srt push
+  From git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+  Dry run
+  git push -f -n git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt   v4.19.291-rt127-rc1^{}:v4.19-rt-next tag v4.19.291-rt127-rc1
+  To gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+     83db5d9eb0ed..0b2e2eb20a90  v4.19.291-rt127-rc1^{} -> v4.19-rt-next
+   * [new tag]                   v4.19.291-rt127-rc1 -> v4.19.291-rt127-rc1
+  OK to push? (y/n): y
+  Enumerating objects: 3964, done.
+  Counting objects: 100% (3319/3319), done.
+  Delta compression using up to 16 threads
+  Compressing objects: 100% (1052/1052), done.
+  Writing objects: 100% (2403/2403), 438.63 KiB | 10.20 MiB/s, done.
+  Total 2403 (delta 2058), reused 1577 (delta 1348), pack-reused 0
+  remote: Resolving deltas: 100% (2058/2058), completed with 809 local objects.
+  remote: Recorded in the transparency log
+  remote:  manifest: updated /pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+  remote: Done in 0.14s
+  remote: Notifying frontends: dfw ams sin
+  To gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+     83db5d9eb0ed..0b2e2eb20a90  v4.19.291-rt127-rc1^{} -> v4.19-rt-next
+   * [new tag]                   v4.19.291-rt127-rc1 -> v4.19.291-rt127-rc1
+
 Trouble shooting
 ----------------
 
