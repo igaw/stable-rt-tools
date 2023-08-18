@@ -176,6 +176,9 @@ Release candicates series
 New release work flow
 ---------------------
 
+Release Candidate
+`````````````````
+
 With the new release workflow, a release candidate is always created and pushed
 to the -next branch. Publish this branch and do your local testing. The kernelci
 bot will monitor the -next branches and triggers a build.
@@ -215,11 +218,11 @@ week or so.
 
   $ git merge v4.19.291
 
-  $ srt commit -r 1
-  git commit -m Linux 4.19.291-rt127-rc1
+  $ srt commit
+  git commit -m Linux 4.19.291-rt127
   OK to commit? (y/n): y
 
-  $ srt tag
+  $ srt tag -r 1
   tagging as v4.19.291-rt127-rc1 with message 'Linux 4.19.291-rt127-rc1'
   OK to tag? (y/n): y
 
@@ -259,6 +262,30 @@ week or so.
   To gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
      83db5d9eb0ed..0b2e2eb20a90  v4.19.291-rt127-rc1^{} -> v4.19-rt-next
    * [new tag]                   v4.19.291-rt127-rc1 -> v4.19.291-rt127-rc1
+
+Release
+```````
+
+.. code-block:: console
+
+  $ cd v4.4-rt-rebase
+  $ git rebase v4.19.291
+  $ srt commit
+  $ srt tag
+
+  $ cd v4.19-rt
+  $ git merge --ff-only v4.19-rt-next
+  $ srt tag
+  $ srt create
+  $ srt sign
+  $ srt announce > ../announce-rt
+  $ srt upload
+  $ srt push
+
+
+  $ cat ../announce-rt | msmtp -t --
+  or
+  $ mutt -H ../announce-rt
 
 Trouble shooting
 ----------------
