@@ -268,14 +268,16 @@ Release
 
 .. code-block:: console
 
-  $ cd v4.4-rt-rebase
+  $ cd v4.19-rt
+  $ git merge --ff-only v4.19-rt-next
+  $ srt tag
+
+  $ cd v4.19-rt-rebase
   $ git rebase v4.19.291
   $ srt commit
   $ srt tag
 
   $ cd v4.19-rt
-  $ git merge --ff-only v4.19-rt-next
-  $ srt tag
   $ srt create
   $ srt sign
   $ srt announce > ../announce-rt
