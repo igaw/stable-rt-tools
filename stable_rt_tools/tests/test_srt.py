@@ -229,7 +229,7 @@ class TestSrtBase(unittest.TestCase):
             'LOCALVERSION': 'localversion-rt',
             'PRJ_GIT_TREE': self.rt_repo,
             'PRJ_DIR': '/pub/linux/kernel/people/wagi/test/4.4',
-            'MAIL_TO': 'Foo Bar <foo@bar.barf>,example@example.com',
+            'MAIL_TO': 'Foo Bar <foo@bar.barf>, <example@example.com>',
             'SENDER': 'Mighty Eagle <me@incredible.com>',
             'NAME': 'Mighty Eagle'}
 
