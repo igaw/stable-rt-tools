@@ -173,8 +173,8 @@ Release candicates series
   $ srt announce v4.4.148-rt165 v4.4.148-rt166-rc1
 
 
-New release work flow
----------------------
+Work flow with release candite
+------------------------------
 
 Release Candidate
 `````````````````
@@ -289,6 +289,104 @@ Release
   or
   $ mutt -H ../announce-rt
 
+Quilt workflow
+--------------
+
+srt.conf
+========
+.. code-block:: ini
+
+  [linux/stable-rt/v6.12-rt]
+  quilt_workflow = true
+  LOCALVERSION = localversion-rt
+  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
+  PRJ_GIT_TREE=git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
+
+  [linux/stable-rt/v6.12-rt-patches]
+  LOCALVERSION = localversion-rt
+  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
+  PRJ_GIT_TREE=git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
+
+  [linux/stable-rt/v6.12-rt-rebase]
+  LOCALVERSION = localversion-rt
+  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
+  PRJ_GIT_TREE=git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
+
+Create branches and import rt-devel version
+===========================================
+.. code-block:: console
+  $ mkdir ../v6.12
+  $ git worktree add ../v6.12 stable/linux-6.12.y
+
+  $ git branch v6.12-rt-patches rt-devel/linux-6.12.y-rt-patches
+  $ git branch v6.12-rt-rebase rt-devel/linux-6.12.y-rt-rebase
+  $ git branch v6.12-rt rt-devel/linux-6.12.y-rt
+
+  $ mkdir ../v6.12-rt-patches
+  $ mkdir ../v6.12-rt-rebase
+  $ mkdir ../v6.12-rt
+
+  $ git worktree add ../v6.12-rt-patches v6.12-rt-patches
+  $ git worktree add ../v6.12-rt-rebase v6.12-rt-rebase
+  $ git worktree add ../v6.12-rt v6.12-rt
+
+  $ git branch --set-upstream-to=stable-rt/v6.12-rt-patches v6.12-rt-patches
+
+  $ git tag | grep -E '^v6\.12\..*-rt[^-]*-.*$' | xargs -r git push stable-rt
+
+  $ cd ../v6.12-rt-patches
+  $ git push stable-rt
+  $ git push --dry-run stable-rt $(git tag --merged rt-devel/linux-6.12.y-rt-patches)
+
+  $ cd ../v6.12-rt-rebase
+  $ git push stable-rt
+
+  $ cd ../v6.12-rt
+  $ git push stable-rt
+
+Create a new release
+====================
+.. code-block:: console
+  $ cd v6.12
+  $ git pull
+
+  $ cd v6.12-rt
+  $ source <(srt prep)
+
+  $ cd v6.12
+  $ while quilt push; do; quilt refresh; done
+  $ vim localversion-rt
+  $ quilt refresh
+  $ quilt pop -a
+
+  $ cd v6.12-rt-patches
+  $ git add -u
+  $ srt patches
+
+  $ cd v6.12-rt-rebase
+  $ git reset --hard stable/linux-6.12.y
+  $ git quiltimport ../v6.12-rt.patches/patches/series
+  $ srt patches
+
+  $ cd v6.12-rt
+  $ git merge stable/linux-6.12.y
+  $ vim localversion-rt
+  $ git diff v6.12-rt-rebase
+  $ git add -u
+  $ srt patches
+
+  $ srt create
+  $ srt sign
+  $ srt upload
+  $ srt push
+
+  $ srt announce > ../announce-rt
+  $ mutt -H ../announce-rt
+
+
 Trouble shooting
 ----------------
 
@@ -308,4 +406,3 @@ to the PRJ_DIR on kernel.org through the helpdesk.
 There is a debug option you can add to the srt command line that turns on some
 tracing,  "-d".  One new maintainer bumped into each of the above and the
 tracking branch assumption and used the -d option to debug their issues.
-
