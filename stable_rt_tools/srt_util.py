@@ -26,7 +26,7 @@
 import os
 import re
 import sys
-from configparser import SafeConfigParser
+from configparser import ConfigParser
 from logging import debug, error
 from subprocess import PIPE, DEVNULL, CalledProcessError, run
 
@@ -143,7 +143,7 @@ def is_dirty():
 
 
 def read_config():
-    config = SafeConfigParser()
+    config = ConfigParser()
     dirs = [os.curdir,
             os.path.expanduser('~/.config/'),
             os.path.expanduser('~'),
