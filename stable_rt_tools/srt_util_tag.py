@@ -50,16 +50,21 @@ class Tag:
 
         self._order = []
         for p in parts[1:]:
-            m = re.match('^([a-z]+)([0-9]+)$', p)
-            if not m:
+            m = re.match(r'^([a-z]+)([0-9]+)$', p)
+            if m:
+                key, val = m.group(1), int(m.group(2))
+                setattr(self, key, val)
+                self._order.append(key)
+            elif re.match(r'^[a-z]+$', p):
+                setattr(self, p, True)
+                self._order.append(p)
+            else:
                 raise TagParseError('Failed to parse {0}'.format(p))
-            setattr(self, m.group(1), int(m.group(2)))
-            self._order.append(m.group(1))
 
     def __getattr__(self, name):
         """Returns the attribute matching passed name."""
         value = self.__dict__.get(name)
-        if not value:
+        if value is None:
             raise TagAttrError('No such attribute {0}'.format(name))
         return value
 
@@ -70,9 +75,12 @@ class Tag:
         for o in self._order:
             if fix == o:
                 return tag
-            tag = '{0}-{1}{2}'.format(tag, o, getattr(self, o))
-
-        return str(tag)
+            val = getattr(self, o)
+            if val is True:
+                tag = '{0}-{1}'.format(tag, o)
+            else:
+                tag = '{0}-{1}{2}'.format(tag, o, val)
+        return tag
 
     def prev(self, cur):
         try:
@@ -85,10 +93,7 @@ class Tag:
 
     @property
     def is_rc(self):
-        for o in self._order:
-            if o == 'rc':
-                return True
-        return False
+        return 'rc' in self._order
 
     @property
     def last(self):
@@ -98,7 +103,7 @@ class Tag:
 
     @property
     def base(self):
-        """Return the tag upto -rt without trailing postfixes, e.g. -rc."""
+        """Return the tag up to -rt without trailing postfixes like -rc, -patches."""
         if 'rt' not in self._order:
             raise TagBaseError('No rt base tag {0}'.format(str(self)))
         return self._build('rt')

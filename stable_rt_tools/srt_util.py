@@ -94,17 +94,25 @@ def get_old_tag():
 
     import logging
     log = logging.getLogger()
-    log.debug(last_tag)
+    log.debug("Last tag: %s", last_tag)
 
-    m = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)(-rc(\d+))?$', last_tag)
+    # Match tags like: v6.12.28-rt10[-rc1][-patches]
+    tag_re = r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)(-rc(\d+))?(-patches)?$'
+    m = re.match(tag_re, last_tag)
+    if not m:
+        print('Invalid last tag format: {}'.format(last_tag))
+        sys.exit(1)
+
     major = int(m.group(1))
     minor = int(m.group(2))
     base_version = 'v{}.{}'.format(major, minor)
 
     tags = cmd(['git', 'ls-remote', '--tags'])
-    match = r'.*({}\.\d+-rt\d+)$'.format(base_version)
-    m = re.findall(match, tags, re.MULTILINE)
-    if not m:
+    # Look for all matching tags with optional -rcN and -patches
+    match_re = r'.*({}\.\d+-rt\d+(-rc\d+)?(-patches)?)$'.format(base_version)
+    matches = re.findall(match_re, tags, re.MULTILINE)
+
+    if not matches:
         print('Last remote tag -rt[0-9]+ not found on {}'.
               format(get_remote_branch_name()))
         sys.exit(1)
@@ -112,26 +120,30 @@ def get_old_tag():
     last_patch = 0
     last_rt = 0
     last_rc = None
-    for f in m:
-        m2 = re.match(r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)(-rc(\d+))?$', f)
+
+    for groups in matches:
+        tag_str = groups[0]  # full tag string
+        m2 = re.match(tag_re, tag_str)
+        if not m2:
+            continue
         patch = int(m2.group(3))
         rt = int(m2.group(4))
+        rc_str = m2.group(6)
+        rc = int(rc_str) if rc_str else None
 
-        if patch > last_patch:
+        if patch > last_patch or (patch == last_patch and rt > last_rt):
             last_patch = patch
             last_rt = rt
-
-        if rt > last_rt:
-            last_rt = rt
-
-        if len(m2.groups()) > 4:
-            rc = m2.group(5)
-            if last_rc and rc > last_rc:
+            last_rc = rc
+        elif patch == last_patch and rt == last_rt:
+            if last_rc is None and rc is not None:
+                last_rc = rc
+            elif rc is not None and rc > last_rc:
                 last_rc = rc
 
     tag = '{}.{}-rt{}'.format(base_version, last_patch, last_rt)
-    if last_rc:
-        tag = tag + '-rc{}'.format(last_rc)
+    if last_rc is not None:
+        tag += '-rc{}'.format(last_rc)
     return tag
 
 
