@@ -157,8 +157,34 @@ def get_rc_templ_path(config):
 
 
 def announce(config, ctx, args):
+    from stable_rt_tools.srt_util import is_quilt_workflow
     if ctx.is_rc:
         announce_rc(config, ctx, args)
+        return
+
+    if is_quilt_workflow(config):
+        import subprocess
+        tag = str(ctx.new_tag) + '-patches'
+        try:
+            msg = subprocess.check_output([
+                'git', 'show', '-s', '--format=%B', tag
+            ], encoding='utf-8').strip()
+            announce_start = msg.find('[ANNOUNCE]')
+            if announce_start != -1:
+                lines = msg[announce_start:].splitlines()
+                msg = '\n'.join(lines[1:]).lstrip('\n')
+            else:
+                pass
+            timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
+            sender = config.get('SENDER', '')
+            mail_to = config.get('MAIL_TO', '')
+            print(f"From: {sender}")
+            print(f"To: {mail_to}")
+            print(f"Subject: [ANNOUNCE] {ctx.new_tag}")
+            print(f"Date: {timestamp}\n")
+            print(msg)
+        except Exception as e:
+            print(f"Error extracting announcement from tag {tag}: {e}")
         return
 
     # rfc2822.html
