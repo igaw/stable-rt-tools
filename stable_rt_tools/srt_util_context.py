@@ -39,13 +39,17 @@ class SrtContext:
         old_tag = None
         new_tag = None
 
-        if args.OLD_TAG:
+        if args and getattr(args, "OLD_TAG", None):
             old_tag = args.OLD_TAG
+        elif os.environ.get("OLD_TAG"):
+            old_tag = os.environ["OLD_TAG"]
         else:
             old_tag = get_old_tag()
 
-        if args.NEW_TAG:
+        if args and getattr(args, "NEW_TAG", None):
             new_tag = args.NEW_TAG
+        elif os.environ.get("NEW_TAG"):
+            new_tag = os.environ["NEW_TAG"]
         else:
             new_tag = get_last_tag(get_remote_branch_name())
 
