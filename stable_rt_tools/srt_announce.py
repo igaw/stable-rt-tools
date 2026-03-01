@@ -145,16 +145,15 @@ def get_announce_tmpl_path(config):
     if 'ANNOUNCE' in config:
         return config['ANNOUNCE']
 
-    with pkg_resources.path('stable_rt_tools', 'announce-srt.txt') as p:
-        return str(p)
+    # Use importlib.resources.files for modern resource access
+    return str(pkg_resources.files('stable_rt_tools').joinpath('announce-srt.txt'))
 
 
 def get_rc_templ_path(config):
     if 'RC_TEXT' in config:
         return config['RC_TEXT']
 
-    with pkg_resources.path('stable_rt_tools', 'announce-srt-rc.txt') as p:
-        return str(p)
+    return str(pkg_resources.files('stable_rt_tools').joinpath('announce-srt-rc.txt'))
 
 
 def announce(config, ctx, args):
