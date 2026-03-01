@@ -181,6 +181,19 @@ def get_config():
     return config
 
 
+def is_quilt_workflow(config):
+    """Return True if the quilt workflow is enabled in config, else False."""
+    if hasattr(config, 'getboolean'):
+        return config.getboolean('quilt_workflow', fallback=False)
+    # fallback for dict-like config
+    val = config.get('quilt_workflow', False)
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.lower() in ('1', 'yes', 'true', 'on')
+    return False
+
+
 def get_gnupghome(config):
     gnupghome = os.getenv('GNUPGHOME', '~/.gnupg')
     if 'GNUPGHOME' in config:

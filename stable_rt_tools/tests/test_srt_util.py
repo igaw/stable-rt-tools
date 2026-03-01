@@ -97,5 +97,35 @@ class TestUtil(TestCase):
         fingerprint = get_gpg_fingerprint(self.config)
         debug('GPG_KEY_ID:  ' + self.config['GPG_KEY_ID'])
         debug('fingerprint: ' + fingerprint)
-        self.assertTrue(fingerprint.replace(' ', '')
-                        == self.config['GPG_KEY_ID'])
+        self.assertTrue(fingerprint.replace(' ', '') == self.config['GPG_KEY_ID'])
+
+    def test_quilt_workflow_flag(self):
+        from configparser import ConfigParser
+        from stable_rt_tools.srt_util import get_config, is_quilt_workflow
+        import stable_rt_tools.srt_util as srt_util
+
+        config = ConfigParser()
+        section = 'repo/branch'
+        config.add_section(section)
+        config.set(section, 'quilt_workflow', 'yes')
+
+        def fake_read_config():
+            return config
+        def fake_get_remote_repo_name():
+            return 'repo'
+        def fake_get_remote_branch_name(short=False):
+            return 'branch'
+
+        old_read_config = srt_util.read_config
+        old_get_remote_repo_name = srt_util.get_remote_repo_name
+        old_get_remote_branch_name = srt_util.get_remote_branch_name
+        srt_util.read_config = fake_read_config
+        srt_util.get_remote_repo_name = fake_get_remote_repo_name
+        srt_util.get_remote_branch_name = fake_get_remote_branch_name
+        try:
+            cfg = get_config()
+            self.assertTrue(is_quilt_workflow(cfg))
+        finally:
+            srt_util.read_config = old_read_config
+            srt_util.get_remote_repo_name = old_get_remote_repo_name
+            srt_util.get_remote_branch_name = old_get_remote_branch_name
