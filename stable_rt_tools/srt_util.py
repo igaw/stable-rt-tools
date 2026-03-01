@@ -28,14 +28,14 @@ import re
 import sys
 from configparser import SafeConfigParser
 from logging import debug, error
-from subprocess import PIPE, CalledProcessError, run
-
+from subprocess import PIPE, DEVNULL, CalledProcessError, run
 
 def cmd(args, verbose=False, env=None):
     if verbose:
         print(' '.join(args))
     debug('run: ' + ' '.join(args))
-    p = run(args, check=True, stdout=PIPE, env=env)
+    p = run(args, check=True, stdout=PIPE,
+            stderr=None if verbose else DEVNULL, env=env)
     r = p.stdout.decode('utf-8').strip()
     debug('     ' + r)
     return r
