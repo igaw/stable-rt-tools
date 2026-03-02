@@ -77,18 +77,20 @@ def create_rc_patches(config, ctx):
 
 
 def cover_letter_replacements(config, ctx):
-    r = {"mail_to": config['MAIL_TO'],
-         "major": ctx.new_tag.major,
-         "minor": ctx.new_tag.minor,
-         "patch": ctx.new_tag.patch,
-         "new_version": ctx.new_short_tag,
-         "old_version": ctx.old_short_tag,
-         "prj_dir": config['PRJ_DIR'],
-         "message_id": make_msgid(),
-         "sender": config['SENDER'],
-         "name": config['NAME'],
-         "new_tag_rt": ctx.new_tag.rt,
-         "gpg_key_fingerprint": get_gpg_fingerprint(config)}
+    r = {
+        "mail_to": config['MAIL_TO'],
+        "major": ctx.new_tag.major,
+        "minor": ctx.new_tag.minor,
+        "patch": ctx.new_tag.patch,
+        "new_version": ctx.new_short_tag,
+        "old_version": ctx.old_short_tag,
+        "prj_dir": config['PRJ_DIR'],
+        "message_id": make_msgid(),
+        "sender": config['SENDER'],
+        "name": config['NAME'],
+        "new_tag_rt": ctx.new_tag.rt,
+        "gpg_key_fingerprint": get_gpg_fingerprint(config),
+    }
     if ctx.is_rc:
         r["new_tag_rc"] = ctx.new_tag.rc
     return r
@@ -146,14 +148,18 @@ def get_announce_tmpl_path(config):
         return config['ANNOUNCE']
 
     # Use importlib.resources.files for modern resource access
-    return str(pkg_resources.files('stable_rt_tools').joinpath('announce-srt.txt'))
+    return str(
+        pkg_resources.files('stable_rt_tools').joinpath('announce-srt.txt')
+    )
 
 
 def get_rc_templ_path(config):
     if 'RC_TEXT' in config:
         return config['RC_TEXT']
 
-    return str(pkg_resources.files('stable_rt_tools').joinpath('announce-srt-rc.txt'))
+    return str(
+        pkg_resources.files('stable_rt_tools').joinpath('announce-srt-rc.txt')
+    )
 
 
 def announce(config, ctx, args):

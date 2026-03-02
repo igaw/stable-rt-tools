@@ -24,14 +24,18 @@
 
 
 import os
-import sys
-from configparser import ConfigParser
-from stable_rt_tools.srt_util import (get_remote_branch_name, get_old_tag,
-                                      get_config, get_last_rt_tag, cmd, confirm)
+from stable_rt_tools.srt_util import (
+    get_remote_branch_name, get_old_tag, get_config, get_last_rt_tag, cmd
+)
+
 
 def get_next_stable_version(branch_name, tree_dir):
-    branch = cmd(['git', '-C', tree_dir, 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
-    tags = cmd(['git', '-C', tree_dir, 'tag', '--merged', branch, '--sort=-v:refname']).splitlines()
+    branch = cmd([
+        'git', '-C', tree_dir, 'rev-parse', '--abbrev-ref', 'HEAD']
+    ).strip()
+    tags = cmd([
+        'git', '-C', tree_dir, 'tag', '--merged', branch, '--sort=-v:refname'
+    ]).splitlines()
     for tag in tags:
         if tag.startswith('v') and '-rt' not in tag:
             return tag
@@ -42,17 +46,21 @@ def prep(config):
     current_dir = os.path.basename(os.getcwd())
 
     # quilt patches
-    quilt_patches = os.path.abspath(os.path.join('..', f"{current_dir}-patches", "patches"))
+    quilt_patches = os.path.abspath(
+        os.path.join('..', f"{current_dir}-patches", "patches")
+    )
 
     # old tag
-    old_tag=get_old_tag()
+    old_tag = get_old_tag()
 
     # new tag
     branch_name = get_remote_branch_name()
     rt = get_last_rt_tag(branch_name, '')
-    rt_ver= rt[3:]
+    rt_ver = rt[3:]
     rt_ver = int(rt_ver) + 1
-    stable_tree_dir = os.path.abspath(os.path.join('..', current_dir.split('-rt')[0]))
+    stable_tree_dir = os.path.abspath(
+        os.path.join('..', current_dir.split('-rt')[0])
+    )
     next_stable = get_next_stable_version(branch_name, stable_tree_dir)
     new_tag = f"{next_stable}-rt{rt_ver}"
 
@@ -60,7 +68,7 @@ def prep(config):
     print(f"export OLD_TAG={old_tag}")
     print(f"export NEW_TAG={new_tag}")
 
-    
+
 def add_argparser(parser):
     prs = parser.add_parser('prep')
     return prs

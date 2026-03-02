@@ -97,7 +97,9 @@ class TestUtil(TestCase):
         fingerprint = get_gpg_fingerprint(self.config)
         debug('GPG_KEY_ID:  ' + self.config['GPG_KEY_ID'])
         debug('fingerprint: ' + fingerprint)
-        self.assertTrue(fingerprint.replace(' ', '') == self.config['GPG_KEY_ID'])
+        self.assertTrue(
+            fingerprint.replace(' ', '') == self.config['GPG_KEY_ID']
+        )
 
     def test_quilt_workflow_flag(self):
         from configparser import ConfigParser
@@ -111,8 +113,10 @@ class TestUtil(TestCase):
 
         def fake_read_config():
             return config
+
         def fake_get_remote_repo_name():
             return 'repo'
+
         def fake_get_remote_branch_name(short=False):
             return 'branch'
 
