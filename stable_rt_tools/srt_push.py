@@ -23,7 +23,8 @@
 # SOFTWARE
 
 from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
-                                      get_remote_branch_name, is_quilt_workflow)
+                                      get_remote_branch_name,
+                                      is_quilt_workflow)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
@@ -36,11 +37,13 @@ def push(config, ctx):
                 '{0}^{{}}:{1}'.format(ctx.new_tag, branch),
                 'tag', str(ctx.new_tag)]
     else:
-        args = [config['PRJ_GIT_TREE'],
-                '{0}^{{}}:{1}'.format(ctx.new_tag, branch),
-                '+{0}-rebase^{{}}:{1}-rebase'.format(ctx.new_tag, branch),
-                'tag', str(ctx.new_tag),
-                'tag', '{0}-rebase'.format(ctx.new_tag)]
+        args = [
+            config['PRJ_GIT_TREE'],
+            '{0}^{{}}:{1}'.format(ctx.new_tag, branch),
+            '+{0}-rebase^{{}}:{1}-rebase'.format(ctx.new_tag, branch),
+            'tag', str(ctx.new_tag),
+            'tag', '{0}-rebase'.format(ctx.new_tag)
+        ]
         if is_quilt_workflow(config):
             patches_branch = branch + '-patches'
             patches_tag = str(ctx.new_tag) + '-patches'

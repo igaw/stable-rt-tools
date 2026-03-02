@@ -69,9 +69,11 @@ class Tag:
         return value
 
     def _build(self, fix):
-        tag = 'v{0}.{1}.{2}'.format(self.major,
-                                    self.minor,
-                                    self.patch)
+        tag = 'v{0}.{1}.{2}'.format(
+            self.major,
+            self.minor,
+            self.patch
+        )
         for o in self._order:
             if fix == o:
                 return tag
@@ -103,9 +105,12 @@ class Tag:
 
     @property
     def base(self):
-        """Return the tag up to -rt without trailing postfixes like -rc, -patches."""
+        """Return the tag up to -rt without trailing postfixes like -rc,
+        -patches."""
         if 'rt' not in self._order:
-            raise TagBaseError('No rt base tag {0}'.format(str(self)))
+            raise TagBaseError(
+                'No rt base tag {0}'.format(str(self))
+            )
         return self._build('rt')
 
     @property

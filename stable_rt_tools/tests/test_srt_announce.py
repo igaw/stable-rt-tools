@@ -23,17 +23,16 @@
 # SOFTWARE
 
 import unittest
-import sys
-import types
 from unittest.mock import patch
 from stable_rt_tools.srt_announce import announce
-from stable_rt_tools.srt_util import is_quilt_workflow
 from argparse import Namespace
+
 
 class DummyCtx:
     def __init__(self, new_tag):
         self.is_rc = False
         self.new_tag = new_tag
+
 
 class TestAnnounceQuiltWorkflow(unittest.TestCase):
     def test_announce_quilt_workflow_extracts_commit_message(self):
@@ -48,16 +47,21 @@ class TestAnnounceQuiltWorkflow(unittest.TestCase):
         args = Namespace(suppress_cc=False)
 
         # Patch subprocess.check_output to simulate git show
-        commit_message = '[ANNOUNCE] 6.12.66-rt15\n\nHello RT-list!\n...enjoy!'
-        with patch('subprocess.check_output', return_value=commit_message) as mock_git_show:
+        commit_message = (
+            '[ANNOUNCE] 6.12.66-rt15\n\nHello RT-list!\n...enjoy!'
+        )
+        with patch('subprocess.check_output',
+                   return_value=commit_message) as mock_git_show:
             with patch('builtins.print') as mock_print:
                 announce(config, ctx, args)
                 # Should call git show with the correct tag
                 mock_git_show.assert_called_with([
-                    'git', 'show', '-s', '--format=%B', 'v6.12.66-rt15-patches'
+                    'git', 'show', '-s', '--format=%B',
+                    'v6.12.66-rt15-patches'
                 ], encoding='utf-8')
                 # Should print the commit message
                 mock_print.assert_any_call('Hello RT-list!\n...enjoy!')
+
 
 if __name__ == '__main__':
     unittest.main()

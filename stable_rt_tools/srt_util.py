@@ -22,13 +22,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-
 import os
 import re
 import sys
 from configparser import ConfigParser
+
 from logging import debug, error
 from subprocess import PIPE, DEVNULL, CalledProcessError, run
+
 
 def cmd(args, verbose=False, env=None):
     if verbose:
