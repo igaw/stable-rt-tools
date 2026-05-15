@@ -357,10 +357,7 @@ Create a new release
   $ srt prep
 
   $ cd v6.12
-  $ while quilt push; do; quilt refresh; done
-  $ vim localversion-rt
-  $ quilt refresh
-  $ quilt pop -a
+  $ srt quilt
 
   $ cd v6.12-rt-patches
   $ git add -u
