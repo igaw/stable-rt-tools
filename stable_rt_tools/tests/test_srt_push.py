@@ -64,7 +64,11 @@ def test_push_quilt_workflow():
                 calls.append(args)
 
             with patch('stable_rt_tools.srt_push.cmd', side_effect=fake_cmd):
-                push(config, ctx)
+                with patch(
+                    'stable_rt_tools.srt_push.clear_srt_state'
+                ) as clear_state:
+                    push(config, ctx)
+                    clear_state.assert_called_once()
 
             push_calls = [c for c in calls if c[0:2] == ['git', 'push']]
             assert push_calls, 'No git push calls made'
@@ -76,6 +80,21 @@ def test_push_quilt_workflow():
             )
             assert found_branch, 'Did not push -rt-patches branch'
             assert found_tag, 'Did not push -patches tag'
+
+
+def test_push_does_not_clear_state_when_cancelled():
+    config = DummyConfig({'PRJ_GIT_TREE': 'origin'})
+    ctx = DummyCtx('v6.12.39-rt11', is_rc=False)
+
+    with patch('stable_rt_tools.srt_push.get_remote_branch_name',
+               return_value='v6.12-rt'):
+        with patch('stable_rt_tools.srt_push.confirm', return_value=False):
+            with patch('stable_rt_tools.srt_push.cmd'):
+                with patch(
+                    'stable_rt_tools.srt_push.clear_srt_state'
+                ) as clear_state:
+                    push(config, ctx)
+                    clear_state.assert_not_called()
 
 
 if __name__ == '__main__':

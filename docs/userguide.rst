@@ -354,7 +354,7 @@ Create a new release
   $ git pull
 
   $ cd v6.12-rt
-  $ source <(srt prep)
+  $ srt prep
 
   $ cd v6.12
   $ while quilt push; do; quilt refresh; done
@@ -385,6 +385,12 @@ Create a new release
 
   $ srt announce > ../announce-rt
   $ mutt -H ../announce-rt
+
+The ``srt prep`` command stores release state in git metadata shared by the
+worktrees. Commands such as ``srt patches``, ``srt create``, ``srt sign``,
+``srt upload`` and ``srt push`` read this state automatically when tags are
+not provided explicitly. ``srt push`` clears the state after a successful push.
+If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
 
 
 Trouble shooting

@@ -25,6 +25,8 @@
 import os
 import re
 import sys
+import json
+from datetime import datetime, timezone
 from configparser import ConfigParser
 
 from logging import debug, error
@@ -58,6 +60,13 @@ def get_remote_branch_name(short=True):
     if short:
         return name.split('/')[1]
     return name
+
+
+def get_workflow_branch(branch_name):
+    for suffix in ('-patches', '-rebase', '-next'):
+        if branch_name.endswith(suffix):
+            return branch_name[:-len(suffix)]
+    return branch_name
 
 
 def tag_exists(tag):
@@ -146,6 +155,58 @@ def get_old_tag():
     if last_rc is not None:
         tag += '-rc{}'.format(last_rc)
     return tag
+
+
+def get_git_common_dir(path=None):
+    base = path if path else os.getcwd()
+    common_dir = cmd(['git', '-C', base, 'rev-parse', '--git-common-dir'])
+    if os.path.isabs(common_dir):
+        return common_dir
+    return os.path.abspath(os.path.join(base, common_dir))
+
+
+def get_srt_state_path(path=None):
+    return os.path.join(get_git_common_dir(path), 'srt', 'state.json')
+
+
+def read_srt_state(path=None):
+    state_path = get_srt_state_path(path)
+    if not os.path.exists(state_path):
+        return None
+    with open(state_path, 'r') as f:
+        return json.load(f)
+
+
+def write_srt_state(state, path=None):
+    state_path = get_srt_state_path(path)
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    state = dict(state)
+    state['updated_at'] = datetime.now(timezone.utc).isoformat()
+    with open(state_path, 'w') as f:
+        json.dump(state, f, sort_keys=True)
+
+
+def clear_srt_state(path=None):
+    state_path = get_srt_state_path(path)
+    if os.path.exists(state_path):
+        os.remove(state_path)
+
+
+def validate_srt_state(state, current_branch):
+    required = ['old_tag', 'new_tag', 'workflow_branch']
+    missing = [k for k in required if not state.get(k)]
+    if missing:
+        return ('srt state is invalid (missing: {}). '
+                'Run "srt prep --clear" and then "srt prep".'
+                .format(', '.join(missing)))
+
+    expected_workflow = state['workflow_branch']
+    current_workflow = get_workflow_branch(current_branch)
+    if expected_workflow != current_workflow:
+        return ('srt state is stale: prepared for workflow "{}" but current '
+                'workflow is "{}". Run "srt prep --clear" and then "srt prep".'
+                .format(expected_workflow, current_workflow))
+    return None
 
 
 def is_dirty():
