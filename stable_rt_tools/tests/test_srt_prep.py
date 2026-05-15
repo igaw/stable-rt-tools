@@ -2,7 +2,7 @@
 #
 # srt - stable rt tooling
 #
-# Copyright (c) Siemens AG, 2026
+# Copyright (c) Daniel Wagner <wagi@monom.org>, 2026
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
