@@ -24,7 +24,7 @@
 
 from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
                                       get_remote_branch_name,
-                                      is_quilt_workflow)
+                                      is_quilt_workflow, clear_srt_state)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
@@ -58,6 +58,7 @@ def push(config, ctx):
 
     if confirm('OK to push?'):
         cmd(gcp + args)
+        clear_srt_state()
 
 
 def add_argparser(parser):

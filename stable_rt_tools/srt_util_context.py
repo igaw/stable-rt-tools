@@ -24,11 +24,26 @@
 
 
 import os
+import sys
 from logging import debug
 
 from stable_rt_tools.srt_util import (get_last_tag, get_old_tag,
-                                      get_remote_branch_name)
+                                      get_remote_branch_name, read_srt_state,
+                                      validate_srt_state)
 from stable_rt_tools.srt_util_tag import Tag
+
+
+def _read_and_validate_state(path):
+    state = read_srt_state(path)
+    if not state:
+        return None
+
+    current_branch = get_remote_branch_name()
+    err = validate_srt_state(state, current_branch)
+    if err:
+        print(err, file=sys.stderr)
+        sys.exit(1)
+    return state
 
 
 class SrtContext:
@@ -39,19 +54,29 @@ class SrtContext:
         old_tag = None
         new_tag = None
 
+        state = None
         if args and getattr(args, "OLD_TAG", None):
             old_tag = args.OLD_TAG
         elif os.environ.get("OLD_TAG"):
             old_tag = os.environ["OLD_TAG"]
         else:
-            old_tag = get_old_tag()
+            state = _read_and_validate_state(path)
+            if state:
+                old_tag = state.get('old_tag')
+            else:
+                old_tag = get_old_tag()
 
         if args and getattr(args, "NEW_TAG", None):
             new_tag = args.NEW_TAG
         elif os.environ.get("NEW_TAG"):
             new_tag = os.environ["NEW_TAG"]
         else:
-            new_tag = get_last_tag(get_remote_branch_name())
+            if state is None:
+                state = _read_and_validate_state(path)
+            if state:
+                new_tag = state.get('new_tag')
+            else:
+                new_tag = get_last_tag(get_remote_branch_name())
 
         self._add_tag('old', old_tag)
         self._add_tag('new', new_tag)

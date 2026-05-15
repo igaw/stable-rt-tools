@@ -24,6 +24,7 @@
 
 import argparse
 from unittest import TestCase
+from unittest.mock import patch
 
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -61,3 +62,59 @@ class TestSrtContext(TestCase):
         files = [path + 'patch-4.4.115-rt39.patch.xz',
                  path + 'patches-4.4.115-rt39.tar.xz']
         self.assertEqual(ctx.get_files(), files)
+
+    def test_use_state_when_no_args_or_env(self):
+        state = {
+            'old_tag': 'v4.4.115-rt38',
+            'new_tag': 'v4.4.115-rt39',
+            'workflow_branch': 'v4.4-rt',
+        }
+        with patch('stable_rt_tools.srt_util_context.read_srt_state',
+                   return_value=state):
+            with patch(
+                'stable_rt_tools.srt_util_context.get_remote_branch_name',
+                return_value='v4.4-rt-patches'
+            ):
+                with patch('stable_rt_tools.srt_util_context.get_old_tag',
+                           return_value='v4.4.115-rt37'):
+                    with patch('stable_rt_tools.srt_util_context.get_last_tag',
+                               return_value='v4.4.115-rt38'):
+                        ctx = SrtContext(make_args(), '/tmp')
+                        self.assertEqual(str(ctx.old_tag), 'v4.4.115-rt38')
+                        self.assertEqual(str(ctx.new_tag), 'v4.4.115-rt39')
+
+    def test_cli_and_env_precedence_over_state(self):
+        state = {
+            'old_tag': 'v4.4.115-rt38',
+            'new_tag': 'v4.4.115-rt39',
+            'workflow_branch': 'v4.4-rt',
+        }
+        with patch('stable_rt_tools.srt_util_context.read_srt_state',
+                   return_value=state):
+            with patch(
+                'stable_rt_tools.srt_util_context.get_remote_branch_name',
+                return_value='v4.4-rt'
+            ):
+                with patch('stable_rt_tools.srt_util_context.os.environ',
+                           {'OLD_TAG': 'v4.4.115-rt40'}):
+                    ctx = SrtContext(
+                        make_args(old_tag='v4.4.115-rt41',
+                                  new_tag='v4.4.115-rt42'),
+                        '/tmp')
+                    self.assertEqual(str(ctx.old_tag), 'v4.4.115-rt41')
+                    self.assertEqual(str(ctx.new_tag), 'v4.4.115-rt42')
+
+    def test_stale_state_fails(self):
+        state = {
+            'old_tag': 'v4.4.115-rt38',
+            'new_tag': 'v4.4.115-rt39',
+            'workflow_branch': 'v4.4-rt',
+        }
+        with patch('stable_rt_tools.srt_util_context.read_srt_state',
+                   return_value=state):
+            with patch(
+                'stable_rt_tools.srt_util_context.get_remote_branch_name',
+                return_value='v6.12-rt'
+            ):
+                with self.assertRaises(SystemExit):
+                    SrtContext(make_args(), '/tmp')

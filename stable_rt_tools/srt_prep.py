@@ -25,7 +25,8 @@
 
 import os
 from stable_rt_tools.srt_util import (
-    get_remote_branch_name, get_old_tag, get_config, get_last_rt_tag, cmd
+    get_remote_branch_name, get_old_tag, get_config, get_last_rt_tag, cmd,
+    write_srt_state, clear_srt_state, get_workflow_branch, is_quilt_workflow
 )
 
 
@@ -64,6 +65,15 @@ def prep(config):
     next_stable = get_next_stable_version(branch_name, stable_tree_dir)
     new_tag = f"{next_stable}-rt{rt_ver}"
 
+    write_srt_state({
+        'old_tag': old_tag,
+        'new_tag': new_tag,
+        'quilt_patches': quilt_patches,
+        'branch': branch_name,
+        'workflow_branch': get_workflow_branch(branch_name),
+        'quilt_workflow': is_quilt_workflow(config),
+    })
+
     print(f"export QUILT_PATCHES={quilt_patches}")
     print(f"export OLD_TAG={old_tag}")
     print(f"export NEW_TAG={new_tag}")
@@ -71,8 +81,13 @@ def prep(config):
 
 def add_argparser(parser):
     prs = parser.add_parser('prep')
+    prs.add_argument('--clear', action='store_true',
+                     help='Clear saved srt prep state')
     return prs
 
 
 def execute(args):
+    if getattr(args, 'clear', False):
+        clear_srt_state()
+        return
     prep(get_config())
