@@ -23,11 +23,35 @@
 # SOFTWARE
 
 import argparse
+import os
 import unittest
 from subprocess import CalledProcessError
-from unittest.mock import call, patch
+from unittest.mock import patch
 
-from stable_rt_tools.srt_quilt import quilt, execute
+from stable_rt_tools.srt_quilt import quilt, execute, _quilt_env
+
+_QUILT_PATCHES = '/some/patches/dir'
+_STATE = {'quilt_patches': _QUILT_PATCHES}
+
+
+def test_quilt_env_uses_state():
+    with patch('stable_rt_tools.srt_quilt.read_srt_state',
+               return_value=_STATE):
+        env = _quilt_env()
+    assert env['QUILT_PATCHES'] == _QUILT_PATCHES
+
+
+def test_quilt_env_fallback_when_no_state():
+    with patch('stable_rt_tools.srt_quilt.read_srt_state', return_value=None):
+        env = _quilt_env()
+    assert env == os.environ.copy()
+
+
+def _assert_quilt_patch_env(calls):
+    for c in calls:
+        env = c.kwargs.get('env') or (c.args[1] if len(c.args) > 1 else None)
+        assert env is not None, 'cmd called without env kwarg'
+        assert env.get('QUILT_PATCHES') == _QUILT_PATCHES
 
 
 def test_quilt_runs_expected_sequence():
@@ -40,19 +64,23 @@ def test_quilt_runs_expected_sequence():
         '',  # final quilt refresh
         '',  # quilt pop -a
     ]
-    with patch('stable_rt_tools.srt_quilt.cmd', side_effect=side_effects) as c:
-        with patch('stable_rt_tools.srt_quilt.localversion_inc') as lv_inc:
-            quilt('localversion-rt')
-            lv_inc.assert_called_once_with('localversion-rt')
-            assert c.call_args_list == [
-                call(['quilt', 'push']),
-                call(['quilt', 'refresh']),
-                call(['quilt', 'push']),
-                call(['quilt', 'refresh']),
-                call(['quilt', 'push']),
-                call(['quilt', 'refresh']),
-                call(['quilt', 'pop', '-a']),
-            ]
+    with patch('stable_rt_tools.srt_quilt.read_srt_state',
+               return_value=_STATE):
+        with patch('stable_rt_tools.srt_quilt.cmd',
+                   side_effect=side_effects) as c:
+            with patch('stable_rt_tools.srt_quilt.localversion_inc') as lv_inc:
+                quilt('localversion-rt')
+                lv_inc.assert_called_once_with('localversion-rt')
+                assert [ca.args[0] for ca in c.call_args_list] == [
+                    ['quilt', 'push'],
+                    ['quilt', 'refresh'],
+                    ['quilt', 'push'],
+                    ['quilt', 'refresh'],
+                    ['quilt', 'push'],
+                    ['quilt', 'refresh'],
+                    ['quilt', 'pop', '-a'],
+                ]
+                _assert_quilt_patch_env(c.call_args_list)
 
 
 def test_quilt_always_pops_on_failure():
@@ -60,15 +88,19 @@ def test_quilt_always_pops_on_failure():
         CalledProcessError(1, ['quilt', 'push']),  # no patches applied
         '',  # quilt pop -a from finally block
     ]
-    with patch('stable_rt_tools.srt_quilt.cmd', side_effect=side_effects) as c:
-        with patch('stable_rt_tools.srt_quilt.localversion_inc',
-                   side_effect=RuntimeError('bump failed')):
-            with unittest.TestCase().assertRaises(RuntimeError):
-                quilt('localversion-rt')
-            assert c.call_args_list == [
-                call(['quilt', 'push']),
-                call(['quilt', 'pop', '-a']),
-            ]
+    with patch('stable_rt_tools.srt_quilt.read_srt_state',
+               return_value=_STATE):
+        with patch('stable_rt_tools.srt_quilt.cmd',
+                   side_effect=side_effects) as c:
+            with patch('stable_rt_tools.srt_quilt.localversion_inc',
+                       side_effect=RuntimeError('bump failed')):
+                with unittest.TestCase().assertRaises(RuntimeError):
+                    quilt('localversion-rt')
+                assert [ca.args[0] for ca in c.call_args_list] == [
+                    ['quilt', 'push'],
+                    ['quilt', 'pop', '-a'],
+                ]
+                _assert_quilt_patch_env(c.call_args_list)
 
 
 class TestQuiltExecute(unittest.TestCase):

@@ -22,25 +22,35 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+import os
 from subprocess import CalledProcessError
 
 from stable_rt_tools.srt_commit import localversion_inc
-from stable_rt_tools.srt_util import cmd
+from stable_rt_tools.srt_util import cmd, read_srt_state
+
+
+def _quilt_env():
+    env = os.environ.copy()
+    state = read_srt_state()
+    if state and state.get('quilt_patches'):
+        env['QUILT_PATCHES'] = state['quilt_patches']
+    return env
 
 
 def quilt(localversion):
+    env = _quilt_env()
     try:
         while True:
             try:
-                cmd(['quilt', 'push'])
+                cmd(['quilt', 'push'], env=env)
             except CalledProcessError:
                 break
-            cmd(['quilt', 'refresh'])
+            cmd(['quilt', 'refresh'], env=env)
 
         localversion_inc(localversion)
-        cmd(['quilt', 'refresh'])
+        cmd(['quilt', 'refresh'], env=env)
     finally:
-        cmd(['quilt', 'pop', '-a'])
+        cmd(['quilt', 'pop', '-a'], env=env)
 
 
 def add_argparser(parser):
