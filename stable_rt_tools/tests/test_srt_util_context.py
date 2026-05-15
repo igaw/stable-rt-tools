@@ -71,8 +71,10 @@ class TestSrtContext(TestCase):
         }
         with patch('stable_rt_tools.srt_util_context.read_srt_state',
                    return_value=state):
-            with patch('stable_rt_tools.srt_util_context.get_remote_branch_name',
-                       return_value='v4.4-rt-patches'):
+            with patch(
+                'stable_rt_tools.srt_util_context.get_remote_branch_name',
+                return_value='v4.4-rt-patches'
+            ):
                 with patch('stable_rt_tools.srt_util_context.get_old_tag',
                            return_value='v4.4.115-rt37'):
                     with patch('stable_rt_tools.srt_util_context.get_last_tag',
@@ -89,8 +91,10 @@ class TestSrtContext(TestCase):
         }
         with patch('stable_rt_tools.srt_util_context.read_srt_state',
                    return_value=state):
-            with patch('stable_rt_tools.srt_util_context.get_remote_branch_name',
-                       return_value='v4.4-rt'):
+            with patch(
+                'stable_rt_tools.srt_util_context.get_remote_branch_name',
+                return_value='v4.4-rt'
+            ):
                 with patch('stable_rt_tools.srt_util_context.os.environ',
                            {'OLD_TAG': 'v4.4.115-rt40'}):
                     ctx = SrtContext(
@@ -108,7 +112,9 @@ class TestSrtContext(TestCase):
         }
         with patch('stable_rt_tools.srt_util_context.read_srt_state',
                    return_value=state):
-            with patch('stable_rt_tools.srt_util_context.get_remote_branch_name',
-                       return_value='v6.12-rt'):
+            with patch(
+                'stable_rt_tools.srt_util_context.get_remote_branch_name',
+                return_value='v6.12-rt'
+            ):
                 with self.assertRaises(SystemExit):
                     SrtContext(make_args(), '/tmp')

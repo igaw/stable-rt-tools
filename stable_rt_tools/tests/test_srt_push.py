@@ -64,7 +64,9 @@ def test_push_quilt_workflow():
                 calls.append(args)
 
             with patch('stable_rt_tools.srt_push.cmd', side_effect=fake_cmd):
-                with patch('stable_rt_tools.srt_push.clear_srt_state') as clear_state:
+                with patch(
+                    'stable_rt_tools.srt_push.clear_srt_state'
+                ) as clear_state:
                     push(config, ctx)
                     clear_state.assert_called_once()
 
@@ -88,7 +90,9 @@ def test_push_does_not_clear_state_when_cancelled():
                return_value='v6.12-rt'):
         with patch('stable_rt_tools.srt_push.confirm', return_value=False):
             with patch('stable_rt_tools.srt_push.cmd'):
-                with patch('stable_rt_tools.srt_push.clear_srt_state') as clear_state:
+                with patch(
+                    'stable_rt_tools.srt_push.clear_srt_state'
+                ) as clear_state:
                     push(config, ctx)
                     clear_state.assert_not_called()
 
