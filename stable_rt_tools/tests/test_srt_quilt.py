@@ -25,7 +25,7 @@
 import argparse
 import unittest
 from subprocess import CalledProcessError
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from stable_rt_tools.srt_quilt import quilt, execute
 
@@ -45,13 +45,13 @@ def test_quilt_runs_expected_sequence():
             quilt('localversion-rt')
             lv_inc.assert_called_once_with('localversion-rt')
             assert c.call_args_list == [
-                (['quilt', 'push'],),
-                (['quilt', 'refresh'],),
-                (['quilt', 'push'],),
-                (['quilt', 'refresh'],),
-                (['quilt', 'push'],),
-                (['quilt', 'refresh'],),
-                (['quilt', 'pop', '-a'],),
+                call(['quilt', 'push']),
+                call(['quilt', 'refresh']),
+                call(['quilt', 'push']),
+                call(['quilt', 'refresh']),
+                call(['quilt', 'push']),
+                call(['quilt', 'refresh']),
+                call(['quilt', 'pop', '-a']),
             ]
 
 
@@ -66,8 +66,8 @@ def test_quilt_always_pops_on_failure():
             with unittest.TestCase().assertRaises(RuntimeError):
                 quilt('localversion-rt')
             assert c.call_args_list == [
-                (['quilt', 'push'],),
-                (['quilt', 'pop', '-a'],),
+                call(['quilt', 'push']),
+                call(['quilt', 'pop', '-a']),
             ]
 
 

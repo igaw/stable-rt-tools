@@ -45,9 +45,11 @@ def quilt(localversion):
 
 def add_argparser(parser):
     prs = parser.add_parser('quilt')
-    prs.add_argument('--localversion', '-l',
-                     default='localversion-rt',
-                     help='Localversion file to bump (default: localversion-rt)')
+    prs.add_argument(
+        '--localversion', '-l',
+        default='localversion-rt',
+        help='Localversion file to bump (default: localversion-rt)',
+    )
     return prs
 
 
