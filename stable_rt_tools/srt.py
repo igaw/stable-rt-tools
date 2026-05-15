@@ -27,8 +27,8 @@ import logging
 import sys
 
 from stable_rt_tools import (srt_announce, srt_commit, srt_create, srt_push,
-                             srt_sign, srt_tag, srt_upload, srt_patches,
-                             srt_prep, about)
+                              srt_sign, srt_tag, srt_upload, srt_patches,
+                              srt_prep, srt_quilt, about)
 
 sub_cmd = {
     'prep': srt_prep,
@@ -40,6 +40,7 @@ sub_cmd = {
     'push': srt_push,
     'announce': srt_announce,
     'patches': srt_patches,
+    'quilt': srt_quilt,
 }
 
 
