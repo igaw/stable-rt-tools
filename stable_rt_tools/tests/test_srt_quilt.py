@@ -97,7 +97,7 @@ def test_quilt_returns_early_on_push_failure():
         with patch('stable_rt_tools.srt_quilt.cmd',
                    side_effect=side_effects) as c:
             with patch('stable_rt_tools.srt_quilt.localversion_inc') as lv_inc:
-                with unittest.TestCase().assertRaises(CalledProcessError):
+                with unittest.TestCase().assertRaises(SystemExit):
                     quilt('localversion-rt')
                 lv_inc.assert_not_called()
                 assert [ca.args[0] for ca in c.call_args_list] == [

@@ -23,6 +23,7 @@
 # SOFTWARE
 
 import os
+import sys
 from subprocess import CalledProcessError
 
 from stable_rt_tools.srt_commit import localversion_inc
@@ -44,7 +45,12 @@ def quilt(localversion):
             cmd(['quilt', 'next'], env=env)
         except CalledProcessError:
             break
-        cmd(['quilt', 'push'], env=env)
+        try:
+            cmd(['quilt', 'push'], env=env)
+        except CalledProcessError as e:
+            if e.stdout:
+                print(e.stdout.decode('utf-8'))
+            sys.exit('quilt push failed')
         cmd(['quilt', 'refresh'], env=env)
 
     localversion_inc(localversion)
