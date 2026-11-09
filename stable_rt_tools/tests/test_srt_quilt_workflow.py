@@ -389,6 +389,22 @@ class TestQuiltChecks(TestQuiltBase):
         with self.assertRaises(SystemExit):
             self.run_step('refresh')
 
+    def test_queue_refuses_changes_after_commit(self):
+        self.release_until('refresh')
+        with self.assertRaises(SystemExit):
+            self.run_step('queue', 'n\n')  # commit, but don't tag
+        series = self.patches_dir + '/patches/series'
+        write(series, read(series) + '# a late change\n')
+        with self.assertRaises(SystemExit) as e:
+            self.run_step('queue')
+        self.assertIn('git reset --soft HEAD~1', str(e.exception))
+        self.assertFalse(srt_quilt.Release().done('queue'))
+        # undoing the commit picks up the change
+        git(self.patches_dir, 'reset', '-q', '--soft', 'HEAD~1')
+        self.run_step('queue')
+        self.assertIn('# a late change', git(
+            self.patches_dir, 'show', 'v6.1.2-rt2-patches:patches/series'))
+
     def test_refresh_keeps_patch_when_not_dropped(self):
         self.prepare()
         with self.assertRaises(SystemExit) as e:

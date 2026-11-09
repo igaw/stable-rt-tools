@@ -381,7 +381,14 @@ def queue(rel):
 
     git(rel.patches_dir, 'add', '-A', '--', 'patches')
     subject = git(rel.patches_dir, 'log', '-1', '--format=%s')
-    if not subject.endswith(str(rel.new)[1:]):
+    committed = subject.endswith(str(rel.new)[1:])
+    if committed and git(rel.patches_dir, 'diff', '--cached', '--name-only'):
+        # tagging HEAD would leave the staged changes out of the release
+        sys.exit(f'{rel.patches_dir}: the queue commit for {rel.new} exists '
+                 'and patches/ changed since. Undo the commit with "git '
+                 'reset --soft HEAD~1" (or amend it) and rerun "srt quilt '
+                 'queue"')
+    if not committed:
         cwd = os.getcwd()
         os.chdir(rel.rt_dir)
         try:
