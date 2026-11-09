@@ -100,6 +100,7 @@ A complete configuration for the v6.12-rt series:
 .. code-block:: ini
 
    [DEFAULT]
+   GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
    MAIL_TO = LKML <linux-kernel@vger.kernel.org>,<linux-rt-users@vger.kernel.org>,<stable-rt@vger.kernel.org>
    UPSTREAM_GIT_URL = https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
    UPSTREAM_REMOTE = stable
@@ -125,7 +126,8 @@ The settings:
     The localversion file, default ``localversion-<suffix>``.
 ``GPG_KEY_ID``
     The key to sign tags and uploads with, default git's
-    ``user.signingkey``.
+    ``user.signingkey``. Your key for all the series you work on, so set it
+    in ``[DEFAULT]``.
 ``GNUPGHOME``
     The GnuPG home directory, default ``$GNUPGHOME`` or ``~/.gnupg``.
 ``SENDER``, ``NAME``
@@ -194,7 +196,7 @@ existing group are reported, edit ``srt.conf`` to change it.
 srt setup can be rerun: existing parts are checked, a remote with another
 URL or a worktree on another branch is reported, not changed. Run it in an
 existing work area to check it, or to add another series to it. To take
-over a series from another maintainer see :doc:`quilt-workflow`.
+work on a series of another maintainer see :doc:`quilt-workflow`.
 
 Configuration from srt 1.x
 --------------------------
@@ -203,7 +205,8 @@ The first srt command converts the ``srt.conf`` files it reads to this
 format and keeps the old file as ``srt.conf.bak``: ``quilt_workflow =
 true`` becomes ``WORKFLOW = quilt``, groups of ``-patches``, ``-rebase``
 and ``-next`` branches with the settings of their series and
-``LOCALVERSION`` settings with the default value are dropped, and settings
+``LOCALVERSION`` settings with the default value are dropped, your
+settings (``GPG_KEY_ID``, ``GNUPGHOME``, ``SENDER``, ``NAME``) and settings
 which are the same in all groups move to ``[DEFAULT]``. srt prints what it
 changed. Comments are only kept in the backup.
 

@@ -57,12 +57,12 @@ This clones the repository, adds the remotes (fetching via https, pushing
 via gitolite) and creates the four worktrees. Nothing is pushed. Rerun it to
 check an existing work area.
 
-Take over a series
-------------------
+Work on a series of another maintainer
+--------------------------------------
 
-Series are handed over between maintainers in the shared stable-rt tree,
-e.g. linux-6.18.y-rt, linux-6.18.y-rt-patches and linux-6.18.y-rt-rebase.
-Add it to the work area of the series you maintain already:
+The series of the maintainer group are in the shared stable-rt tree, e.g.
+linux-6.18.y-rt, linux-6.18.y-rt-patches and linux-6.18.y-rt-rebase. To help
+out on one, add it to your work area like any series:
 
 .. code-block:: console
 
@@ -71,10 +71,11 @@ Add it to the work area of the series you maintain already:
         --upstream-branch linux-6.18.y --prj-dir /pub/linux/kernel/projects/rt/6.18
 
 ``srt setup`` adds the group to ``srt.conf``, with the URLs of the work
-area's remotes, and creates the worktrees of the series.
+area's remotes, and creates the worktrees of the series next to the ones
+you have already.
 
-To publish it under a new name, e.g. as v6.18-rt, name the branch it is
-taken over from with ``--from``:
+To continue a series under a new name, e.g. as v6.18-rt, start it from the
+existing branches with ``--from``:
 
 .. code-block:: console
 
@@ -82,19 +83,19 @@ taken over from with ``--from``:
         --upstream-branch linux-6.18.y --prj-dir /pub/linux/kernel/projects/rt/6.18 \
         --from linux-6.18.y-rt
   ...
-  take  .../rt/v6.18-rt (v6.18-rt from stable-rt/linux-6.18.y-rt)
-  take  .../rt/v6.18-rt-patches (v6.18-rt-patches from stable-rt/linux-6.18.y-rt-patches)
-  take  .../rt/v6.18-rt-rebase (v6.18-rt-rebase from stable-rt/linux-6.18.y-rt-rebase)
+  new   .../rt/v6.18-rt (v6.18-rt from stable-rt/linux-6.18.y-rt)
+  new   .../rt/v6.18-rt-patches (v6.18-rt-patches from stable-rt/linux-6.18.y-rt-patches)
+  new   .../rt/v6.18-rt-rebase (v6.18-rt-rebase from stable-rt/linux-6.18.y-rt-rebase)
   publish the series on stable-rt (srt setup pushes nothing):
     git -C .../rt/v6.18-rt push -u --follow-tags stable-rt v6.18-rt
     git -C .../rt/v6.18-rt-patches push -u --follow-tags stable-rt v6.18-rt-patches
     git -C .../rt/v6.18-rt-rebase push -u --follow-tags stable-rt v6.18-rt-rebase
 
-``srt setup`` creates the branches from the ones taken over and prints how
-to publish them; it pushes nothing. ``--from`` is not stored, after the
-push ``srt setup linux/stable-rt/v6.18-rt`` checks the series like any
-other. A series from another tree, e.g. rt-devel, is taken over with
-``--from rt-devel/linux-6.18.y-rt`` and, if the remote does not exist yet,
+``srt setup`` creates the branches and prints how to publish them; it
+pushes nothing. ``--from`` is not stored, after the push ``srt setup
+linux/stable-rt/v6.18-rt`` checks the series like any other. Branches of
+another tree, e.g. rt-devel, are given as ``--from
+rt-devel/linux-6.18.y-rt`` and, if the remote does not exist yet,
 ``--from-url``.
 
 Create a new release
