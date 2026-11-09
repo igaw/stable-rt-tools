@@ -19,49 +19,29 @@ and ``v<version>-rt-next``, e.g.:
     Release candidates. The kernelci bot monitors the -next branches and
     triggers builds.
 
-Setup
------
-
-Add the stable and stable-rt remotes to the main repository (see
-:doc:`userguide` for ``origin``)::
-
-  $ cd linux
-  $ git remote add stable https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
-  $ git remote add stable-rt https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-  $ git remote set-url --push stable-rt git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-  $ git fetch --all --tags
-
-Create a worktree for each branch, tracking the stable-rt branch of the same
-name::
-
-  $ git worktree add --track -b v4.19-rt        ../v4.19-rt        stable-rt/v4.19-rt
-  $ git worktree add --track -b v4.19-rt-rebase ../v4.19-rt-rebase stable-rt/v4.19-rt-rebase
-  $ git worktree add --track -b v4.19-rt-next   ../v4.19-rt-next   stable-rt/v4.19-rt-next
-
 Configuration
 -------------
 
-Add a group for each branch to ``srt.conf``:
+One group describes the series, see :doc:`userguide` for all settings:
 
 .. code-block:: ini
 
    [linux/stable-rt/v4.19-rt]
-   LOCALVERSION = localversion-rt
-   GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-   PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+   UPSTREAM_BRANCH = linux-4.19.y
    PRJ_DIR = /pub/linux/kernel/projects/rt/4.19
 
-   [linux/stable-rt/v4.19-rt-rebase]
-   LOCALVERSION = localversion-rt
-   GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-   PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-   PRJ_DIR = /pub/linux/kernel/projects/rt/4.19
+with the URLs in ``[DEFAULT]`` as in the example there. ``WORKFLOW``
+defaults to ``git``.
 
-   [linux/stable-rt/v4.19-rt-next]
-   LOCALVERSION = localversion-rt
-   GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-   PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-   PRJ_DIR = /pub/linux/kernel/projects/rt/4.19
+Setup
+-----
+
+.. code-block:: console
+
+  $ srt setup linux/stable-rt/v4.19-rt
+
+creates the repository, the remotes and a worktree for the series and its
+``-rebase`` and ``-next`` branches.
 
 Release candidate
 -----------------

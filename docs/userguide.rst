@@ -70,8 +70,8 @@ the local branch ``v6.12-rt`` tracks ``stable-rt/v6.12-rt``.
 Configuration
 -------------
 
-srt looks for a config file called ``srt.conf`` in the following
-directories::
+srt reads ``srt.conf`` from the first of these directories that has one,
+later files fill in what earlier ones leave out::
 
    $SRT_CONF
    .
@@ -79,74 +79,120 @@ directories::
    ~
    /etc/srt
 
-It is an INI type configuration file. Each group encodes the repository name
-and the upstream branch the current branch tracks::
+It is an INI file with one group per patch series. The group is named after
+the repository, the remote and the branch of the series::
 
-    [<origin basename>/<upstream remote>/<upstream branch>]
+    [<origin basename>/<remote>/<series branch>]
 
 ``<origin basename>`` is the last path component of the ``origin`` URL
-without a ``.git`` suffix. For example with::
+without ``.git``. For example with::
 
     origin    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
     v6.12-rt  tracking stable-rt/v6.12-rt
 
-the group is called::
+the group is ``[linux/stable-rt/v6.12-rt]``. The ``-patches``, ``-rebase``
+and ``-next`` branches of the series use the same group unless they have one
+of their own. Settings shared by all series go into ``[DEFAULT]``.
+``srt -d <command>`` prints the group srt is looking for.
 
-    [linux/stable-rt/v6.12-rt]
-
-You need a group for each workflow branch. Use ``srt -d <command>`` to see
-which group srt is looking for.
-
-srt uses the following keys:
-
-``LOCALVERSION``
-    The filename of the localversion file, ``localversion-rt``
-``GPG_KEY_ID``
-    ID of the GPG key used to sign tags and to upload to kernel.org
-``PRJ_GIT_TREE``
-    URL of the stable-rt git repository to push to
-``PRJ_DIR``
-    kup folder to upload the release to
-``MAIL_TO``
-    Email addresses to which the announcement/patches are sent
-``SENDER``
-    Your name and email address
-``NAME``
-    Your first name or nickname
-``ANNOUNCE`` (optional)
-    Email template for a release
-``RC_TEXT`` (optional)
-    Email template for a release candidate
-``quilt_workflow`` (optional)
-    Set to ``true`` to enable the quilt workflow, see :doc:`quilt-workflow`
-
-Keys shared by all groups (``MAIL_TO``, ``SENDER``, ``NAME``) can be placed
-in the ``[DEFAULT]`` group:
+A complete configuration for the v6.12-rt series:
 
 .. code-block:: ini
 
    [DEFAULT]
-   MAIL_TO = LKML <linux-kernel@vger.kernel.org>,<linux-rt-users@vger.kernel.org>,<stable-rt@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Clark Williams <williams@redhat.com>
-   NAME = Daniel
-   SENDER = Daniel Wagner <wagi@monom.org>
+   MAIL_TO = LKML <linux-kernel@vger.kernel.org>,<linux-rt-users@vger.kernel.org>,<stable-rt@vger.kernel.org>
+   UPSTREAM_GIT_URL = https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+   UPSTREAM_REMOTE = stable
+   ORIGIN_GIT_URL = https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+   PRJ_GIT_URL = https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+   PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
 
-The workflow pages contain examples of the per branch groups.
+   [linux/stable-rt/v6.12-rt]
+   WORKFLOW = quilt
+   UPSTREAM_BRANCH = linux-6.12.y
+   PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
+
+The settings:
+
+``WORKFLOW``
+    ``quilt`` or ``git`` (default), see :doc:`quilt-workflow` and
+    :doc:`git-workflow`. ``quilt_workflow = true`` from srt 1.x still works.
+``SUFFIX``
+    The release suffix, default ``rt``: releases are tagged
+    ``vX.Y.Z-<suffix>N`` and the series branches are named
+    ``vX.Y-<suffix>``.
+``LOCALVERSION``
+    The localversion file, default ``localversion-<suffix>``.
+``GPG_KEY_ID``
+    The key to sign tags and uploads with, default git's
+    ``user.signingkey``.
+``GNUPGHOME``
+    The GnuPG home directory, default ``$GNUPGHOME`` or ``~/.gnupg``.
+``SENDER``, ``NAME``
+    Your name and email address for the announcements, and your first name
+    or nickname for the greeting. Default from git's ``user.name`` and
+    ``user.email``.
+``MAIL_TO``
+    The addresses the announcements and review mails are sent to.
+``PRJ_GIT_URL``
+    The URL the tree of the series is fetched from (``srt setup``).
+``PRJ_GIT_TREE``
+    The URL the series is pushed to (``srt push``, ``srt setup``).
+``PRJ_DIR``
+    The kup directory the release is uploaded to.
+``UPSTREAM_GIT_URL``, ``UPSTREAM_BRANCH``
+    The tree and branch the series is based on, e.g. stable and
+    ``linux-6.12.y`` (``srt setup``).
+``UPSTREAM_REMOTE``
+    The name of the upstream remote, default ``upstream`` (``srt setup``).
+``ORIGIN_GIT_URL``
+    What the repository is cloned from, default ``UPSTREAM_GIT_URL``
+    (``srt setup``). Its basename is the first part of the group name.
+``ANNOUNCE``, ``RC_TEXT``, ``COMMIT_TMPL``
+    Own templates for the announcement, the review mails and the patch
+    queue commit, instead of the ones srt ships.
+
+Set up a work area
+------------------
+
+``srt setup`` creates the work area of a series as its group describes it:
+the repository, the remotes and the worktrees with the right tracking
+branches, next to each other in the current directory (or ``--dir``):
+
+.. code-block:: console
+
+  $ mkdir rt && cd rt
+  $ srt setup linux/stable-rt/v6.12-rt
+  clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git into .../rt/linux
+  add   remote stable https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+  add   remote stable-rt https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+  set   remote stable-rt push URL git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+  fetch
+  add   worktree .../rt/v6.12 (linux-6.12.y tracking stable/linux-6.12.y)
+  add   worktree .../rt/v6.12-rt (v6.12-rt tracking stable-rt/v6.12-rt)
+  add   worktree .../rt/v6.12-rt-patches (v6.12-rt-patches tracking stable-rt/v6.12-rt-patches)
+  add   worktree .../rt/v6.12-rt-rebase (v6.12-rt-rebase tracking stable-rt/v6.12-rt-rebase)
+  next: cd .../rt/v6.12-rt && srt prep
+
+srt setup can be rerun: existing parts are checked, a remote with another
+URL or a worktree on another branch is reported, not changed. Run it in an
+existing work area to check it.
 
 Troubleshooting
 ---------------
 
 srt fails with "Could not retrieve configuration": check that ``origin``
-exists, that the current branch tracks the right stable-rt branch
+exists, that the current branch tracks the branch of the series
 (``git branch -vv``) and that ``srt.conf`` contains the matching group.
-``srt -d`` prints the group name srt is looking for.
+``srt -d`` prints the group name srt is looking for. ``srt setup <group>``
+checks the whole work area.
 
-srt announce fails: it attempts to figure out your name and email from
-specific configurations you might not have (say if you are using Ubuntu). If
-srt announce fails try adding ``SENDER`` and ``NAME`` to your ``srt.conf``.
+srt announce fails: it takes your name and email from git's ``user.name``
+and ``user.email``. Set them or ``SENDER`` and ``NAME`` in ``srt.conf``.
 
 srt upload fails: verify kup works following the README in kup, then check
-your ``srt.conf`` has the appropriate ``PRJ_DIR`` for the stable-rt version
-you are working with. If that fails check you have proper access to the
+your ``srt.conf`` has the appropriate ``PRJ_DIR`` for the series you are
+working with. If that fails check you have proper access to the
 ``PRJ_DIR`` on kernel.org through the helpdesk.
 
 The ``-d`` option turns on debug tracing for all commands.

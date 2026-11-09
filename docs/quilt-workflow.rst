@@ -1,8 +1,9 @@
 Quilt workflow
 ==============
 
-The quilt workflow maintains the RT patches as a quilt series. It uses
-v6.12-rt as example.
+The quilt workflow maintains the patches as a quilt series. It uses the
+PREEMPT_RT series v6.12-rt as example; for a series with another ``SUFFIX``
+replace ``rt`` in the names and tags.
 
 Branches and layout
 -------------------
@@ -31,70 +32,30 @@ names matter: ``srt prep`` finds ``../v6.12``, ``../v6.12-rt-patches`` and
 Configuration
 -------------
 
-Add a group for each branch to ``srt.conf`` and enable the quilt workflow in
-the ``-rt`` group:
+One group describes the series, see :doc:`userguide` for all settings:
 
 .. code-block:: ini
 
   [linux/stable-rt/v6.12-rt]
-  quilt_workflow = true
-  LOCALVERSION = localversion-rt
-  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-  PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
+  WORKFLOW = quilt
+  UPSTREAM_BRANCH = linux-6.12.y
   PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
 
-  [linux/stable-rt/v6.12-rt-patches]
-  LOCALVERSION = localversion-rt
-  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-  PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
-
-  [linux/stable-rt/v6.12-rt-rebase]
-  LOCALVERSION = localversion-rt
-  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-  PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
+with the URLs in ``[DEFAULT]`` as in the example there.
 
 Set up a work area
 ------------------
 
-Use this to set up a work area for a stable-rt series which already exists
-on kernel.org. Nothing is pushed.
-
-Clone the main repository and add the remotes. Fetch via https (unlike
-``git://``, https can be load balanced on the kernel.org side) and push to
-stable-rt via gitolite:
+For a series which exists on kernel.org already:
 
 .. code-block:: console
 
   $ mkdir rt && cd rt
-  $ git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git linux
-  $ cd linux
-  $ git remote add stable    https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
-  $ git remote add rt-devel  https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-rt-devel.git
-  $ git remote add stable-rt https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-  $ git remote set-url --push stable-rt git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-  $ git fetch --all --tags
+  $ srt setup linux/stable-rt/v6.12-rt
 
-Create the worktrees. Each branch tracks the stable-rt branch of the same
-name, which is what srt uses to find its configuration group:
-
-.. code-block:: console
-
-  $ git worktree add --track -b linux-6.12.y     ../v6.12            stable/linux-6.12.y
-  $ git worktree add --track -b v6.12-rt         ../v6.12-rt         stable-rt/v6.12-rt
-  $ git worktree add --track -b v6.12-rt-patches ../v6.12-rt-patches stable-rt/v6.12-rt-patches
-  $ git worktree add --track -b v6.12-rt-rebase  ../v6.12-rt-rebase  stable-rt/v6.12-rt-rebase
-
-Verify the setup:
-
-.. code-block:: console
-
-  $ git branch -vv
-  + linux-6.12.y     5c40a1750f44 (.../rt/v6.12) [stable/linux-6.12.y] Linux 6.12.116
-  + v6.12-rt         7de70ccdb398 (.../rt/v6.12-rt) [stable-rt/v6.12-rt] v6.12.111-rt21
-  + v6.12-rt-patches 480df8daae60 (.../rt/v6.12-rt-patches) [stable-rt/v6.12-rt-patches] [ANNOUNCE] 6.12.111-rt21
-  + v6.12-rt-rebase  3c7c6f61c0e8 (.../rt/v6.12-rt-rebase) [stable-rt/v6.12-rt-rebase] Add localversion for -RT release
+This clones the repository, adds the remotes (fetching via https, pushing
+via gitolite) and creates the four worktrees. Nothing is pushed. Rerun it to
+check an existing work area.
 
 Bootstrap a new series from rt-devel
 ------------------------------------
