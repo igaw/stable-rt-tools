@@ -25,7 +25,7 @@ dependencies = []
 
 [project.optional-dependencies]
 test = ["pytest>=8"]
-lint = ["ruff>=0.6"]
+lint = ["ruff>=0.6", "mypy>=1.13"]
 docs = ["sphinx>=7", "sphinx-rtd-theme>=2", "sphinx-argparse>=0.4"]
 dev = ["stable-rt-tools[test,lint,docs]", "build"]
 
@@ -48,7 +48,7 @@ include-package-data = false
 include = ["stable_rt_tools"]
 
 [tool.setuptools.package-data]
-stable_rt_tools = ["*.txt"]
+stable_rt_tools = ["*.txt", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["stable_rt_tools/tests"]
@@ -74,3 +74,16 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # nested mock.patch() blocks read better than one long with statement
 "stable_rt_tools/tests/*" = ["SIM117"]
+
+[tool.mypy]
+files = ["stable_rt_tools"]
+strict = true
+
+[[tool.mypy.overrides]]
+# the tests are checked, but need no annotations
+module = "stable_rt_tools.tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+check_untyped_defs = true

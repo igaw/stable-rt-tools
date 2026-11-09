@@ -14,10 +14,15 @@ the development tools::
 
 ``srt`` in the virtual environment then runs the code of the checkout.
 
-Run the linter and the tests::
+Run the linter, the type checker and the tests::
 
     $ ruff check .
+    $ mypy
     $ pytest
+
+The package is fully annotated and checked with ``mypy --strict``, the
+tests are checked without requiring annotations. Configuration for all
+three tools is in ``pyproject.toml``.
 
 The tests need ``git``, ``gpg2``, ``quilt`` and ``patch``; without quilt
 the quilt workflow tests are skipped. ``test_srt.py`` runs a complete git
