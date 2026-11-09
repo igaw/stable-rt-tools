@@ -43,6 +43,10 @@ class Tag:
 
     Every suffix becomes an attribute: tag.rt == 22, tag.rc == 1, a suffix
     without number like -rebase is True.
+
+    The release suffix is the last numbered suffix except -rc: rt in
+    v4.4.144-cip13-rt134-rc1, foo in v6.1.5-foo3. Everything before it is
+    the base the release is made on.
     """
 
     def __init__(self, _tag: str) -> None:
@@ -54,32 +58,36 @@ class Tag:
         self.minor = int(m.group(2))
         self.patch = int(m.group(3))
 
+        # the suffixes in order and their values; kept apart from the
+        # attributes, a -rebase suffix must not hide the rebase property
         self._order: list[str] = []
+        self._values: dict[str, int | bool] = {}
         for p in parts[1:]:
             m = re.match(r'^([a-z]+)([0-9]+)$', p)
             if m:
                 key, val = m.group(1), int(m.group(2))
-                setattr(self, key, val)
+                self._values[key] = val
                 self._order.append(key)
             elif re.match(r'^[a-z]+$', p):
-                setattr(self, p, True)
+                self._values[p] = True
                 self._order.append(p)
             else:
                 raise TagParseError(f'Failed to parse {p}')
 
     def __getattr__(self, name: str) -> int | bool:
-        """Returns the attribute matching passed name."""
-        value: int | bool | None = self.__dict__.get(name)
-        if value is None:
+        """Return the value of the suffix name, e.g. tag.rt."""
+        # only called for names which are no regular attribute
+        values = self.__dict__.get('_values', {})
+        if name not in values:
             raise TagAttrError(f'No such attribute {name}')
-        return value
+        return values[name]  # type: ignore[no-any-return]
 
     def _build(self, fix: str | None) -> str:
         tag = f'v{self.major}.{self.minor}.{self.patch}'
         for o in self._order:
             if fix == o:
                 return tag
-            val = getattr(self, o)
+            val = self._values[o]
             if val is True:
                 tag = f'{tag}-{o}'
             else:
@@ -106,14 +114,23 @@ class Tag:
         return self._order[-1]
 
     @property
+    def suffix(self) -> str:
+        """The release suffix, e.g. rt."""
+        for key in reversed(self._order):
+            if key != 'rc' and self._values[key] is not True:
+                return key
+        raise TagBaseError(f'No release suffix in tag {self!s}')
+
+    @property
+    def number(self) -> int:
+        """The release number, e.g. 22 for v6.12.116-rt22."""
+        return int(self._values[self.suffix])
+
+    @property
     def base(self) -> str:
-        """Return the tag up to -rt without trailing postfixes like -rc,
-        -patches."""
-        if 'rt' not in self._order:
-            raise TagBaseError(
-                f'No rt base tag {self!s}'
-            )
-        return self._build('rt')
+        """Return the tag up to the release suffix, without trailing
+        postfixes like -rc, -patches."""
+        return self._build(self.suffix)
 
     @property
     def rebase(self) -> str:

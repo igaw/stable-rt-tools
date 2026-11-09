@@ -111,3 +111,18 @@ class TestTag(TestCase):
     def test_is_not_rc(self):
         tag = Tag('v4.4.144-cip13-rt134')
         self.assertEqual(tag.is_rc, False)
+
+    def test_suffix_and_number(self):
+        for name, suffix, number, base in (
+                ('v6.12.116-rt22', 'rt', 22, 'v6.12.116'),
+                ('v6.12.116-rt22-patches', 'rt', 22, 'v6.12.116'),
+                ('v6.12.116-rt22-rc1', 'rt', 22, 'v6.12.116'),
+                ('v4.4.144-cip13-rt134-rc1', 'rt', 134, 'v4.4.144-cip13'),
+                ('v6.1.5-foo3', 'foo', 3, 'v6.1.5'),
+                ('v6.1.5-foo3-rebase', 'foo', 3, 'v6.1.5')):
+            tag = Tag(name)
+            self.assertEqual((tag.suffix, tag.number, tag.base),
+                             (suffix, number, base), name)
+        with self.assertRaises(TagBaseError):
+            _ = Tag('v4.4.144-rebase').base
+
