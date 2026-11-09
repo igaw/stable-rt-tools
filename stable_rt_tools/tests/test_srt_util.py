@@ -215,3 +215,16 @@ class TestUtil(TestCase):
             self.assertEqual(
                 srt_util.get_template_path({key: '/my/tmpl'}, key, name),
                 '/my/tmpl')
+
+    def test_confirm_eof_is_no(self):
+        import io
+        from unittest import mock
+
+        import stable_rt_tools.srt_util as srt_util
+
+        with mock.patch('sys.stdin', io.StringIO('')), \
+                mock.patch('sys.stdout', io.StringIO()):
+            self.assertFalse(srt_util.confirm('OK?'))
+        with mock.patch('sys.stdin', io.StringIO('maybe\ny\n')), \
+                mock.patch('sys.stdout', io.StringIO()):
+            self.assertTrue(srt_util.confirm('OK?'))

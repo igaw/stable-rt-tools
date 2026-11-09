@@ -308,7 +308,8 @@ def confirm(text):
                 return True
             if reply[:1] == 'n':
                 return False
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
+        # Ctrl-C or no input at all (closed stdin) mean no
         return False
 
 
