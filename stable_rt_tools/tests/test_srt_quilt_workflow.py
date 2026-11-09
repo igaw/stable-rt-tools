@@ -405,6 +405,36 @@ class TestQuiltChecks(TestQuiltBase):
         self.assertIn('# a late change', git(
             self.patches_dir, 'show', 'v6.1.2-rt2-patches:patches/series'))
 
+    def test_undo_and_redo(self):
+        self.release_until('release')
+        old_queue = git(self.patches_dir, 'rev-parse', 'v6.1.1-rt1-patches^{}')
+        out = self.run_step('undo')
+        self.assertIn('delete tag v6.1.2-rt2', out)
+        self.assertIn("Merge tag 'v6.1.2' into v6.1-rt", out)
+        rel = srt_quilt.Release()
+        for step in ('refresh', 'queue', 'rebase', 'merge', 'release'):
+            self.assertFalse(rel.done(step), step)
+        self.assertEqual(git(self.rt_dir, 'rev-parse', 'HEAD'),
+                         git(self.rt_dir, 'rev-parse', 'v6.1.1-rt1^{}'))
+        self.assertEqual(git(self.patches_dir, 'rev-parse', 'HEAD'),
+                         old_queue)
+        # the refreshed patches are kept, staged
+        self.assertIn('new-fix.patch', git(
+            self.patches_dir, 'diff', '--cached', '--name-only'))
+        self.assertIn('nothing to undo', self.run_step('undo', ''))
+        for step in srt_quilt.STEPS:
+            self.run_step(step)
+        self.assertTrue(srt_quilt.Release().done('release'))
+
+    def test_undo_refuses_pushed_release(self):
+        self.release_until('release')
+        git(self.rt_dir, 'push', '-q', 'origin', 'HEAD:v6.1-rt')
+        git(self.rt_dir, 'fetch', '-q', 'origin')
+        with self.assertRaises(SystemExit) as e:
+            self.run_step('undo')
+        self.assertIn('pushed already', str(e.exception))
+        self.assertTrue(srt_quilt.Release().done('release'))
+
     def test_refresh_keeps_patch_when_not_dropped(self):
         self.prepare()
         with self.assertRaises(SystemExit) as e:

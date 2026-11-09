@@ -34,6 +34,7 @@ run from any of them:
   rebase   import the queue on top of the stable release (-rebase)
   merge    merge the stable release and apply added patches (-rt)
   release  commit and tag the release on -rt, its tree must match -rebase
+  undo     undo the steps above as long as nothing is pushed
 
 This follows the linux-6.18.y-rt releases: the tags are created in the
 order -patches, -rebase, release, and the -rt tree is identical to the
@@ -385,9 +386,9 @@ def queue(rel):
     if committed and git(rel.patches_dir, 'diff', '--cached', '--name-only'):
         # tagging HEAD would leave the staged changes out of the release
         sys.exit(f'{rel.patches_dir}: the queue commit for {rel.new} exists '
-                 'and patches/ changed since. Undo the commit with "git '
-                 'reset --soft HEAD~1" (or amend it) and rerun "srt quilt '
-                 'queue"')
+                 'and patches/ changed since. Undo the release with "srt '
+                 'quilt undo" (or the commit with "git reset --soft '
+                 'HEAD~1") and rerun from "srt quilt refresh"')
     if not committed:
         cwd = os.getcwd()
         os.chdir(rel.rt_dir)
@@ -515,6 +516,74 @@ def release(rel):
 
 
 #
+# undo
+#
+
+def _upstream(path):
+    try:
+        return git(path, 'rev-parse', '--abbrev-ref', '--symbolic-full-name',
+                   '@{u}')
+    except CalledProcessError:
+        return None
+
+
+def _pushed(path, ref):
+    upstream = _upstream(path)
+    return upstream is not None and is_ancestor(path, ref, upstream)
+
+
+def undo(rel):
+    """Undo srt quilt queue..release, keep the refreshed patches."""
+    tags = [(rel.rt_dir, rel.release_tag), (rel.rebase_dir, rel.rebase_tag),
+            (rel.patches_dir, rel.queue_tag)]
+    for path, tag in tags:
+        ref = rev(path, 'refs/tags/' + tag)
+        if ref and _pushed(path, ref):
+            sys.exit(f'{tag} is pushed already, it cannot be undone')
+    op = in_progress(rel.rt_dir)
+    if op:
+        sys.exit(f'{rel.rt_dir}: {op} in progress, abort it first')
+    require_clean(rel.rt_dir)
+
+    rt_upstream = _upstream(rel.rt_dir)
+    if not rt_upstream:
+        sys.exit(f'{rel.rt_dir} has no upstream branch')
+    dropped = git(rel.rt_dir, 'log', '--oneline', '--first-parent',
+                  f'{rt_upstream}..HEAD')
+    queue_commit = git(rel.patches_dir, 'log', '-1', '--format=%s') \
+        .endswith(str(rel.new)[1:])
+    if queue_commit and _pushed(rel.patches_dir, 'HEAD'):
+        sys.exit(f'the queue commit of {rel.new} is pushed already')
+    existing = [tag for path, tag in tags
+                if rev(path, 'refs/tags/' + tag)]
+
+    if not existing and not dropped and not queue_commit:
+        print('nothing to undo')
+        return
+    print(f'undo the {rel.new} release:')
+    for tag in existing:
+        print(f'  delete tag {tag}')
+    if dropped:
+        print(f'  reset {rel.rt_dir} to {rt_upstream}, dropping:')
+        for line in dropped.splitlines():
+            print(f'    {line}')
+    if queue_commit:
+        print(f'  undo the queue commit in {rel.patches_dir}, '
+              'keeping the patches')
+    if not confirm('OK to undo?'):
+        sys.exit('aborted')
+
+    for tag in existing:
+        git(rel.rt_dir, 'tag', '-d', tag)
+    if dropped:
+        git(rel.rt_dir, 'reset', '-q', '--hard', rt_upstream)
+    if queue_commit:
+        git(rel.patches_dir, 'reset', '-q', '--soft', 'HEAD~1')
+    update_srt_state({'refreshed': None})
+    print('next: fix the patch queue, then srt quilt refresh')
+
+
+#
 # status
 #
 
@@ -544,6 +613,7 @@ COMMANDS = {
     'rebase': rebase,
     'merge': merge,
     'release': release,
+    'undo': undo,
 }
 
 
@@ -561,6 +631,9 @@ def add_argparser(parser):
     sub.add_parser('merge',
                    help='merge stable and apply added patches in -rt')
     sub.add_parser('release', help='commit and tag the release in -rt')
+    sub.add_parser('undo',
+                   help='undo queue..release as long as nothing is pushed, '
+                   'keep the refreshed patches')
     return prs
 
 
