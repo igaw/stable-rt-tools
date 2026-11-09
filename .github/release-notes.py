@@ -47,7 +47,20 @@ def to_markdown(lines: list[str]) -> str:
                       lambda m: f'[{m[1]}]({DOCS}/{m[1]}.html)', line)
         line = re.sub(r'`([^`<]+?) <([^>]+)>`_', r'[\1](\2)', line)
         out.append(line)
-    return '\n'.join(out).strip() + '\n'
+    return '\n'.join(unwrap(out)).strip() + '\n'
+
+
+def unwrap(lines: list[str]) -> list[str]:
+    """Join wrapped lines, GitHub shows every newline of a release."""
+    out: list[str] = []
+    for line in lines:
+        joins = (out and out[-1] != '' and not out[-1].startswith('#')
+                 and line != '' and not line.startswith(('- ', '#')))
+        if joins:
+            out[-1] += ' ' + line.strip()
+        else:
+            out.append(line)
+    return out
 
 
 def main() -> None:
