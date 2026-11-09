@@ -12,6 +12,7 @@ Contents:
    quilt-workflow
    command-line
    devguide
+   changes
 
 Indices and tables
 ==================
