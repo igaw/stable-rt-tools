@@ -49,6 +49,7 @@ import tempfile
 from subprocess import CalledProcessError
 from time import gmtime, strftime
 
+from stable_rt_tools.srt_announce import cover_letter_replacements
 from stable_rt_tools.srt_commit import localversion_set
 from stable_rt_tools.srt_prep import worktree_dirs
 from stable_rt_tools.srt_util import (
@@ -56,9 +57,11 @@ from stable_rt_tools.srt_util import (
     confirm,
     get_config,
     get_gpg_env,
+    get_template_path,
     read_srt_state,
     update_srt_state,
 )
+from stable_rt_tools.srt_util_context import SrtContext
 from stable_rt_tools.srt_util_tag import Tag
 
 # The RT patch queue format. quilt must not pick it up from the user's
@@ -368,12 +371,6 @@ def refresh(rel):
 #
 
 def queue(rel):
-    from stable_rt_tools.srt_patches import (
-        cover_letter_replacements,
-        get_commit_tmpl_path,
-    )
-    from stable_rt_tools.srt_util_context import SrtContext
-
     if rel.done('queue'):
         print(f'{rel.queue_tag} already tagged')
         return
@@ -404,7 +401,8 @@ def queue(rel):
         r['series_changes'] = ''.join(
             [f'  - dropped {p}\n' for p in dropped] +
             [f'  - added {p}\n' for p in added]) or '  - none\n'
-        with open(get_commit_tmpl_path(rel.config)) as f:
+        with open(get_template_path(rel.config, 'COMMIT_TMPL',
+                                    'commit-tmpl.txt')) as f:
             text = f.read().format(**r)
         with tempfile.NamedTemporaryFile('w', delete=False) as f:
             f.write(text)

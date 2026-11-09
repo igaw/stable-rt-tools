@@ -285,6 +285,3 @@ not provided explicitly. ``srt push`` clears the state after a successful push.
 If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
 
 Release candidates are not supported by the quilt workflow.
-
-``srt patches`` is deprecated. It still works as before in the worktree it
-is called in, but prints the ``srt quilt`` step to use instead.

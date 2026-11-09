@@ -31,7 +31,6 @@ from stable_rt_tools import (
     srt_announce,
     srt_commit,
     srt_create,
-    srt_patches,
     srt_prep,
     srt_push,
     srt_quilt,
@@ -50,7 +49,6 @@ sub_cmd = {
     'upload': srt_upload,
     'push': srt_push,
     'announce': srt_announce,
-    'patches': srt_patches,
     'quilt': srt_quilt,
     'status': srt_status,
 }
