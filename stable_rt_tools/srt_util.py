@@ -359,7 +359,8 @@ def confirm(text: str) -> bool:
         return False
 
 
-def check_context(ctx: 'SrtContext') -> 'SrtContext | None':
+def check_context(ctx: 'SrtContext') -> None:
+    """Exit unless OLD_TAG, NEW_TAG and the tags they need exist."""
     if ctx.old_tag == ctx.new_tag:
         text = ('Something went wrong. '
                 'OLD_TAG and NEW_TAG are the same ({}).\n'
@@ -372,10 +373,6 @@ def check_context(ctx: 'SrtContext') -> 'SrtContext | None':
     if not ctx.new_tag.is_rc:
         tags.append(ctx.new_tag.rebase)
 
-    for tag in tags:
-        debug(f'Check if tag {tag} exists')
-        if not tag_exists(tag):
-            print(f'tag {tag} doesn\'t exists', file=sys.stderr)
-            return None
-
-    return ctx
+    missing = [str(tag) for tag in tags if not tag_exists(tag)]
+    if missing:
+        sys.exit('tag(s) missing: {}'.format(', '.join(missing)))

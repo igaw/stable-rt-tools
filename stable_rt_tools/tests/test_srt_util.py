@@ -242,3 +242,21 @@ class TestUtil(TestCase):
                     self.assertRaises(SystemExit) as e:
                 srt_util.pipe(producer, consumer, stdout=f)
             self.assertIn('failed with exit code 1', str(e.exception))
+
+    def test_check_context_exits_on_missing_tag(self):
+        import argparse
+        from unittest import mock
+
+        import stable_rt_tools.srt_util as srt_util
+        from stable_rt_tools.srt_util_context import SrtContext
+
+        ctx = SrtContext(argparse.Namespace(OLD_TAG='v6.12.111-rt21',
+                                            NEW_TAG='v6.12.116-rt22'),
+                         path='/tmp')
+        with mock.patch.object(srt_util, 'tag_exists',
+                               side_effect=lambda t: str(t) != 'v6.12.116'):
+            with self.assertRaises(SystemExit) as e:
+                srt_util.check_context(ctx)
+        self.assertIn('v6.12.116', str(e.exception))
+        with mock.patch.object(srt_util, 'tag_exists', return_value=True):
+            srt_util.check_context(ctx)

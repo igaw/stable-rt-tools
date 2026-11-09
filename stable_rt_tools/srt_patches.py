@@ -29,7 +29,6 @@ from email.utils import make_msgid
 from time import gmtime, strftime
 
 from stable_rt_tools.srt_util import (
-    check_context,
     cmd,
     confirm,
     get_config,
@@ -150,6 +149,5 @@ def execute(args):
     print('srt patches is deprecated, use "{}"'.format(
         DEPRECATED.get(post_fix, 'srt quilt merge; srt quilt release')),
         file=sys.stderr)
-    ctx = SrtContext(args)
-    check_context(ctx)
-    patches(get_config(), ctx, args)
+    # no check_context(): srt patches creates the tags it would check
+    patches(get_config(), SrtContext(args), args)
