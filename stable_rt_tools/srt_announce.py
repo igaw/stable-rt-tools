@@ -88,14 +88,10 @@ def resolved_merges(ref: str) -> list[str]:
     """The merges of the release candidate with conflict resolutions.
 
     git format-patch leaves out merges, but the conflict resolution of
-    a stable merge is a change to the series which needs review. The
-    merge at ref belongs to the candidate, find_starting_ref() starts
-    at the old tag when it was released already.
+    a stable merge is a change to the series which needs review.
     """
-    merges = cmd(['git', 'rev-list', '--reverse', '--topo-order',
-                  '--merges', '--first-parent', f'{ref}..']).split()
-    if cmd(['git', 'rev-list', '--no-walk', '--merges', ref]):
-        merges.insert(0, cmd(['git', 'rev-parse', f'{ref}^{{commit}}']))
+    merges = cmd(['git', 'rev-list', '--reverse', '--first-parent',
+                  '--merges', f'{ref}..']).split()
     # a clean merge has no remerge diff
     return [m for m in merges
             if cmd(['git', 'show', '--remerge-diff', '--format=', m])]
@@ -117,17 +113,48 @@ def merge_mail(merge: str) -> tuple[str, str]:
     return slug, head + sep + MERGE_NOTE + rest
 
 
+def series_summary(ref: str, commits: list[str]) -> str:
+    """The shortlog and diffstat of the series for the cover letter.
+
+    git format-patch neither lists the merges nor gets the diffstat
+    right across a merge: it would count the stable update in.
+    """
+    authors: dict[str, list[str]] = {}
+    for c in commits:
+        author, subject = cmd(['git', 'show', '-s', '--format=%an%x00%s',
+                               c]).split('\0', 1)
+        authors.setdefault(author, []).append(subject)
+    text = ''
+    for author, subjects in authors.items():
+        text += f'{author} ({len(subjects)}):\n'
+        text += ''.join(f'  {s}\n' for s in subjects) + '\n'
+    if cmd(['git', 'rev-list', '--first-parent', '--merges', f'{ref}..']):
+        # a merge with conflicts has a mail of its own
+        return text + 'The diffstat is left out, it would contain the ' \
+            'stable update.\n'
+    return text + ' ' + cmd(['git', 'diff', '--stat', f'{ref}..']) + '\n'
+
+
+def rewrite_cover(cover: str, prefix: str, total: int, summary: str) -> None:
+    with open(cover) as f:
+        text = f.read()
+    text = mail_subject(text, f'{prefix} 0/{total}')
+    blurb = '*** BLURB HERE ***\n'
+    head, sep, rest = text.partition(blurb)
+    signature = rest[rest.rfind('\n-- \n'):] if '\n-- \n' in rest else ''
+    with open(cover, 'w') as f:
+        f.write(head + sep + '\n' + summary + signature)
+
+
 def add_merge_mails(mails: list[str], ref: str, merges: list[str],
                     prefix: str) -> list[str]:
     """Put the merge mails into the series in commit order.
 
     The patches of git format-patch are numbered again, the series has
-    more mails now.
+    more mails now, and the cover letter lists all of them.
     """
-    order = cmd(['git', 'rev-list', '--reverse', '--topo-order',
+    order = cmd(['git', 'rev-list', '--reverse', '--first-parent',
                  f'{ref}..']).split()
-    if merges and merges[0] not in order:
-        order.insert(0, merges[0])
 
     cover = mails[0]
     by_commit: dict[str, tuple[str, str]] = {}
@@ -141,7 +168,8 @@ def add_merge_mails(mails: list[str], ref: str, merges: list[str],
         slug, text = merge_mail(m)
         by_commit[m] = (slug + '.patch', text)
 
-    series = [by_commit[c] for c in order if c in by_commit]
+    commits = [c for c in order if c in by_commit]
+    series = [by_commit[c] for c in commits]
     total = len(series)
     directory = os.path.dirname(cover)
     result = [cover]
@@ -151,22 +179,24 @@ def add_merge_mails(mails: list[str], ref: str, merges: list[str],
             f.write(mail_subject(text, f'{prefix} {n}/{total}'))
         result.append(path)
 
-    with open(cover) as f:
-        text = f.read()
-    with open(cover, 'w') as f:
-        f.write(mail_subject(text, f'{prefix} 0/{total}'))
+    rewrite_cover(cover, prefix, total, series_summary(ref, commits))
     return result
 
 
 def create_rc_patches(config: Config, ctx: SrtContext) -> None:
-    ref = find_starting_ref(ctx)
+    """Mail everything added to the series since the last release.
+
+    These are the commits on the series' own line (--first-parent):
+    patches before and after the stable merge, the merge itself if it
+    has a conflict resolution, the release commit. The commits of the
+    stable releases merged in are reviewed elsewhere.
+    """
+    ref = str(ctx.old_tag)
     prefix = f'PATCH {get_suffix(config).upper()}'
-    mails = cmd(['git', 'format-patch', f'{ref}..',
+    mails = cmd(['git', 'format-patch', '--first-parent', f'{ref}..',
                  '-o', ctx.new_dir_mails, '--subject-prefix', prefix,
                  '--cover-letter']).splitlines()
-    merges = resolved_merges(ref)
-    if merges:
-        mails = add_merge_mails(mails, ref, merges, prefix)
+    mails = add_merge_mails(mails, ref, resolved_merges(ref), prefix)
     for mail in mails:
         if not mail.endswith('/0000-cover-letter.patch'):
             add_review_text(mail, str(ctx.new_tag))

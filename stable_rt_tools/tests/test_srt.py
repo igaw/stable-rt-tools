@@ -542,6 +542,8 @@ class TestReleaseCanditate(TestSrtBase):
             debug(letter)
         self.assertIn('Linux ' + str(self.ctx.new_tag), letter)
         self.assertNotIn('stable review patch', letter)
+        self.assertIn('Mighty Eagle (3):\n  Add file1.txt\n', letter)
+        self.assertIn('3 files changed', letter)
         # the history is not rewritten, no branch left behind
         self.assertNotIn('next-tmp', cmd(['git', 'branch']))
 
@@ -822,14 +824,20 @@ class TestReleaseCanditateMergeConflict(TestSrtBase):
         announce(self.config, self.ctx, args)
 
         mails = self.ctx.new_dir_mails
+        # everything added since the last release, in commit order: the
+        # patch before the merge too, not the stable commits
         patches = ['0000-cover-letter.patch',
-                   '0001-Merge-tag-v4-4-15-into-v4-4-rt-next.patch',
-                   '0002-Linux-4.4.15-rt4.patch']
+                   '0001-rt-annotate-the-Makefile.patch',
+                   '0002-Merge-tag-v4-4-15-into-v4-4-rt-next.patch',
+                   '0003-Linux-4.4.15-rt4.patch']
         self.assertEqual(sorted(os.listdir(mails)), patches)
 
         with open(f'{mails}/{patches[1]}') as f:
+            self.assertIn('Subject: [PATCH RT 1/3] rt: annotate the Makefile',
+                          f.read())
+        with open(f'{mails}/{patches[2]}') as f:
             merge = f.read()
-        self.assertIn("Subject: [PATCH RT 1/2] Merge tag 'v4.4.15' into "
+        self.assertIn("Subject: [PATCH RT 2/3] Merge tag 'v4.4.15' into "
                       'v4.4-rt-next', merge)
         self.assertIn('This is the 4.4.15 stable release', merge)
         self.assertIn('v4.4.15-rt4-rc1 stable review patch.', merge)
@@ -838,11 +846,19 @@ class TestReleaseCanditateMergeConflict(TestSrtBase):
         self.assertIn('\n-<<<<<<< ', merge)
         self.assertIn('\n-=======\n # stable\n->>>>>>> ', merge)
 
-        with open(f'{mails}/{patches[2]}') as f:
-            self.assertIn('Subject: [PATCH RT 2/2] Linux 4.4.15-rt4',
+        with open(f'{mails}/{patches[3]}') as f:
+            self.assertIn('Subject: [PATCH RT 3/3] Linux 4.4.15-rt4',
                           f.read())
         with open(f'{mails}/{patches[0]}') as f:
-            self.assertIn('Subject: [PATCH RT 0/2]', f.read())
+            cover = f.read()
+        self.assertIn('Subject: [PATCH RT 0/3]', cover)
+        # the merge is listed, the stable update is not
+        self.assertIn('Mighty Eagle (3):\n'
+                      '  rt: annotate the Makefile\n'
+                      "  Merge tag 'v4.4.15' into v4.4-rt-next\n"
+                      '  Linux 4.4.15-rt4\n', cover)
+        self.assertNotIn('New stable release', cover)
+        self.assertNotIn('file changed', cover)
 
 
 if __name__ == '__main__':

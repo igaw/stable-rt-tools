@@ -12,6 +12,11 @@ Fixed
   merge is a mail of the series now, with the resolution as shown by
   ``git show --remerge-diff``. A clean merge gets no mail. git 2.36 or
   newer is needed.
+- The review mails of a release candidate started at the last merge,
+  patches committed before the stable merge were not mailed. The mails
+  contain everything added to the series since the last release now. The
+  cover letter lists all mails; its diffstat is left out when the series
+  contains a stable merge, it would show the stable update.
 
 2.0
 ---
