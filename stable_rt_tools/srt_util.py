@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+import argparse
 import json
 import os
 import re
@@ -39,6 +40,18 @@ if TYPE_CHECKING:
 
 # An srt.conf group: a configparser section or, in tests, a dict.
 type Config = Mapping[str, str]
+
+# What the commands' add_argparser() get to add their parser to.
+type SubParsers = argparse._SubParsersAction[argparse.ArgumentParser]
+
+
+class Worktrees(TypedDict):
+    """The worktrees of the quilt workflow."""
+
+    rt_dir: str
+    stable_dir: str
+    patches_dir: str
+    rebase_dir: str
 
 
 class SrtState(TypedDict, total=False):

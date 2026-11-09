@@ -23,6 +23,7 @@
 # SOFTWARE
 
 
+import argparse
 import os
 import re
 from datetime import date, timedelta
@@ -30,6 +31,8 @@ from email.utils import make_msgid
 from time import gmtime, strftime
 
 from stable_rt_tools.srt_util import (
+    Config,
+    SubParsers,
     check_context,
     cmd,
     confirm,
@@ -42,7 +45,7 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_context import SrtContext
 
 
-def find_starting_ref(ctx):
+def find_starting_ref(ctx: SrtContext) -> str:
     # find starting point. first check for stable update only
     ref = cmd(['git', 'log', '--pretty=format:%H', '--merges', '-n', '1'])
 
@@ -56,7 +59,7 @@ def find_starting_ref(ctx):
     return ref
 
 
-def create_rc_patches(config, ctx):
+def create_rc_patches(config: Config, ctx: SrtContext) -> None:
     branch_name = get_local_branch_name()
     cmd(['git', 'checkout', '-b', 'next-tmp'])
 
@@ -78,7 +81,8 @@ def create_rc_patches(config, ctx):
     cmd(['git', 'branch', '-D', 'next-tmp'])
 
 
-def cover_letter_replacements(config, ctx):
+def cover_letter_replacements(config: Config,
+                              ctx: SrtContext) -> dict[str, object]:
     r = {
         "mail_to": config['MAIL_TO'],
         "major": ctx.new_tag.major,
@@ -98,7 +102,7 @@ def cover_letter_replacements(config, ctx):
     return r
 
 
-def write_rc_cover_letter(config, ctx):
+def write_rc_cover_letter(config: Config, ctx: SrtContext) -> None:
     with open(ctx.new_dir_mails + '/0000-cover-letter.patch') as f:
         coverletter = f.read()
 
@@ -124,7 +128,8 @@ def write_rc_cover_letter(config, ctx):
         f.write(coverletter)
 
 
-def send_rc_patches(config, ctx, args):
+def send_rc_patches(config: Config, ctx: SrtContext,
+                    args: argparse.Namespace) -> None:
     gmd = ['git', 'send-email', '--confirm=never']
     if args.suppress_cc:
         gmd += ['--suppress-cc=all']
@@ -139,21 +144,22 @@ def send_rc_patches(config, ctx, args):
         cmd(gmd)
 
 
-def announce_rc(config, ctx, args):
+def announce_rc(config: Config, ctx: SrtContext,
+                args: argparse.Namespace) -> None:
     create_rc_patches(config, ctx)
     write_rc_cover_letter(config, ctx)
     send_rc_patches(config, ctx, args)
 
 
-def get_announce_tmpl_path(config):
+def get_announce_tmpl_path(config: Config) -> str:
     return get_template_path(config, 'ANNOUNCE', 'announce-srt.txt')
 
 
-def get_rc_templ_path(config):
+def get_rc_templ_path(config: Config) -> str:
     return get_template_path(config, 'RC_TEXT', 'announce-srt-rc.txt')
 
 
-def strip_trailers(msg):
+def strip_trailers(msg: str) -> str:
     """Remove the trailer block (Signed-off-by: ...) of a commit message."""
     paragraphs = msg.rstrip().split('\n\n')
     last = paragraphs[-1].splitlines()
@@ -163,7 +169,8 @@ def strip_trailers(msg):
     return '\n\n'.join(paragraphs)
 
 
-def announce(config, ctx, args):
+def announce(config: Config, ctx: SrtContext,
+             args: argparse.Namespace) -> None:
     from stable_rt_tools.srt_util import is_quilt_workflow
     if ctx.is_rc:
         announce_rc(config, ctx, args)
@@ -224,7 +231,7 @@ def announce(config, ctx, args):
     print(cmd(['git', '--no-pager', 'diff', f'{ref}..{ctx.new_tag}']))
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('announce')
     prs.add_argument('OLD_TAG', nargs='?')
     prs.add_argument('NEW_TAG', nargs='?')
@@ -233,7 +240,7 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     ctx = SrtContext(args)
     check_context(ctx)
 

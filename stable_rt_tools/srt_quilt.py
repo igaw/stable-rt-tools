@@ -41,11 +41,13 @@ order -patches, -rebase, release, and the -rt tree is identical to the
 -rebase tree.
 """
 
+import argparse
 import os
 import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Mapping, Sequence
 from subprocess import CalledProcessError
 from time import gmtime, strftime
 
@@ -53,6 +55,10 @@ from stable_rt_tools.srt_announce import cover_letter_replacements
 from stable_rt_tools.srt_commit import localversion_set
 from stable_rt_tools.srt_prep import worktree_dirs
 from stable_rt_tools.srt_util import (
+    Config,
+    SrtState,
+    SubParsers,
+    Worktrees,
     cmd,
     confirm,
     get_config,
@@ -77,7 +83,7 @@ STEPS = ['refresh', 'queue', 'rebase', 'merge', 'release']
 # helpers without git/quilt access
 #
 
-def parse_series(text):
+def parse_series(text: str) -> list[str]:
     """Return the patch names of a quilt series file."""
     patches = []
     for line in text.splitlines():
@@ -88,14 +94,15 @@ def parse_series(text):
     return patches
 
 
-def series_changes(old, new):
+def series_changes(old: list[str],
+                   new: list[str]) -> tuple[list[str], list[str]]:
     """Return (dropped, added) patch names between two series."""
     dropped = [p for p in old if p not in new]
     added = [p for p in new if p not in old]
     return dropped, added
 
 
-def patch_subject(text):
+def patch_subject(text: str) -> str | None:
     """Return the commit subject of a patch, as git am would."""
     lines = text.splitlines()
     for i, line in enumerate(lines):
@@ -111,12 +118,12 @@ def patch_subject(text):
     return None
 
 
-def rt_localversion(tag):
+def rt_localversion(tag: object) -> str:
     """'v6.12.116-rt22' -> '-rt22'"""
     return '-' + str(tag).split('-', 1)[1]
 
 
-def drop_from_series(patches_dir, name):
+def drop_from_series(patches_dir: str, name: str) -> None:
     series = os.path.join(patches_dir, 'series')
     with open(series) as f:
         lines = f.readlines()
@@ -134,11 +141,12 @@ def drop_from_series(patches_dir, name):
 # git helpers
 #
 
-def git(path, *args, **kwargs):
-    return cmd(['git', '-C', path] + list(args), **kwargs)
+def git(path: str, *args: str, env: Mapping[str, str] | None = None,
+        cwd: str | None = None) -> str:
+    return cmd(['git', '-C', path, *args], env=env, cwd=cwd)
 
 
-def rev(path, ref):
+def rev(path: str, ref: str) -> str | None:
     try:
         return git(path, 'rev-parse', '--verify', '--quiet',
                    ref + '^{commit}')
@@ -146,7 +154,7 @@ def rev(path, ref):
         return None
 
 
-def is_ancestor(path, ancestor, ref='HEAD'):
+def is_ancestor(path: str, ancestor: str, ref: str = 'HEAD') -> bool:
     try:
         git(path, 'merge-base', '--is-ancestor', ancestor, ref)
         return True
@@ -154,20 +162,20 @@ def is_ancestor(path, ancestor, ref='HEAD'):
         return False
 
 
-def dirty_files(path, ignore=()):
+def dirty_files(path: str, ignore: Sequence[str] = ()) -> list[str]:
     out = git(path, 'status', '--porcelain', '--untracked-files=no')
     files = [line[3:] for line in out.splitlines() if line]
     return [f for f in files if f not in ignore]
 
 
-def require_clean(path, ignore=()):
+def require_clean(path: str, ignore: Sequence[str] = ()) -> None:
     files = dirty_files(path, ignore)
     if files:
         sys.exit('{} has uncommitted changes: {}'.format(
             path, ', '.join(files)))
 
 
-def in_progress(path):
+def in_progress(path: str) -> str | None:
     """Return the name of a git operation in progress, if any."""
     if rev(path, 'MERGE_HEAD'):
         return 'merge'
@@ -184,7 +192,7 @@ def in_progress(path):
 #
 
 class Release:
-    def __init__(self, state=None):
+    def __init__(self, state: SrtState | None = None) -> None:
         state = state if state is not None else read_srt_state()
         if not state or not state.get('new_tag'):
             sys.exit('No release prepared: run "srt prep" in the -rt '
@@ -194,7 +202,10 @@ class Release:
                      .format(state.get('workflow_branch')))
         self.state = state
         if 'rt_dir' in state:
-            dirs = state
+            dirs = Worktrees(rt_dir=state['rt_dir'],
+                             stable_dir=state['stable_dir'],
+                             patches_dir=state['patches_dir'],
+                             rebase_dir=state['rebase_dir'])
         else:
             # state written by an older srt prep
             patches_dir = os.path.dirname(state['quilt_patches'])
@@ -216,10 +227,10 @@ class Release:
         self.rebase_tag = self.new.rebase
         self.queue_tag = str(self.new) + '-patches'
         self.old_queue_tag = str(self.old) + '-patches'
-        self._config = None
+        self._config: Config | None = None
 
     @property
-    def config(self):
+    def config(self) -> Config:
         # the configuration group of the -rt branch
         if self._config is None:
             cwd = os.getcwd()
@@ -231,24 +242,24 @@ class Release:
         return self._config
 
     @property
-    def localversion(self):
+    def localversion(self) -> str:
         return self.config.get('LOCALVERSION', 'localversion-rt')
 
-    def old_series(self):
+    def old_series(self) -> list[str]:
         return parse_series(git(self.rt_dir, 'show',
                                 self.old_queue_tag + ':patches/series'))
 
-    def new_series(self):
+    def new_series(self) -> list[str]:
         with open(os.path.join(self.quilt_patches, 'series')) as f:
             return parse_series(f.read())
 
-    def series_changes(self):
+    def series_changes(self) -> tuple[list[str], list[str]]:
         return series_changes(self.old_series(), self.new_series())
 
-    def has_tag(self, path, tag):
+    def has_tag(self, path: str, tag: str) -> bool:
         return rev(path, 'refs/tags/' + tag) is not None
 
-    def tag(self, path, tag, msg):
+    def tag(self, path: str, tag: str, msg: str) -> None:
         existing = rev(path, 'refs/tags/' + tag)
         if existing:
             if existing == rev(path, 'HEAD'):
@@ -262,7 +273,7 @@ class Release:
         git(path, 'tag', '-s', '-u', self.config['GPG_KEY_ID'],
             '-m', msg, tag, env=get_gpg_env(self.config))
 
-    def done(self, step):
+    def done(self, step: str) -> bool:
         if step == 'refresh':
             return self.state.get('refreshed') == self.release_tag
         if step == 'queue':
@@ -276,12 +287,12 @@ class Release:
             return self.has_tag(self.rt_dir, self.release_tag)
         raise ValueError(step)
 
-    def subjects(self):
+    def subjects(self) -> list[str]:
         out = git(self.rt_dir, 'log', '--format=%s',
                   f'{self.old}..HEAD')
         return out.splitlines()
 
-    def missing_patches(self):
+    def missing_patches(self) -> list[str]:
         """Added patches which are not applied on -rt yet."""
         subjects = self.subjects()
         missing = []
@@ -296,24 +307,24 @@ class Release:
 # refresh
 #
 
-def _quilt_env(rel):
+def _quilt_env(rel: Release) -> dict[str, str]:
     env = os.environ.copy()
     env['QUILT_DIFF_OPTS'] = QUILT_DIFF_OPTS
     env['QUILT_PATCHES'] = rel.quilt_patches
     return env
 
 
-def _quilt(rel, args, env):
+def _quilt(rel: Release, args: list[str], env: Mapping[str, str]) -> str:
     # '--quiltrc -' makes quilt ignore ~/.quiltrc and /etc/quilt.quiltrc
     return cmd(['quilt', '--quiltrc', '-'] + args, env=env,
                cwd=rel.stable_dir)
 
 
-def _refresh(rel, env):
+def _refresh(rel: Release, env: Mapping[str, str]) -> None:
     _quilt(rel, ['refresh'] + QUILT_REFRESH_ARGS, env)
 
 
-def _already_applied(rel, name):
+def _already_applied(rel: Release, name: str) -> bool:
     """True if the patch reverse-applies, i.e. stable already has it."""
     try:
         cmd(['patch', '-p1', '-R', '--dry-run', '-s', '-f', '-i',
@@ -323,7 +334,7 @@ def _already_applied(rel, name):
         return False
 
 
-def refresh(rel):
+def refresh(rel: Release) -> None:
     if rev(rel.stable_dir, 'HEAD') != rev(rel.stable_dir, rel.base):
         sys.exit(f'{rel.stable_dir} is not at {rel.base}; run "srt prep" '
                  'to update it')
@@ -370,7 +381,7 @@ def refresh(rel):
 # queue
 #
 
-def queue(rel):
+def queue(rel: Release) -> None:
     if rel.done('queue'):
         print(f'{rel.queue_tag} already tagged')
         return
@@ -404,13 +415,13 @@ def queue(rel):
         with open(get_template_path(rel.config, 'COMMIT_TMPL',
                                     'commit-tmpl.txt')) as f:
             text = f.read().format(**r)
-        with tempfile.NamedTemporaryFile('w', delete=False) as f:
-            f.write(text)
+        with tempfile.NamedTemporaryFile('w', delete=False) as msg:
+            msg.write(text)
         try:
             p = subprocess.run(['git', 'commit', '-s', '--edit', '-F',
-                                f.name], cwd=rel.patches_dir)
+                                msg.name], cwd=rel.patches_dir)
         finally:
-            os.remove(f.name)
+            os.remove(msg.name)
         if p.returncode:
             sys.exit('git commit failed')
 
@@ -423,7 +434,7 @@ def queue(rel):
 # rebase
 #
 
-def rebase(rel):
+def rebase(rel: Release) -> None:
     if rel.done('rebase'):
         print(f'{rel.rebase_tag} already tagged')
         return
@@ -448,7 +459,7 @@ def rebase(rel):
 # merge
 #
 
-def merge(rel):
+def merge(rel: Release) -> None:
     if not rel.done('rebase'):
         sys.exit('run "srt quilt rebase" first')
     op = in_progress(rel.rt_dir)
@@ -481,7 +492,7 @@ def merge(rel):
 # release
 #
 
-def release(rel):
+def release(rel: Release) -> None:
     if rel.done('release'):
         print(f'{rel.release_tag} already tagged')
         return
@@ -517,7 +528,7 @@ def release(rel):
 # undo
 #
 
-def _upstream(path):
+def _upstream(path: str) -> str | None:
     try:
         return git(path, 'rev-parse', '--abbrev-ref', '--symbolic-full-name',
                    '@{u}')
@@ -525,12 +536,12 @@ def _upstream(path):
         return None
 
 
-def _pushed(path, ref):
+def _pushed(path: str, ref: str) -> bool:
     upstream = _upstream(path)
     return upstream is not None and is_ancestor(path, ref, upstream)
 
 
-def undo(rel):
+def undo(rel: Release) -> None:
     """Undo srt quilt queue..release, keep the refreshed patches."""
     tags = [(rel.rt_dir, rel.release_tag), (rel.rebase_dir, rel.rebase_tag),
             (rel.patches_dir, rel.queue_tag)]
@@ -585,7 +596,7 @@ def undo(rel):
 # status
 #
 
-def status(rel):
+def status(rel: Release) -> None:
     print(f'{rel.old} -> {rel.new}')
     dropped, added = rel.series_changes()
     for p in dropped:
@@ -615,7 +626,7 @@ COMMANDS = {
 }
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('quilt', help='quilt workflow release steps')
     sub = prs.add_subparsers(dest='quilt_cmd', metavar='STEP')
     sub.add_parser('refresh',
@@ -635,6 +646,6 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     step = getattr(args, 'quilt_cmd', None) or 'refresh'
     COMMANDS[step](Release())

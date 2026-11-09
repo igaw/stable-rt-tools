@@ -23,6 +23,7 @@
 # SOFTWARE
 
 import unittest
+from typing import Any
 from unittest.mock import patch
 
 from stable_rt_tools.srt_push import push
@@ -54,7 +55,7 @@ class DummyConfig(dict):
 
 def test_push_quilt_workflow():
     config = DummyConfig({'PRJ_GIT_TREE': 'origin'})
-    ctx = DummyCtx('v6.12.39-rt11', is_rc=False)
+    ctx: Any = DummyCtx('v6.12.39-rt11', is_rc=False)
 
     with patch('stable_rt_tools.srt_push.get_remote_branch_name',
                return_value='v6.12-rt'):
@@ -85,7 +86,7 @@ def test_push_quilt_workflow():
 
 def test_push_does_not_clear_state_when_cancelled():
     config = DummyConfig({'PRJ_GIT_TREE': 'origin'})
-    ctx = DummyCtx('v6.12.39-rt11', is_rc=False)
+    ctx: Any = DummyCtx('v6.12.39-rt11', is_rc=False)
 
     with patch('stable_rt_tools.srt_push.get_remote_branch_name',
                return_value='v6.12-rt'):

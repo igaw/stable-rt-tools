@@ -54,7 +54,7 @@ sub_cmd = {
 }
 
 
-def srt_get_argparser():
+def srt_get_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='srt - stable -rt tool')
     parser.add_argument('-d', '--debug',
                         action='store_true',
@@ -71,7 +71,7 @@ def srt_get_argparser():
     return parser
 
 
-def main():
+def main() -> None:
     parser = srt_get_argparser()
     args = parser.parse_args(sys.argv[1:])
     if args.version:

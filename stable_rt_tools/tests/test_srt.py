@@ -34,6 +34,7 @@ import unittest
 from logging import debug
 from pprint import pformat
 from shutil import rmtree
+from typing import cast
 
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_commit import commit
@@ -92,6 +93,11 @@ def stub_stdouts(testcase_inst):
     testcase_inst.addCleanup(cleanup)
     sys.stderr = StringIO()
     sys.stdout = StringIO()
+
+
+def stdout_text():
+    """The output written to the StringIO stub_stdouts() installed."""
+    return cast(io.StringIO, sys.stdout).getvalue()
 
 
 def find_string(lines, token):
@@ -257,7 +263,7 @@ class TestRelease(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
 
@@ -275,7 +281,7 @@ class TestRelease(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.14-rt4 REBASE\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4 REBASE'))
 
@@ -332,7 +338,7 @@ class TestRelease(TestSrtBase):
                 'ls', prj]
         msg = f'{pformat(args)}\nOK to commit? (y/n): '
         self.maxDiff = None
-        self.assertEqual(sys.stdout.getvalue(), msg)
+        self.assertEqual(stdout_text(), msg)
 
     def step8_push(self):
         os.chdir(self.work_tree)
@@ -353,7 +359,7 @@ class TestRelease(TestSrtBase):
         stub_stdouts(self)
         announce(self.config, self.ctx, args)
 
-        letter = sys.stdout.getvalue()
+        letter = stdout_text()
         debug(letter)
         self.assertNotEqual(letter, '')
 
@@ -431,7 +437,7 @@ class TestReleaseCanditate(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=1)
         ans = 'git commit -m Linux 4.4.14-rt5-rc1\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt5-rc1'))
 
@@ -490,7 +496,7 @@ class TestReleaseCanditate(TestSrtBase):
                 'ls', prj[:-1]]
         msg = f'{pformat(args)}\nOK to commit? (y/n): '
         self.maxDiff = None
-        self.assertEqual(sys.stdout.getvalue(), msg)
+        self.assertEqual(stdout_text(), msg)
 
     def step6_push(self):
         os.chdir(self.work_tree)
@@ -514,7 +520,7 @@ class TestReleaseCanditate(TestSrtBase):
         msg = ('git send-email --dry-run ' +
                '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
                f'{self.work_tree}/patches/v4.4.14-rt5-rc1/mails\n')
-        res = sys.stdout.getvalue()
+        res = stdout_text()
         self.maxDiff = None
         self.assertTrue(res.find(msg))
 
@@ -561,7 +567,7 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
 
@@ -579,7 +585,7 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.14-rt4 REBASE\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4 REBASE'))
 
@@ -612,7 +618,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
 
@@ -630,7 +636,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.14-rt4 REBASE\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4 REBASE'))
 
@@ -649,7 +655,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.15-rt5\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.15-rt5'))
 
@@ -667,7 +673,7 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.15-rt5 REBASE\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.15-rt5 REBASE'))
 
@@ -713,7 +719,7 @@ class TestReleaseCanditateNewProcess(TestSrtBase):
         stub_stdouts(self)
         commit(self.config, rc=False)
         ans = 'git commit -m Linux 4.4.14-rt4\nOK to commit? (y/n): '
-        self.assertEqual(sys.stdout.getvalue(), ans)
+        self.assertEqual(stdout_text(), ans)
         lines = cmd(['git', 'show'])
         self.assertTrue(find_string(lines, 'Linux 4.4.14-rt4'))
 

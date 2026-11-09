@@ -23,12 +23,15 @@
 # SOFTWARE
 
 
+import argparse
 import re
 import shutil
 import sys
 import tempfile
 
 from stable_rt_tools.srt_util import (
+    Config,
+    SubParsers,
     cmd,
     confirm,
     get_config,
@@ -39,13 +42,13 @@ from stable_rt_tools.srt_util import (
 )
 
 
-def localversion_set(filename, version):
+def localversion_set(filename: str, version: str) -> None:
     with open(filename, 'w') as f:
         f.write(version)
         f.write('\n')
 
 
-def localversion_inc(filename):
+def localversion_inc(filename: str) -> None:
     with open(filename, 'r+') as f:
         line = f.readline()
         version = int(line[3:])
@@ -54,7 +57,7 @@ def localversion_inc(filename):
         f.truncate()
 
 
-def get_kernel_version():
+def get_kernel_version() -> str:
     tmp = tempfile.mkdtemp()
     cmd(['make', f'O={tmp}', 'defconfig'])
     line = cmd(['make', '-s', f'O={tmp}', 'kernelrelease'])
@@ -62,7 +65,7 @@ def get_kernel_version():
     return line.strip()[:-1]
 
 
-def last_commit_was_release_commit():
+def last_commit_was_release_commit() -> bool:
     p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
     lines = cmd(['git', 'log', '-1', '--pretty=%B'])
     for msg in iter(lines.splitlines()):
@@ -73,7 +76,7 @@ def last_commit_was_release_commit():
     return False
 
 
-def commit(config, rc):
+def commit(config: Config, rc: int | None) -> None:
     if is_dirty():
         print('repo is dirty -> abort', file=sys.stderr)
         return
@@ -90,10 +93,8 @@ def commit(config, rc):
             cmd(['git', 'reset', 'HEAD~'])
         localversion_set(config['LOCALVERSION'], rt)
     elif rc:
-        rt = get_last_rt_tag(branch_name, '-next')
-        rt = rt[3:]
-        rt = int(rt) + 1
-        localversion_set(config['LOCALVERSION'], f'-rt{rt}-rc{rc}')
+        rt_ver = int(get_last_rt_tag(branch_name, '-next')[3:]) + 1
+        localversion_set(config['LOCALVERSION'], f'-rt{rt_ver}-rc{rc}')
     else:
         localversion_inc(config['LOCALVERSION'])
 
@@ -111,12 +112,12 @@ def commit(config, rc):
         cmd(['git', 'reset', '--hard', old_head])
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('commit')
     prs.add_argument('--release-candidate', '-r',
                      default=None, metavar='N', type=int)
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     commit(get_config(), args.release_candidate)

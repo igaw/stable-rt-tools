@@ -22,7 +22,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+import argparse
+
 from stable_rt_tools.srt_util import (
+    Config,
+    SubParsers,
     check_context,
     clear_srt_state,
     cmd,
@@ -34,7 +38,7 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_context import SrtContext
 
 
-def push(config, ctx):
+def push(config: Config, ctx: SrtContext) -> None:
     branch = get_remote_branch_name()
 
     args = None
@@ -67,14 +71,14 @@ def push(config, ctx):
         clear_srt_state()
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('push')
     prs.add_argument('OLD_TAG', nargs='?')
     prs.add_argument('NEW_TAG', nargs='?')
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     ctx = SrtContext(args)
     check_context(ctx)
 

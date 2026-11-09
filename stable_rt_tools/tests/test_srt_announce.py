@@ -24,6 +24,7 @@
 
 import unittest
 from argparse import Namespace
+from typing import Any
 from unittest.mock import patch
 
 from stable_rt_tools.srt_announce import announce
@@ -44,7 +45,7 @@ class TestAnnounceQuiltWorkflow(unittest.TestCase):
                     return True
                 return fallback
         config = DummyConfig()
-        ctx = DummyCtx('v6.12.66-rt15')
+        ctx: Any = DummyCtx('v6.12.66-rt15')
         args = Namespace(suppress_cc=False)
 
         # Patch subprocess.check_output to simulate git show
@@ -74,8 +75,8 @@ class TestAnnounceQuiltWorkflow(unittest.TestCase):
             'Signed-off-by: Daniel Wagner <wagi@monom.org>\n')
         with patch('subprocess.check_output', return_value=commit_message), \
                 patch('builtins.print') as mock_print:
-            announce(DummyConfig(), DummyCtx('v6.12.116-rt22'),
-                     Namespace(suppress_cc=False))
+            ctx: Any = DummyCtx('v6.12.116-rt22')
+            announce(DummyConfig(), ctx, Namespace(suppress_cc=False))
         body = mock_print.call_args_list[-1].args[0]
         self.assertTrue(body.endswith('Enjoy!\nDaniel'))
         self.assertNotIn('Signed-off-by', body)

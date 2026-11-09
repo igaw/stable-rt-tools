@@ -23,19 +23,27 @@
 # SOFTWARE
 
 
+import argparse
 import os
 
-from stable_rt_tools.srt_util import check_context, cmd, get_config, pipe
+from stable_rt_tools.srt_util import (
+    Config,
+    SubParsers,
+    check_context,
+    cmd,
+    get_config,
+    pipe,
+)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
-def create_patch_file(old_tag, new_tag, filename):
+def create_patch_file(old_tag: object, new_tag: object, filename: str) -> None:
     with open(filename, 'wb') as file:
         pipe(['git', 'diff', str(old_tag), str(new_tag)], ['xz', '-9'],
              stdout=file)
 
 
-def create_series(old_tag, new_tag, dirname):
+def create_series(old_tag: object, new_tag: object, dirname: str) -> None:
     cmd(['git', 'format-patch', '-q', '-o', dirname,
          f'{old_tag}..{new_tag}'])
 
@@ -46,11 +54,11 @@ def create_series(old_tag, new_tag, dirname):
             file.write(f'{p}\n')
 
 
-def create_tar_file(dirname, filename):
+def create_tar_file(dirname: str, filename: str) -> None:
     cmd(['tar', '-C', dirname, '-cJf', filename, 'patches/'])
 
 
-def create(config, ctx):
+def create(config: Config, ctx: SrtContext) -> None:
     for d in [ctx.new_dir_patches, ctx.new_dir_series]:
         if not os.path.exists(d):
             os.makedirs(d)
@@ -72,14 +80,14 @@ def create(config, ctx):
     print('Review them')
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('create')
     prs.add_argument('OLD_TAG', nargs='?')
     prs.add_argument('NEW_TAG', nargs='?')
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     ctx = SrtContext(args)
     check_context(ctx)
 

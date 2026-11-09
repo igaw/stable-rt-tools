@@ -23,11 +23,13 @@
 # SOFTWARE
 
 
+import argparse
+
 from stable_rt_tools import srt_quilt
-from stable_rt_tools.srt_util import read_srt_state
+from stable_rt_tools.srt_util import SubParsers, read_srt_state
 
 
-def status():
+def status() -> None:
     state = read_srt_state()
     if not state or not state.get('new_tag'):
         print('No release prepared.')
@@ -39,10 +41,10 @@ def status():
         print('{} -> {}'.format(state['old_tag'], state['new_tag']))
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     return parser.add_parser('status',
                              help='show the prepared release and next step')
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     status()

@@ -23,16 +23,24 @@
 # SOFTWARE
 
 
+import argparse
 import os
 import sys
 from pprint import pformat
 from subprocess import CalledProcessError
 
-from stable_rt_tools.srt_util import check_context, cmd, confirm, get_config
+from stable_rt_tools.srt_util import (
+    Config,
+    SubParsers,
+    check_context,
+    cmd,
+    confirm,
+    get_config,
+)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
-def upload(config, ctx):
+def upload(config: Config, ctx: SrtContext) -> None:
     for f in ctx.get_files():
         if not os.path.isfile(f):
             print(f'Unable to read {f}, did you remember to create?')
@@ -68,14 +76,14 @@ def upload(config, ctx):
                   file=sys.stderr)
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('upload')
     prs.add_argument('OLD_TAG', nargs='?')
     prs.add_argument('NEW_TAG', nargs='?')
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     ctx = SrtContext(args)
     check_context(ctx)
 

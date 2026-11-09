@@ -23,11 +23,16 @@
 # SOFTWARE
 
 
+import argparse
 import os
 import sys
 from subprocess import CalledProcessError
 
 from stable_rt_tools.srt_util import (
+    Config,
+    SrtState,
+    SubParsers,
+    Worktrees,
     clear_srt_state,
     cmd,
     get_config,
@@ -40,7 +45,7 @@ from stable_rt_tools.srt_util import (
 )
 
 
-def get_next_stable_version(branch_name, tree_dir):
+def get_next_stable_version(branch_name: str, tree_dir: str) -> str | None:
     branch = cmd([
         'git', '-C', tree_dir, 'rev-parse', '--abbrev-ref', 'HEAD']
     ).strip()
@@ -53,7 +58,7 @@ def get_next_stable_version(branch_name, tree_dir):
     return None
 
 
-def worktree_dirs(rt_dir):
+def worktree_dirs(rt_dir: str) -> Worktrees:
     """The quilt workflow worktrees, which are siblings of the -rt one.
 
     For rt_dir .../v6.12-rt: .../v6.12, .../v6.12-rt-patches and
@@ -61,15 +66,15 @@ def worktree_dirs(rt_dir):
     """
     rt_dir = os.path.abspath(rt_dir)
     parent, name = os.path.split(rt_dir)
-    return {
-        'rt_dir': rt_dir,
-        'stable_dir': os.path.join(parent, name.split('-rt')[0]),
-        'patches_dir': os.path.join(parent, name + '-patches'),
-        'rebase_dir': os.path.join(parent, name + '-rebase'),
-    }
+    return Worktrees(
+        rt_dir=rt_dir,
+        stable_dir=os.path.join(parent, name.split('-rt')[0]),
+        patches_dir=os.path.join(parent, name + '-patches'),
+        rebase_dir=os.path.join(parent, name + '-rebase'),
+    )
 
 
-def pull_stable(stable_dir):
+def pull_stable(stable_dir: str) -> None:
     print(f'Updating {stable_dir} (git pull --ff-only)')
     try:
         cmd(['git', '-C', stable_dir, 'pull', '--ff-only'], verbose=True)
@@ -78,7 +83,7 @@ def pull_stable(stable_dir):
                  '"srt prep --no-pull"')
 
 
-def prep(config, pull=True):
+def prep(config: Config, pull: bool = True) -> None:
     quilt_workflow = is_quilt_workflow(config)
     dirs = worktree_dirs(os.getcwd())
 
@@ -86,7 +91,9 @@ def prep(config, pull=True):
     quilt_patches = os.path.join(dirs['patches_dir'], 'patches')
 
     if quilt_workflow:
-        missing = [d for d in dirs.values() if not os.path.isdir(d)]
+        paths = (dirs['rt_dir'], dirs['stable_dir'], dirs['patches_dir'],
+                 dirs['rebase_dir'])
+        missing = [d for d in paths if not os.path.isdir(d)]
         if missing:
             sys.exit('quilt workflow worktree(s) missing: {}'.format(
                 ', '.join(missing)))
@@ -98,22 +105,25 @@ def prep(config, pull=True):
 
     # new tag
     branch_name = get_remote_branch_name()
-    rt = get_last_rt_tag(branch_name, '')
-    rt_ver = rt[3:]
-    rt_ver = int(rt_ver) + 1
+    rt_ver = int(get_last_rt_tag(branch_name, '')[3:]) + 1
     next_stable = get_next_stable_version(branch_name, dirs['stable_dir'])
-    new_tag = f"{next_stable}-rt{rt_ver}"
+    if next_stable is None:
+        sys.exit(f'no stable release tag found in {dirs["stable_dir"]}')
+    new_tag = f'{next_stable}-rt{rt_ver}'
 
-    state = {
-        'old_tag': old_tag,
-        'new_tag': new_tag,
-        'quilt_patches': quilt_patches,
-        'branch': branch_name,
-        'workflow_branch': get_workflow_branch(branch_name),
-        'quilt_workflow': quilt_workflow,
-    }
+    state = SrtState(
+        old_tag=old_tag,
+        new_tag=new_tag,
+        quilt_patches=quilt_patches,
+        branch=branch_name,
+        workflow_branch=get_workflow_branch(branch_name),
+        quilt_workflow=quilt_workflow,
+    )
     if quilt_workflow:
-        state.update(dirs)
+        state['rt_dir'] = dirs['rt_dir']
+        state['stable_dir'] = dirs['stable_dir']
+        state['patches_dir'] = dirs['patches_dir']
+        state['rebase_dir'] = dirs['rebase_dir']
     write_srt_state(state)
 
     print(f"OLD_TAG={old_tag}")
@@ -122,7 +132,7 @@ def prep(config, pull=True):
         print('next: srt quilt refresh')
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('prep')
     prs.add_argument('--clear', action='store_true',
                      help='Clear saved srt prep state')
@@ -132,7 +142,7 @@ def add_argparser(parser):
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     if getattr(args, 'clear', False):
         clear_srt_state()
         return

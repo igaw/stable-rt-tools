@@ -23,11 +23,14 @@
 # SOFTWARE
 
 
+import argparse
 import os
 import sys
 from logging import error
 
 from stable_rt_tools.srt_util import (
+    Config,
+    SubParsers,
     check_context,
     get_config,
     get_gnupghome,
@@ -36,7 +39,7 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_context import SrtContext
 
 
-def gpg_sign(config, filename):
+def gpg_sign(config: Config, filename: str) -> None:
     f = os.path.splitext(filename)[0]
     basename = os.path.splitext(os.path.basename(filename))[0]
 
@@ -52,7 +55,7 @@ def gpg_sign(config, filename):
     pipe(xz, gpg)
 
 
-def sign(config, ctx):
+def sign(config: Config, ctx: SrtContext) -> None:
     for f in ctx.get_files():
         if not os.path.isfile(f):
             error(f'Unable to read {f}, did you remember to create?')
@@ -60,14 +63,14 @@ def sign(config, ctx):
         gpg_sign(config, f)
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('sign')
     prs.add_argument('OLD_TAG', nargs='?')
     prs.add_argument('NEW_TAG', nargs='?')
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     ctx = SrtContext(args)
     check_context(ctx)
 

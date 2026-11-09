@@ -41,7 +41,6 @@ and the localversion patch. The release v6.1.2-rt2 adds new-fix.patch.
 
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from shutil import rmtree
@@ -57,6 +56,7 @@ from stable_rt_tools.tests.test_srt import (
     gnupg_config,
     makefile,
     sort_steps,
+    stdout_text,
     stub_stdin,
     stub_stdouts,
 )
@@ -131,7 +131,7 @@ class TestQuiltBase(unittest.TestCase):
         repo = self.rt_repo
         git(self.tdir, 'clone', '-q', self.stable_repo, repo)
         identity(repo)
-        self.patches = {}
+        self.patches: dict[str, str] = {}
 
         def rt_feature(r):
             replace_line(r + '/kernel.c', 'line3', 'line3\nrt_feature();')
@@ -240,7 +240,7 @@ class TestQuiltBase(unittest.TestCase):
         stub_stdin(self, answers)
         stub_stdouts(self)
         srt_quilt.COMMANDS[step](srt_quilt.Release())
-        return sys.stdout.getvalue()
+        return stdout_text()
 
     def add_new_patch(self):
         """Add new-fix.patch to the series, as done by hand."""
@@ -274,6 +274,7 @@ class TestQuiltRelease(TestQuiltBase):
     def step1_prep(self):
         self.prepare()
         state = read_srt_state()
+        assert state is not None
         self.assertEqual(state['old_tag'], 'v6.1.1-rt1')
         self.assertEqual(state['new_tag'], 'v6.1.2-rt2')
         self.assertEqual(state['patches_dir'], self.patches_dir)
@@ -339,7 +340,7 @@ class TestQuiltRelease(TestQuiltBase):
     def step7_status(self):
         stub_stdouts(self)
         srt_quilt.status(srt_quilt.Release())
-        out = sys.stdout.getvalue()
+        out = stdout_text()
         self.assertIn('v6.1.1-rt1 -> v6.1.2-rt2', out)
         self.assertNotIn('[ ]', out)
         self.assertIn('next: srt create', out)

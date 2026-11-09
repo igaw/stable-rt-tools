@@ -23,12 +23,20 @@
 # SOFTWARE
 
 
+import argparse
 import re
 
-from stable_rt_tools.srt_util import cmd, confirm, get_config, get_gpg_env
+from stable_rt_tools.srt_util import (
+    Config,
+    SubParsers,
+    cmd,
+    confirm,
+    get_config,
+    get_gpg_env,
+)
 
 
-def tag(config, rc):
+def tag(config: Config, rc: int | None) -> None:
     p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
     lines = cmd(['git', 'log', '-1', '--pretty=%B'])
     for msg in iter(lines.splitlines()):
@@ -46,12 +54,12 @@ def tag(config, rc):
                 env=get_gpg_env(config))
 
 
-def add_argparser(parser):
+def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('tag')
     prs.add_argument('--release-candidate', '-r',
                      default=None, metavar='N', type=int)
     return prs
 
 
-def execute(args):
+def execute(args: argparse.Namespace) -> None:
     tag(get_config(), args.release_candidate)

@@ -39,6 +39,7 @@ from stable_rt_tools.srt_quilt import (
     rt_localversion,
     series_changes,
 )
+from stable_rt_tools.srt_util import SrtState
 
 SERIES = """\
 # Applied upstream
@@ -111,7 +112,7 @@ class TestHelpers(unittest.TestCase):
             'rebase_dir': '/rt/v6.12-rt-rebase'})
 
 
-STATE = {
+STATE: SrtState = {
     'old_tag': 'v6.12.111-rt21',
     'new_tag': 'v6.12.116-rt22',
     'quilt_patches': '/rt/v6.12-rt-patches/patches',
@@ -122,7 +123,7 @@ STATE = {
 
 class TestRelease(unittest.TestCase):
     def test_tags(self):
-        rel = srt_quilt.Release(dict(STATE))
+        rel = srt_quilt.Release(STATE.copy())
         self.assertEqual(rel.base, 'v6.12.116')
         self.assertEqual(rel.release_tag, 'v6.12.116-rt22')
         self.assertEqual(rel.rebase_tag, 'v6.12.116-rt22-rebase')
@@ -131,7 +132,7 @@ class TestRelease(unittest.TestCase):
 
     def test_dirs_from_old_state(self):
         # state written before srt prep recorded the worktrees
-        rel = srt_quilt.Release(dict(STATE))
+        rel = srt_quilt.Release(STATE.copy())
         self.assertEqual(rel.rt_dir, '/rt/v6.12-rt')
         self.assertEqual(rel.stable_dir, '/rt/v6.12')
         self.assertEqual(rel.rebase_dir, '/rt/v6.12-rt-rebase')
@@ -142,16 +143,16 @@ class TestRelease(unittest.TestCase):
 
     def test_requires_quilt_workflow(self):
         with self.assertRaises(SystemExit):
-            srt_quilt.Release(dict(STATE, quilt_workflow=False))
+            srt_quilt.Release({**STATE, 'quilt_workflow': False})
 
     def test_rejects_release_candidate(self):
         with self.assertRaises(SystemExit):
-            srt_quilt.Release(dict(STATE, new_tag='v6.12.116-rt22-rc1'))
+            srt_quilt.Release({**STATE, 'new_tag': 'v6.12.116-rt22-rc1'})
 
 
 class TestQuiltCmd(unittest.TestCase):
     def test_quilt_ignores_quiltrc(self):
-        rel = srt_quilt.Release(dict(STATE))
+        rel = srt_quilt.Release(STATE.copy())
         with patch('stable_rt_tools.srt_quilt.cmd') as c:
             env = srt_quilt._quilt_env(rel)
             srt_quilt._refresh(rel, env)
