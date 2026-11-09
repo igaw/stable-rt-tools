@@ -8,6 +8,8 @@ Contents:
 
    intro
    userguide
+   git-workflow
+   quilt-workflow
    command-line
    devguide
 

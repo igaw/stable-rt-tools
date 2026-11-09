@@ -1,411 +1,147 @@
 User Guide
 ==========
 
-Dependencies & installation
----------------------------
+stable-rt-tools (``srt``) supports two release workflows:
+
+- :doc:`git-workflow`: merge based workflow using ``-rt``, ``-rt-rebase``
+  and ``-rt-next`` branches (last used for v4.19-rt).
+- :doc:`quilt-workflow`: quilt based workflow using ``-rt``,
+  ``-rt-patches`` and ``-rt-rebase`` branches (used for v6.12-rt).
+
+This page covers what both workflows have in common: installation,
+prerequisites and configuration.
+
+Installation
+------------
 
 This project depends on
 
 - Python 3
 - distro Python 3 package
 
-To install kas into your python site-package repository, run::
+Install it via pip to get the ``srt`` command::
 
-    $ sudo pip3 install .
+    $ pip3 install .
 
+Prerequisites
+-------------
 
-Installation
-------------
+SRT needs kup installed and working.  This means you have write access to
+some parts of kernel.org's directory structures and thus have a kernel.org
+trusted GPG key and account.
 
-- Install it locally via pip to get the ``stable-rt-tools`` command.
+Find kup here: `https://git.kernel.org/pub/scm/utils/kup/kup.git
+<https://git.kernel.org/pub/scm/utils/kup/kup.git>`_.
 
-Assumptions
------------
+srt also calls the following external tools:
 
-SRT needs kup installed and working.  This will mean you have write access to
-some parts of kernel.org's directory structures an thus have a kernel.org
-trusted gpg key and account.
+- ``git`` including ``git send-email`` (``srt announce``)
+- ``gpg2`` with your kernel.org signing key (``srt tag``, ``srt sign``,
+  ``srt patches``, ``srt announce``)
+- ``kup`` (``srt upload``)
+- ``make``, ``gcc``, ``flex`` and ``bison`` to determine the kernel release
+  (``srt commit``, ``srt patches``)
+- ``tar`` and ``xz`` (``srt create``, ``srt sign``)
+- ``quilt`` (quilt workflow only, ``srt quilt``)
+- optionally ``msmtp`` or ``mutt`` to send the announcement
 
-Find kup here: `git://git.kernel.org/pub/scm/utils/kup/kup.git
-<git://git.kernel.org/pub/scm/utils/kup/kup.git>`_.
+Repository layout
+-----------------
 
-There are some branch name assumptions you need to satisfy:
-Follow the following pattern:
-v<lts-id>-rt, and v<lts-id>-rt-rebase, and v<lts-id>-rt-next
-For example; v4.9-rt, v4.9-rt-rebase, and v4.9-rt-next for example.
+SRT assumes that every branch is checked out in its own git worktree and that
+all worktrees are siblings of each other (some commands find the other trees
+by relative path, e.g. ``../v6.12-rt-patches``). The workflow pages describe
+the exact layout.
 
-Also these branches must be tracking branches from the respective upstream
-stable-rt branches of the same names.
+The main repository needs a remote called ``origin``. Its URL is only used to
+derive the configuration group name (see below), so it does not matter much
+what it points to; Linus' tree is a good choice::
 
-Your git project needs an "origin", use the gitolite origin below to be safe.
+    $ git clone https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git linux
 
-SRT also assumes your work spaces for each branch is setup using git worktree
-based off your parent local git project.  Set up your working directories this
-way::
-
-  git worktree add --track -b <branch> <path> <remote>/<branch>
-  i.e. git worktree add --track -b v4.9-rt ../v4.9-rt k.org/v4.9-rt
-  i.e. git worktree add --track -b v4.9-rt-rebase ../v4.9-rt-rebase k.org/v4.9-rt-rebase
-  i.e. git worktree add --track -b v4.9-rt-next ../v4.9-rt-next k.org/v4.9-rt-next
-
-Where k.org in this case
-`git://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-<git://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git>`_
-It likely would have worked find if I just used "origin" instead of
-having a separate read only remote.
+Each workflow branch must track the stable-rt branch of the same name, e.g.
+the local branch ``v6.12-rt`` tracks ``stable-rt/v6.12-rt``.
 
 Configuration
 -------------
 
-srt will look for a config file called 'srt.conf' following directories::
+srt looks for a config file called ``srt.conf`` in the following
+directories::
 
+   $SRT_CONF
    .
    ~/.config
    ~
    /etc/srt
 
-It is a INI type of configuration file. The group encodes
-the upstream tree name and branch name. For example for
+It is an INI type configuration file. Each group encodes the repository name
+and the upstream branch the current branch tracks::
 
-origin git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-branch v4.4-rt
+    [<origin basename>/<upstream remote>/<upstream branch>]
 
-The group is called::
+``<origin basename>`` is the last path component of the ``origin`` URL
+without a ``.git`` suffix. For example with::
 
-	[linux-stable-rt/origin/v4.4-rt]
+    origin    https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+    v6.12-rt  tracking stable-rt/v6.12-rt
 
-srt expects the following keys::
+the group is called::
 
-	LOCALVERSION
-	GPG_KEY_ID
-	PRJ_GIT_TREE
-	PRJ_DIR
-	SENDER
-	NAME
+    [linux/stable-rt/v6.12-rt]
 
-  LOCALVERSION: The filename of the localversion file, localversion-rt
-  GPG_KEY_ID: ID of the GPG which should be used to sign and upload to korg
-  PRJ_GIT_TREE: URL of the git upstream repo
-  PRJ_DIR: kup folder to upload the release
-  ANNOUNCE: Email template for release
-  RC_TEXT: Email template for release candicate
-  MAIL_TO: Email addresses to which the announces/patches should be send
-  SENDER: Your name and email address
-  NAME:  Your first name or nickname
+You need a group for each workflow branch. Use ``srt -d <command>`` to see
+which group srt is looking for.
 
-Note for each branch you need to define a group (-rt, -rebase, -next)
+srt uses the following keys:
 
+``LOCALVERSION``
+    The filename of the localversion file, ``localversion-rt``
+``GPG_KEY_ID``
+    ID of the GPG key used to sign tags and to upload to kernel.org
+``PRJ_GIT_TREE``
+    URL of the stable-rt git repository to push to
+``PRJ_DIR``
+    kup folder to upload the release to
+``MAIL_TO``
+    Email addresses to which the announcement/patches are sent
+``SENDER``
+    Your name and email address
+``NAME``
+    Your first name or nickname
+``ANNOUNCE`` (optional)
+    Email template for a release
+``RC_TEXT`` (optional)
+    Email template for a release candidate
+``quilt_workflow`` (optional)
+    Set to ``true`` to enable the quilt workflow, see :doc:`quilt-workflow`
 
-Examples Configuration
-----------------------
+Keys shared by all groups (``MAIL_TO``, ``SENDER``, ``NAME``) can be placed
+in the ``[DEFAULT]`` group:
+
 .. code-block:: ini
 
    [DEFAULT]
-   MAIL_TO = LKML <linux-kernel@vger.kernel.org>,linux-rt-users <linux-rt-users@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Carsten Emde <C.Emde@osadl.org>,John Kacur <jkacur@redhat.com>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Daniel Wagner <dwagner@suse.de>,Tom Zanussi <tom.zanussi@linux.intel.com>,Clark Williams <williams@redhat.com>
+   MAIL_TO = LKML <linux-kernel@vger.kernel.org>,<linux-rt-users@vger.kernel.org>,<stable-rt@vger.kernel.org>,Steven Rostedt <rostedt@goodmis.org>,Thomas Gleixner <tglx@linutronix.de>,Sebastian Andrzej Siewior <bigeasy@linutronix.de>,Clark Williams <williams@redhat.com>
+   NAME = Daniel
+   SENDER = Daniel Wagner <wagi@monom.org>
 
-   [linux-stable-rt/origin/v4.4-rt]
-   LOCALVERSION = localversion-rt
-   GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
-   PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-   PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
+The workflow pages contain examples of the per branch groups.
 
-   [linux-stable-rt/origin/v4.4-rt-rebase]
-   LOCALVERSION = localversion-rt
-   GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
-   PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-   PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
+Troubleshooting
+---------------
 
-   [linux-stable-rt/origin/v4.4-rt-next]
-   LOCALVERSION = localversion-rt
-   GPG_KEY_ID = 5BF67BC5082672CABB45ACAE587C5ECA5D0A306C
-   PRJ_GIT_TREE = git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-   PRJ_DIR = /pub/linux/kernel/projects/rt/4.4
+srt fails with "Could not retrieve configuration": check that ``origin``
+exists, that the current branch tracks the right stable-rt branch
+(``git branch -vv``) and that ``srt.conf`` contains the matching group.
+``srt -d`` prints the group name srt is looking for.
 
+srt announce fails: it attempts to figure out your name and email from
+specific configurations you might not have (say if you are using Ubuntu). If
+srt announce fails try adding ``SENDER`` and ``NAME`` to your ``srt.conf``.
 
-Workflow Example
-----------------
-.. code-block:: console
+srt upload fails: verify kup works following the README in kup, then check
+your ``srt.conf`` has the appropriate ``PRJ_DIR`` for the stable-rt version
+you are working with. If that fails check you have proper access to the
+``PRJ_DIR`` on kernel.org through the helpdesk.
 
-  $ cd v4.4-rt
-  $ git tag -l 'v4\.4\.*' --sort=v:refname | tail
-  $ git merge v4.4.120      [fixup conflicts]
-
-  $ git push lxcvs -f --follow-tag HEAD:stable-maintenance-4.4.y-rt
-
-  $ srt commit
-  $ srt tag
-
-  $ cd v4.4-rt-rebase
-  $ git rebase -i v4.4.120  [fixup conflicts]
-  $ srt commit
-  $ srt tag
-
-  $ srt create v4.4.115-rt130 v4.4.120-rt135
-  $ srt sign v4.4.115-rt130 v4.4.120-rt135
-  $ srt upload v4.4.115-rt130 v4.4.120-rt135
-  $ srt push v4.4.115-rt130 v4.4.120-rt135
-
-  # XXX push missing tags
-  $ git push origin v4.4.115-rt131 v4.4.116-rt132 v4.4.118-rt133 v4.4.119-rt134
-
-  $ srt announce v4.4.115-rt130 v4.4.120-rt135 > ../announce-rt
-  $ cat ../announce-rt | msmtp -t --
-  or
-  $ mutt -H ../announce-rt
-
-
-Release candicates series
--------------------------
-.. code-block:: console
-
-  $ cd v4.4-rt-next
-  $ git reset --hard v4.4-rt
-
-  [ backport patches ]
-
-  $ srt commit -r 1
-  $ srt tag
-
-  $ srt create v4.4.148-rt165 v4.4.148-rt166-rc1
-  $ srt sign v4.4.148-rt165 v4.4.148-rt166-rc
-  $ srt upload v4.4.148-rt165 v4.4.148-rt166-rc1
-  $ srt push v4.4.148-rt165 v4.4.148-rt166-rc1
-  $ srt announce v4.4.148-rt165 v4.4.148-rt166-rc1
-
-
-Work flow with release candite
-------------------------------
-
-Release Candidate
-`````````````````
-
-With the new release workflow, a release candidate is always created and pushed
-to the -next branch. Publish this branch and do your local testing. The kernelci
-bot will monitor the -next branches and triggers a build.
-
-Announce the candidate on the mailing list and do the proper release after a
-week or so.
-
-.. code-block:: console
-
-  $ cd v4.19-rt-next
-  $ git fetch --all
-  $ git reset --hard v4.19-rt
-
-  $ git tag -l --sort=v:refname v4\.19\.\* | tail -10
-  v4.19.285
-  v4.19.286
-  v4.19.287
-  v4.19.288
-  v4.19.288-rt126
-  v4.19.288-rt126-rc1
-  v4.19.288-rt126-rebase
-  v4.19.289
-  v4.19.290
-  v4.19.291
-
-  $ while-loop v4.19 291 289
-  for v4.19.291 to v4.19.289
-  Continue? [y/N] y
-  MERGING: v4.19.291
-  Auto-merging arch/Kconfig
-  Auto-merging arch/arm/Kconfig
-  Auto-merging arch/mips/Kconfig
-  Auto-merging arch/x86/Kconfig
-  [...]
-  SUCCESS: v4.19.291   USE: v4.19.291
-  HEAD is now at 83db5d9eb0ed Linux 4.19.288-rt126
-
-  $ git merge v4.19.291
-
-  $ srt commit
-  git commit -m Linux 4.19.291-rt127
-  OK to commit? (y/n): y
-
-  $ srt tag -r 1
-  tagging as v4.19.291-rt127-rc1 with message 'Linux 4.19.291-rt127-rc1'
-  OK to tag? (y/n): y
-
-  [do local testing]
-
-  $ srt announce
-  From git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-  Switched to a new branch 'next-tmp'
-  Switched to branch 'v4.19-rt-next'
-  Dry run
-  [...]
-  MIME-Version: 1.0
-  Content-Transfer-Encoding: 8bit
-
-  Result: OK
-  OK to send patches? (y/n): y
-
-  $ srt push
-  From git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-  Dry run
-  git push -f -n git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt   v4.19.291-rt127-rc1^{}:v4.19-rt-next tag v4.19.291-rt127-rc1
-  To gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-     83db5d9eb0ed..0b2e2eb20a90  v4.19.291-rt127-rc1^{} -> v4.19-rt-next
-   * [new tag]                   v4.19.291-rt127-rc1 -> v4.19.291-rt127-rc1
-  OK to push? (y/n): y
-  Enumerating objects: 3964, done.
-  Counting objects: 100% (3319/3319), done.
-  Delta compression using up to 16 threads
-  Compressing objects: 100% (1052/1052), done.
-  Writing objects: 100% (2403/2403), 438.63 KiB | 10.20 MiB/s, done.
-  Total 2403 (delta 2058), reused 1577 (delta 1348), pack-reused 0
-  remote: Resolving deltas: 100% (2058/2058), completed with 809 local objects.
-  remote: Recorded in the transparency log
-  remote:  manifest: updated /pub/scm/linux/kernel/git/rt/linux-stable-rt.git
-  remote: Done in 0.14s
-  remote: Notifying frontends: dfw ams sin
-  To gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-     83db5d9eb0ed..0b2e2eb20a90  v4.19.291-rt127-rc1^{} -> v4.19-rt-next
-   * [new tag]                   v4.19.291-rt127-rc1 -> v4.19.291-rt127-rc1
-
-Release
-```````
-
-.. code-block:: console
-
-  $ cd v4.19-rt
-  $ git merge --ff-only v4.19-rt-next
-  $ srt tag
-
-  $ cd v4.19-rt-rebase
-  $ git rebase v4.19.291
-  $ srt commit
-  $ srt tag
-
-  $ cd v4.19-rt
-  $ srt create
-  $ srt sign
-  $ srt announce > ../announce-rt
-  $ srt upload
-  $ srt push
-
-
-  $ cat ../announce-rt | msmtp -t --
-  or
-  $ mutt -H ../announce-rt
-
-Quilt workflow
---------------
-
-srt.conf
-========
-.. code-block:: ini
-
-  [linux/stable-rt/v6.12-rt]
-  quilt_workflow = true
-  LOCALVERSION = localversion-rt
-  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-  PRJ_GIT_TREE=git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
-
-  [linux/stable-rt/v6.12-rt-patches]
-  LOCALVERSION = localversion-rt
-  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-  PRJ_GIT_TREE=git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
-
-  [linux/stable-rt/v6.12-rt-rebase]
-  LOCALVERSION = localversion-rt
-  GPG_KEY_ID = 0C0C8220A7FB009385B9D8C492ADC0F369646112
-  PRJ_GIT_TREE=git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt
-  PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
-
-Create branches and import rt-devel version
-===========================================
-.. code-block:: console
-  $ mkdir ../v6.12
-  $ git worktree add ../v6.12 stable/linux-6.12.y
-
-  $ git branch v6.12-rt-patches rt-devel/linux-6.12.y-rt-patches
-  $ git branch v6.12-rt-rebase rt-devel/linux-6.12.y-rt-rebase
-  $ git branch v6.12-rt rt-devel/linux-6.12.y-rt
-
-  $ mkdir ../v6.12-rt-patches
-  $ mkdir ../v6.12-rt-rebase
-  $ mkdir ../v6.12-rt
-
-  $ git worktree add ../v6.12-rt-patches v6.12-rt-patches
-  $ git worktree add ../v6.12-rt-rebase v6.12-rt-rebase
-  $ git worktree add ../v6.12-rt v6.12-rt
-
-  $ git branch --set-upstream-to=stable-rt/v6.12-rt-patches v6.12-rt-patches
-
-  $ git tag | grep -E '^v6\.12\..*-rt[^-]*-.*$' | xargs -r git push stable-rt
-
-  $ cd ../v6.12-rt-patches
-  $ git push stable-rt
-  $ git push --dry-run stable-rt $(git tag --merged rt-devel/linux-6.12.y-rt-patches)
-
-  $ cd ../v6.12-rt-rebase
-  $ git push stable-rt
-
-  $ cd ../v6.12-rt
-  $ git push stable-rt
-
-Create a new release
-====================
-.. code-block:: console
-  $ cd v6.12
-  $ git pull
-
-  $ cd v6.12-rt
-  $ srt prep
-
-  $ cd v6.12
-  $ srt quilt
-
-  $ cd v6.12-rt-patches
-  $ git add -u
-  $ srt patches
-
-  $ cd v6.12-rt-rebase
-  $ git reset --hard stable/linux-6.12.y
-  $ git quiltimport ../v6.12-rt.patches/patches/series
-  $ srt patches
-
-  $ cd v6.12-rt
-  $ git merge stable/linux-6.12.y
-  $ vim localversion-rt
-  $ git diff v6.12-rt-rebase
-  $ git add -u
-  $ srt patches
-
-  $ srt create
-  $ srt sign
-  $ srt upload
-  $ srt push
-
-  $ srt announce > ../announce-rt
-  $ mutt -H ../announce-rt
-
-The ``srt prep`` command stores release state in git metadata shared by the
-worktrees. Commands such as ``srt patches``, ``srt create``, ``srt sign``,
-``srt upload`` and ``srt push`` read this state automatically when tags are
-not provided explicitly. ``srt push`` clears the state after a successful push.
-If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
-
-
-Trouble shooting
-----------------
-
-srt announce fails:  it attempts to figure out your name and email from
-specific configurations you might not have (say if you using Ubuntu) if
-srt announce fails try adding SENDER and NAME's to your srt.config groups.
-
-srt commit fails: check for missing remote named "origin" if so add one using
-git remote add origin pointing anywhere.  One maintainer used a local mirror to
-Linus' tree.  Its used as a handle to disambiguate multiple workflows.
-
-srt upload attempts fail: verify kup works following the README in kup, then
-check your str.config has the appropriate PRJ_DIR for your LTS version of
-stable-rt you are working with.  And if that fails check you have proper access
-to the PRJ_DIR on kernel.org through the helpdesk.
-
-There is a debug option you can add to the srt command line that turns on some
-tracing,  "-d".  One new maintainer bumped into each of the above and the
-tracking branch assumption and used the -d option to debug their issues.
+The ``-d`` option turns on debug tracing for all commands.
