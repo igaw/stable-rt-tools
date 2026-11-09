@@ -53,3 +53,24 @@ stable_rt_tools = ["*.txt"]
 [tool.pytest.ini_options]
 testpaths = ["stable_rt_tools/tests"]
 addopts = "-ra"
+
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "B",            # bugbear
+    "UP",           # pyupgrade
+    "I",            # import order
+    "SIM", "C4",    # simplifications, comprehensions
+    "RUF",
+]
+ignore = [
+    "RUF005",  # [*a, b] instead of a + [b]
+    "SIM108",  # ternary instead of if/else
+]
+
+[tool.ruff.lint.per-file-ignores]
+# nested mock.patch() blocks read better than one long with statement
+"stable_rt_tools/tests/*" = ["SIM117"]
