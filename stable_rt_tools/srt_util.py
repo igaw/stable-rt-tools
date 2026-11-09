@@ -348,15 +348,23 @@ def get_gpg_env(config: Config) -> dict[str, str]:
     return env
 
 
-def get_gpg_fingerprint(config: Config) -> str:
-    out = cmd(['gpg',
-               '--homedir', get_gnupghome(config),
-               '--local-user', config['GPG_KEY_ID'],
-               '--fingerprint'])
+def format_fingerprint(fpr: str) -> str:
+    """Format a fingerprint the way gpg --fingerprint shows it."""
+    groups = [fpr[i:i + 4] for i in range(0, len(fpr), 4)]
+    half = len(groups) // 2
+    return ' '.join(groups[:half]) + '  ' + ' '.join(groups[half:])
 
-    # thank you gpg for nothing! the fingerprint is the 4th line
-    lines = out.splitlines()
-    return lines[3].strip() if len(lines) > 3 else ''
+
+def get_gpg_fingerprint(config: Config) -> str:
+    """Return the fingerprint of GPG_KEY_ID for the announcements."""
+    out = cmd(['gpg', '--homedir', get_gnupghome(config), '--with-colons',
+               '--fingerprint', config['GPG_KEY_ID']])
+    for line in out.splitlines():
+        fields = line.split(':')
+        if fields[0] == 'fpr':
+            # the primary key comes first
+            return format_fingerprint(fields[9])
+    sys.exit(f'no fingerprint for key {config["GPG_KEY_ID"]}')
 
 
 def confirm(text: str) -> bool:

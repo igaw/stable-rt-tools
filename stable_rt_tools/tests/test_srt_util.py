@@ -248,3 +248,26 @@ class TestUtil(TestCase):
         self.assertIn('v6.12.116', str(e.exception))
         with mock.patch.object(srt_util, 'tag_exists', return_value=True):
             srt_util.check_context(ctx)
+
+    def test_format_fingerprint(self):
+        import stable_rt_tools.srt_util as srt_util
+
+        self.assertEqual(
+            srt_util.format_fingerprint(
+                'B0C0324F040A1861EF965160DA7C9F5C915CFC7C'),
+            'B0C0 324F 040A 1861 EF96  5160 DA7C 9F5C 915C FC7C')
+
+    def test_get_gpg_fingerprint_of_the_configured_key(self):
+        import stable_rt_tools.srt_util as srt_util
+
+        # a second key in the keyring must not be picked up
+        batch = os.path.join(self.gnupghome, 'other.batch')
+        with open(batch, 'w') as f:
+            f.write(gnupg_config.replace('Mighty Eagle', 'Other Key')
+                    .replace('me@incredible.com', 'other@example.com'))
+        cmd(['gpg', '--batch', '--generate-key', batch],
+            env={'GNUPGHOME': self.gnupghome})
+        config = {'GNUPGHOME': self.gnupghome,
+                  'GPG_KEY_ID': self.config['GPG_KEY_ID']}
+        fpr = srt_util.get_gpg_fingerprint(config)
+        self.assertEqual(fpr.replace(' ', ''), self.config['GPG_KEY_ID'])
