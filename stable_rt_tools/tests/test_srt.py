@@ -241,6 +241,8 @@ class TestSrtBase(unittest.TestCase):
         self.do_merge('4.4.14')
 
     def tearDown(self):
+        # don't leave the next test in a deleted directory
+        os.chdir(tempfile.gettempdir())
         rmtree(self.tdir)
         rmtree(self.gnupghome)
 

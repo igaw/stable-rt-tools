@@ -66,6 +66,8 @@ class TestUtil(TestCase):
         self.setup_gpg()
 
     def tearDown(self):
+        # don't leave the next test in a deleted directory
+        os.chdir(tempfile.gettempdir())
         rmtree(self.tdir)
         rmtree(self.gnupghome)
 
