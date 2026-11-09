@@ -133,3 +133,34 @@ class TestUtil(TestCase):
             srt_util.read_config = old_read_config
             srt_util.get_remote_repo_name = old_get_remote_repo_name
             srt_util.get_remote_branch_name = old_get_remote_branch_name
+
+    def test_get_config_missing_section(self):
+        from configparser import ConfigParser
+        from unittest import mock
+        import stable_rt_tools.srt_util as srt_util
+
+        with mock.patch.object(srt_util, 'read_config',
+                               return_value=ConfigParser()), \
+                mock.patch.object(srt_util, 'get_remote_repo_name',
+                                  return_value='linux'), \
+                mock.patch.object(srt_util, 'get_remote_branch_name',
+                                  return_value='stable-rt/v6.12-rt'), \
+                self.assertLogs(level='ERROR') as log, \
+                self.assertRaises(SystemExit):
+            srt_util.get_config()
+        self.assertIn('[linux/stable-rt/v6.12-rt]', log.output[0])
+
+    def test_get_config_no_upstream(self):
+        from subprocess import CalledProcessError
+        from unittest import mock
+        import stable_rt_tools.srt_util as srt_util
+
+        with mock.patch.object(srt_util, 'get_remote_repo_name',
+                               return_value='linux'), \
+                mock.patch.object(
+                    srt_util, 'get_remote_branch_name',
+                    side_effect=CalledProcessError(128, 'git')), \
+                self.assertLogs(level='ERROR') as log, \
+                self.assertRaises(SystemExit):
+            srt_util.get_config()
+        self.assertIn('upstream', log.output[0])

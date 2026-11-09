@@ -232,15 +232,21 @@ def get_config():
     try:
         repo_name = get_remote_repo_name()
         branch_name = get_remote_branch_name(short=False)
-        config_name = '{0}/{1}'.format(repo_name, branch_name)
-        debug('Using configuration {0}'.format(config_name))
-        config = read_config()[config_name]
     except CalledProcessError:
-        error('Could not retrieve configuration {0} from srt.conf'.format(
+        error('Could not determine configuration group: check that the '
+              'remote "origin" exists and the current branch tracks an '
+              'upstream branch (git branch -vv)')
+        sys.exit(1)
+
+    config_name = '{0}/{1}'.format(repo_name, branch_name)
+    debug('Using configuration {0}'.format(config_name))
+    config = read_config()
+    if not config.has_section(config_name):
+        error('Could not retrieve configuration [{0}] from srt.conf'.format(
             config_name))
         sys.exit(1)
 
-    return config
+    return config[config_name]
 
 
 def is_quilt_workflow(config):
