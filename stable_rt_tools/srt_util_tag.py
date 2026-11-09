@@ -43,7 +43,7 @@ class Tag:
         parts = _tag.split('-')
         m = re.match(r'^v([0-9]+)\.([0-9]+)\.([0-9]+)$', parts[0])
         if not m:
-            raise TagParseError('Failed to parse {0}'.format(parts[0]))
+            raise TagParseError(f'Failed to parse {parts[0]}')
         self.major = int(m.group(1))
         self.minor = int(m.group(2))
         self.patch = int(m.group(3))
@@ -59,29 +59,25 @@ class Tag:
                 setattr(self, p, True)
                 self._order.append(p)
             else:
-                raise TagParseError('Failed to parse {0}'.format(p))
+                raise TagParseError(f'Failed to parse {p}')
 
     def __getattr__(self, name):
         """Returns the attribute matching passed name."""
         value = self.__dict__.get(name)
         if value is None:
-            raise TagAttrError('No such attribute {0}'.format(name))
+            raise TagAttrError(f'No such attribute {name}')
         return value
 
     def _build(self, fix):
-        tag = 'v{0}.{1}.{2}'.format(
-            self.major,
-            self.minor,
-            self.patch
-        )
+        tag = f'v{self.major}.{self.minor}.{self.patch}'
         for o in self._order:
             if fix == o:
                 return tag
             val = getattr(self, o)
             if val is True:
-                tag = '{0}-{1}'.format(tag, o)
+                tag = f'{tag}-{o}'
             else:
-                tag = '{0}-{1}{2}'.format(tag, o, val)
+                tag = f'{tag}-{o}{val}'
         return tag
 
     def prev(self, cur):
@@ -109,7 +105,7 @@ class Tag:
         -patches."""
         if 'rt' not in self._order:
             raise TagBaseError(
-                'No rt base tag {0}'.format(str(self))
+                f'No rt base tag {self!s}'
             )
         return self._build('rt')
 

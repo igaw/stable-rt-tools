@@ -105,8 +105,9 @@ class TestUtil(TestCase):
 
     def test_quilt_workflow_flag(self):
         from configparser import ConfigParser
-        from stable_rt_tools.srt_util import get_config, is_quilt_workflow
+
         import stable_rt_tools.srt_util as srt_util
+        from stable_rt_tools.srt_util import get_config, is_quilt_workflow
 
         config = ConfigParser()
         section = 'repo/branch'
@@ -139,6 +140,7 @@ class TestUtil(TestCase):
     def test_get_config_missing_section(self):
         from configparser import ConfigParser
         from unittest import mock
+
         import stable_rt_tools.srt_util as srt_util
 
         with mock.patch.object(srt_util, 'read_config',
@@ -155,6 +157,7 @@ class TestUtil(TestCase):
     def test_get_config_no_upstream(self):
         from subprocess import CalledProcessError
         from unittest import mock
+
         import stable_rt_tools.srt_util as srt_util
 
         with mock.patch.object(srt_util, 'get_remote_repo_name',
@@ -170,6 +173,7 @@ class TestUtil(TestCase):
     def test_get_gpg_env_keeps_environment(self):
         import os
         from unittest import mock
+
         import stable_rt_tools.srt_util as srt_util
 
         with mock.patch.dict(os.environ, {'HOME': '/home/someone'}):
@@ -180,6 +184,7 @@ class TestUtil(TestCase):
     def test_read_config_srt_conf_wins(self):
         import os
         from unittest import mock
+
         import stable_rt_tools.srt_util as srt_util
 
         tmp = tempfile.mkdtemp()
@@ -188,7 +193,7 @@ class TestUtil(TestCase):
                 os.makedirs(os.path.join(tmp, d, '.config'))
                 with open(os.path.join(tmp, d, '.config', 'srt.conf'),
                           'w') as f:
-                    f.write('[a/b]\nKEY = {0}\n'.format(val))
+                    f.write(f'[a/b]\nKEY = {val}\n')
             env = {'SRT_CONF': os.path.join(tmp, 'env', '.config'),
                    'HOME': os.path.join(tmp, 'home')}
             with mock.patch.dict(os.environ, env):
@@ -199,6 +204,7 @@ class TestUtil(TestCase):
 
     def test_get_template_path(self):
         import os
+
         import stable_rt_tools.srt_util as srt_util
 
         for key, name in (('ANNOUNCE', 'announce-srt.txt'),

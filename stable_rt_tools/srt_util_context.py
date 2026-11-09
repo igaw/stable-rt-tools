@@ -27,9 +27,13 @@ import os
 import sys
 from logging import debug
 
-from stable_rt_tools.srt_util import (get_last_tag, get_old_tag,
-                                      get_remote_branch_name, read_srt_state,
-                                      validate_srt_state)
+from stable_rt_tools.srt_util import (
+    get_last_tag,
+    get_old_tag,
+    get_remote_branch_name,
+    read_srt_state,
+    validate_srt_state,
+)
 from stable_rt_tools.srt_util_tag import Tag
 
 
@@ -85,11 +89,11 @@ class SrtContext:
 
     def _add_tag(self, prefix, tag):
         t = Tag(tag)
-        dir_patches = '{0}/patches/{1}'.format(self.path, tag)
-        dir_series = '{0}/patches/{1}/patches'.format(self.path, tag)
-        dir_mails = '{0}/patches/{1}/mails'.format(self.path, tag)
-        fln_patch = '{0}/patch-{1}.patch.xz'.format(dir_patches, tag[1:])
-        fln_tar = '{0}/patches-{1}.tar.xz'.format(dir_patches, tag[1:])
+        dir_patches = f'{self.path}/patches/{tag}'
+        dir_series = f'{self.path}/patches/{tag}/patches'
+        dir_mails = f'{self.path}/patches/{tag}/mails'
+        fln_patch = f'{dir_patches}/patch-{tag[1:]}.patch.xz'
+        fln_tar = f'{dir_patches}/patches-{tag[1:]}.tar.xz'
 
         setattr(self, prefix + '_tag', t)
         setattr(self, prefix + '_short_tag', tag[1:])
@@ -106,7 +110,7 @@ class SrtContext:
         """Returns the attribute matching passed name."""
         value = self.__dict__.get(name)
         if not value:
-            raise AttributeError('No such attribute {0}'.format(name))
+            raise AttributeError(f'No such attribute {name}')
         return value
 
     def get_files(self):
@@ -118,6 +122,6 @@ class SrtContext:
     def _dump(self):
         out = '\n'
         for key, val in self.__dict__.items():
-            out = out + '\t{0}: {1}\n'.format(key, val)
+            out = out + f'\t{key}: {val}\n'
         out = out[:-1]
         return out

@@ -29,12 +29,12 @@ import sys
 review_tag = os.environ['SRT_REVIEW_TAG']
 message = sys.stdin.readlines()
 
-msg = """\
-{} stable review patch.
+msg = f"""\
+{review_tag} stable review patch.
 If anyone has any objections, please let me know.
 
 -----------
-""".format(review_tag)
+"""
 
 print(message[0])
 print(msg)

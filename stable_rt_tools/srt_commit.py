@@ -28,9 +28,15 @@ import shutil
 import sys
 import tempfile
 
-from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gpg_env,
-                                      get_last_rt_tag, get_remote_branch_name,
-                                      is_dirty)
+from stable_rt_tools.srt_util import (
+    cmd,
+    confirm,
+    get_config,
+    get_gpg_env,
+    get_last_rt_tag,
+    get_remote_branch_name,
+    is_dirty,
+)
 
 
 def localversion_set(filename, version):
@@ -44,14 +50,14 @@ def localversion_inc(filename):
         line = f.readline()
         version = int(line[3:])
         f.seek(0)
-        f.write('-rt{0}\n'.format(version+1))
+        f.write(f'-rt{version+1}\n')
         f.truncate()
 
 
 def get_kernel_version():
     tmp = tempfile.mkdtemp()
-    cmd(['make', 'O=%s' % tmp, 'defconfig'])
-    line = cmd(['make', '-s', 'O=%s' % tmp, 'kernelrelease'])
+    cmd(['make', f'O={tmp}', 'defconfig'])
+    line = cmd(['make', '-s', f'O={tmp}', 'kernelrelease'])
     shutil.rmtree(tmp)
     return line.strip()[:-1]
 
@@ -74,7 +80,7 @@ def commit(config, rc):
 
     branch_name = get_remote_branch_name()
     post_fix = branch_name.split('-')[-1]
-    branch_rebase = True if post_fix == 'rebase' else False
+    branch_rebase = post_fix == 'rebase'
 
     old_head = cmd(['git', 'rev-parse', 'HEAD'])
 
@@ -87,16 +93,16 @@ def commit(config, rc):
         rt = get_last_rt_tag(branch_name, '-next')
         rt = rt[3:]
         rt = int(rt) + 1
-        localversion_set(config['LOCALVERSION'], '-rt{0}-rc{1}'.format(rt, rc))
+        localversion_set(config['LOCALVERSION'], f'-rt{rt}-rc{rc}')
     else:
         localversion_inc(config['LOCALVERSION'])
 
     version = get_kernel_version()
-    msg = 'Linux {0}'.format(version)
+    msg = f'Linux {version}'
     if branch_rebase:
         msg = msg + ' REBASE'
 
-    print('git commit -m {0}'.format(msg))
+    print(f'git commit -m {msg}')
     if confirm('OK to commit?'):
         cmd(['git', 'add', config['LOCALVERSION']])
         cmd(['git', 'commit', '-s', '-m', msg],

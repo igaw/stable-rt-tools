@@ -26,7 +26,7 @@ import argparse
 from unittest import TestCase
 from unittest.mock import patch
 
-from stable_rt_tools.srt_prep import prep, execute
+from stable_rt_tools.srt_prep import execute, prep
 
 
 class TestPrepState(TestCase):

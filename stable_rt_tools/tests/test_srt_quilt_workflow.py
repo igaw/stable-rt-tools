@@ -53,11 +53,15 @@ from stable_rt_tools.srt_prep import prep
 from stable_rt_tools.srt_sign import sign
 from stable_rt_tools.srt_util import cmd, read_srt_state
 from stable_rt_tools.srt_util_context import SrtContext
-from stable_rt_tools.tests.test_srt import (gnupg_config, makefile,
-                                            sort_steps, stub_stdin,
-                                            stub_stdouts)
+from stable_rt_tools.tests.test_srt import (
+    gnupg_config,
+    makefile,
+    sort_steps,
+    stub_stdin,
+    stub_stdouts,
+)
 
-KERNEL_C = ''.join('line{0}\n'.format(i) for i in range(1, 31))
+KERNEL_C = ''.join(f'line{i}\n' for i in range(1, 31))
 
 
 def git(path, *args):

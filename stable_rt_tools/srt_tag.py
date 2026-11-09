@@ -25,7 +25,7 @@
 
 import re
 
-from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gpg_env)
+from stable_rt_tools.srt_util import cmd, confirm, get_config, get_gpg_env
 
 
 def tag(config, rc):
@@ -38,8 +38,8 @@ def tag(config, rc):
 
         tag = 'v' + m.group(1) + ('-rebase' if m.group(2) else '')
         if rc:
-            tag = tag + '-rc{0}'.format(rc)
-        print('tagging as {0} with message \'{1}\''.format(tag, msg))
+            tag = tag + f'-rc{rc}'
+        print(f'tagging as {tag} with message \'{msg}\'')
         if confirm('OK to tag?'):
             cmd(['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
                  '-m', msg, tag],

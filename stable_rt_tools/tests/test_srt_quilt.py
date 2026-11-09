@@ -32,9 +32,13 @@ from unittest.mock import patch
 
 from stable_rt_tools import srt_quilt
 from stable_rt_tools.srt_prep import worktree_dirs
-from stable_rt_tools.srt_quilt import (drop_from_series, parse_series,
-                                       patch_subject, rt_localversion,
-                                       series_changes)
+from stable_rt_tools.srt_quilt import (
+    drop_from_series,
+    parse_series,
+    patch_subject,
+    rt_localversion,
+    series_changes,
+)
 
 SERIES = """\
 # Applied upstream

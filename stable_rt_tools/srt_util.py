@@ -22,22 +22,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+import json
 import os
-from importlib.resources import files
 import re
 import sys
-import json
-from datetime import datetime, timezone
 from configparser import ConfigParser
-
+from datetime import UTC, datetime
+from importlib.resources import files
 from logging import debug, error
-from subprocess import PIPE, DEVNULL, CalledProcessError, run
+from subprocess import DEVNULL, PIPE, CalledProcessError, run
 
 
 def cmd(args, verbose=False, env=None, cwd=None):
     if verbose:
         print(' '.join(args))
-    debug('run: ' + ' '.join(args) + (' (in {})'.format(cwd) if cwd else ''))
+    debug('run: ' + ' '.join(args) + (f' (in {cwd})' if cwd else ''))
     p = run(args, check=True, stdout=PIPE,
             stderr=None if verbose else DEVNULL, env=env, cwd=cwd)
     r = p.stdout.decode('utf-8').strip()
@@ -73,7 +72,7 @@ def get_workflow_branch(branch_name):
 def tag_exists(tag):
     try:
         run(['git', 'rev-parse', '--verify',
-             '--quiet', '{0}^{{tag}}'.format(tag)],
+             '--quiet', f'{tag}^{{tag}}'],
             check=True, stdout=PIPE)
     except CalledProcessError:
         return False
@@ -93,9 +92,8 @@ def get_last_rt_tag(branch_name, postfix=None):
     last_tag = get_last_tag(branch_name, postfix)
     m = re.search(r'(-rt[0-9]+)$', last_tag)
     if not m:
-        print('Last tag {0} does not end in -rt[0-9]+ on {1}'.
-              format(last_tag, branch_name),
-              file=sys.stderr)
+        print(f'Last tag {last_tag} does not end in -rt[0-9]+ on '
+              f'{branch_name}', file=sys.stderr)
         sys.exit(1)
     return m.group(1)
 
@@ -111,21 +109,21 @@ def get_old_tag():
     tag_re = r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)(-rc(\d+))?(-patches)?$'
     m = re.match(tag_re, last_tag)
     if not m:
-        print('Invalid last tag format: {}'.format(last_tag))
+        print(f'Invalid last tag format: {last_tag}')
         sys.exit(1)
 
     major = int(m.group(1))
     minor = int(m.group(2))
-    base_version = 'v{}.{}'.format(major, minor)
+    base_version = f'v{major}.{minor}'
 
     tags = cmd(['git', 'ls-remote', '--tags'])
     # Look for all matching tags with optional -rcN and -patches
-    match_re = r'.*({}\.\d+-rt\d+(-rc\d+)?(-patches)?)$'.format(base_version)
+    match_re = rf'.*({base_version}\.\d+-rt\d+(-rc\d+)?(-patches)?)$'
     matches = re.findall(match_re, tags, re.MULTILINE)
 
     if not matches:
-        print('Last remote tag -rt[0-9]+ not found on {}'.
-              format(get_remote_branch_name()))
+        print('Last remote tag -rt[0-9]+ not found on '
+              f'{get_remote_branch_name()}')
         sys.exit(1)
 
     last_patch = 0
@@ -146,15 +144,13 @@ def get_old_tag():
             last_patch = patch
             last_rt = rt
             last_rc = rc
-        elif patch == last_patch and rt == last_rt:
-            if last_rc is None and rc is not None:
-                last_rc = rc
-            elif rc is not None and rc > last_rc:
-                last_rc = rc
+        elif (patch == last_patch and rt == last_rt and rc is not None
+              and (last_rc is None or rc > last_rc)):
+            last_rc = rc
 
-    tag = '{}.{}-rt{}'.format(base_version, last_patch, last_rt)
+    tag = f'{base_version}.{last_patch}-rt{last_rt}'
     if last_rc is not None:
-        tag += '-rc{}'.format(last_rc)
+        tag += f'-rc{last_rc}'
     return tag
 
 
@@ -174,7 +170,7 @@ def read_srt_state(path=None):
     state_path = get_srt_state_path(path)
     if not os.path.exists(state_path):
         return None
-    with open(state_path, 'r') as f:
+    with open(state_path) as f:
         return json.load(f)
 
 
@@ -182,7 +178,7 @@ def write_srt_state(state, path=None):
     state_path = get_srt_state_path(path)
     os.makedirs(os.path.dirname(state_path), exist_ok=True)
     state = dict(state)
-    state['updated_at'] = datetime.now(timezone.utc).isoformat()
+    state['updated_at'] = datetime.now(UTC).isoformat()
     with open(state_path, 'w') as f:
         json.dump(state, f, sort_keys=True)
 
@@ -211,17 +207,16 @@ def validate_srt_state(state, current_branch):
     expected_workflow = state['workflow_branch']
     current_workflow = get_workflow_branch(current_branch)
     if expected_workflow != current_workflow:
-        return ('srt state is stale: prepared for workflow "{}" but current '
-                'workflow is "{}". Run "srt prep --clear" and then "srt prep".'
-                .format(expected_workflow, current_workflow))
+        return (f'srt state is stale: prepared for workflow '
+                f'"{expected_workflow}" but current workflow is '
+                f'"{current_workflow}". Run "srt prep --clear" and then '
+                f'"srt prep".')
     return None
 
 
 def is_dirty():
     line = cmd(['git', 'status', '--short'])
-    if line != '':
-        return True
-    return False
+    return line != ''
 
 
 def read_config():
@@ -248,12 +243,12 @@ def get_config():
               'upstream branch (git branch -vv)')
         sys.exit(1)
 
-    config_name = '{0}/{1}'.format(repo_name, branch_name)
-    debug('Using configuration {0}'.format(config_name))
+    config_name = f'{repo_name}/{branch_name}'
+    debug(f'Using configuration {config_name}')
     config = read_config()
     if not config.has_section(config_name):
-        error('Could not retrieve configuration [{0}] from srt.conf'.format(
-            config_name))
+        error(f'Could not retrieve configuration [{config_name}] from '
+              'srt.conf')
         sys.exit(1)
 
     return config[config_name]
@@ -297,18 +292,12 @@ def get_gpg_env(config):
 def get_gpg_fingerprint(config):
     out = cmd(['gpg2',
                '--homedir', get_gnupghome(config),
-               '--local-user', '{}'.format(config['GPG_KEY_ID']),
+               '--local-user', config['GPG_KEY_ID'],
                '--fingerprint'])
 
-    # thank you gpg for nothing!
-    fingerprint = ''
-    cnt = 0
-    for line in out.splitlines():
-        if cnt == 3:
-            fingerprint = line.strip()
-            break
-        cnt += 1
-    return fingerprint
+    # thank you gpg for nothing! the fingerprint is the 4th line
+    lines = out.splitlines()
+    return lines[3].strip() if len(lines) > 3 else ''
 
 
 def confirm(text):
@@ -337,9 +326,9 @@ def check_context(ctx):
         tags.append(ctx.new_tag.rebase)
 
     for tag in tags:
-        debug('Check if tag {0} exists'.format(tag))
+        debug(f'Check if tag {tag} exists')
         if not tag_exists(tag):
-            print('tag {0} doesn\'t exists'.format(tag), file=sys.stderr)
+            print(f'tag {tag} doesn\'t exists', file=sys.stderr)
             return None
 
     return ctx

@@ -23,9 +23,10 @@
 # SOFTWARE
 
 import unittest
-from unittest.mock import patch
-from stable_rt_tools.srt_announce import announce
 from argparse import Namespace
+from unittest.mock import patch
+
+from stable_rt_tools.srt_announce import announce
 
 
 class DummyCtx:

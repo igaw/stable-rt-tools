@@ -46,13 +46,13 @@ def create_patch_file(old_tag, new_tag, filename):
 
 def create_series(old_tag, new_tag, dirname):
     cmd(['git', 'format-patch', '-q', '-o', dirname,
-         '{0}..{1}'.format(old_tag, new_tag)])
+         f'{old_tag}..{new_tag}'])
 
     patches = [f for f in sorted(os.listdir(dirname))
                if os.path.isfile(os.path.join(dirname, f))]
     with open(dirname + '/series', 'w') as file:
         for p in patches:
-            file.write('{0}\n'.format(p))
+            file.write(f'{p}\n')
 
 
 def create_tar_file(dirname, filename):
@@ -75,9 +75,9 @@ def create(config, ctx):
 
     create_tar_file(ctx.new_dir_patches, ctx.new_fln_tar)
 
-    print('Created the following files in {0}'.format(ctx.new_dir_patches))
+    print(f'Created the following files in {ctx.new_dir_patches}')
     for f in ctx.get_files():
-        print('\t{0}'.format(f))
+        print(f'\t{f}')
     print('Review them')
 
 

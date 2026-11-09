@@ -35,7 +35,7 @@ from stable_rt_tools.srt_util_context import SrtContext
 def upload(config, ctx):
     for f in ctx.get_files():
         if not os.path.isfile(f):
-            print('Unable to read {0}, did you remember to create?'.format(f))
+            print(f'Unable to read {f}, did you remember to create?')
             sys.exit(1)
 
     path = config['PRJ_DIR']
@@ -44,7 +44,7 @@ def upload(config, ctx):
     kup = ['kup']
 
     # upload files to archive
-    for i, f in enumerate(ctx.get_files()):
+    for _i, f in enumerate(ctx.get_files()):
         basename = os.path.splitext(f)[0]
         kup.extend(['put', basename + '.xz', basename + '.sign',
                     older_path + '/', '--'])
@@ -64,7 +64,7 @@ def upload(config, ctx):
         try:
             cmd(kup)
         except CalledProcessError as e:
-            print('kup failed with error code {0}'.format(e.returncode),
+            print(f'kup failed with error code {e.returncode}',
                   file=sys.stderr)
 
 

@@ -95,10 +95,7 @@ def stub_stdouts(testcase_inst):
 
 
 def find_string(lines, token):
-    for line in lines.splitlines():
-        if line.strip() == token:
-            return True
-    return False
+    return any(line.strip() == token for line in lines.splitlines())
 
 
 makefile = """
@@ -115,7 +112,7 @@ kernelrelease:
 
 defconfig:
 
-"""  # noqa: W191,E101
+"""
 
 gnupg_config = """
 Key-Type: DSA
@@ -247,8 +244,7 @@ class TestSrtBase(unittest.TestCase):
         rmtree(self.gnupghome)
 
     def _steps(self):
-        for attr in sort_steps(dir(self)):
-            yield attr
+        yield from sort_steps(dir(self))
 
     def test_srt(self):
         for _s in self._steps():
@@ -334,7 +330,7 @@ class TestRelease(TestSrtBase):
                 'rm', prj + '/patch-4.4.13-rt3.patch.xz', '--',
                 'rm', prj + '/patches-4.4.13-rt3.tar.xz', '--',
                 'ls', prj]
-        msg = '{0}\nOK to commit? (y/n): '.format(pformat(args))
+        msg = f'{pformat(args)}\nOK to commit? (y/n): '
         self.maxDiff = None
         self.assertEqual(sys.stdout.getvalue(), msg)
 
@@ -408,17 +404,17 @@ class TestReleaseCanditate(TestSrtBase):
         cmd(['git', 'reset', '--hard', self.branch_rt])
 
         for n in range(start, stop):
-            filename = 'file{}.txt'.format(n)
+            filename = f'file{n}.txt'
             with open(filename, 'w') as f:
                 f.write(filename)
                 f.write('\n')
 
             cmd(['git', 'add', filename])
-            msg = """\
-            Add {}
+            msg = f"""\
+            Add {filename}
 
             Here goes nothing and you are no fun.
-            """.format(filename)
+            """
             msg = textwrap.dedent(msg)
             cmd(['git', 'commit', '-m', msg])
 
@@ -492,7 +488,7 @@ class TestReleaseCanditate(TestSrtBase):
                 'rm', prj + 'patches-4.4.14-rt4.tar.xz', '--',
 
                 'ls', prj[:-1]]
-        msg = '{0}\nOK to commit? (y/n): '.format(pformat(args))
+        msg = f'{pformat(args)}\nOK to commit? (y/n): '
         self.maxDiff = None
         self.assertEqual(sys.stdout.getvalue(), msg)
 
@@ -517,7 +513,7 @@ class TestReleaseCanditate(TestSrtBase):
         announce(self.config, self.ctx, args)
         msg = ('git send-email --dry-run ' +
                '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
-               '{}/patches/v4.4.14-rt5-rc1/mails\n'.format(self.work_tree))
+               f'{self.work_tree}/patches/v4.4.14-rt5-rc1/mails\n')
         res = sys.stdout.getvalue()
         self.maxDiff = None
         self.assertTrue(res.find(msg))
@@ -531,7 +527,7 @@ class TestReleaseCanditate(TestSrtBase):
             self.assertTrue(os.path.isfile(file_path))
 
         filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             letter = f.read()
             debug(letter)
             self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
@@ -758,7 +754,7 @@ class TestReleaseCanditateNewProcess(TestSrtBase):
             self.assertTrue(os.path.isfile(file_path))
 
         filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             letter = f.read()
             debug(letter)
             self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))

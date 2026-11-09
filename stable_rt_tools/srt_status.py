@@ -36,7 +36,7 @@ def status():
     if state.get('quilt_workflow'):
         srt_quilt.status(srt_quilt.Release(state))
     else:
-        print('{0} -> {1}'.format(state['old_tag'], state['new_tag']))
+        print('{} -> {}'.format(state['old_tag'], state['new_tag']))
 
 
 def add_argparser(parser):

@@ -77,7 +77,7 @@ def main():
     parser = srt_get_argparser()
     args = parser.parse_args(sys.argv[1:])
     if args.version:
-        print('stable-rt-tools version {}'.format(about.__version__))
+        print(f'stable-rt-tools version {about.__version__}')
         return
 
     if args.debug:

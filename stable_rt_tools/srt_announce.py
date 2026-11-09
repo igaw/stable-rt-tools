@@ -28,11 +28,16 @@ from datetime import date, timedelta
 from email.utils import make_msgid
 from time import gmtime, strftime
 
-from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
-                                      get_gpg_fingerprint,
-                                      get_local_branch_name,
-                                      get_remote_branch_name,
-                                      get_template_path)
+from stable_rt_tools.srt_util import (
+    check_context,
+    cmd,
+    confirm,
+    get_config,
+    get_gpg_fingerprint,
+    get_local_branch_name,
+    get_remote_branch_name,
+    get_template_path,
+)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
@@ -93,14 +98,14 @@ def cover_letter_replacements(config, ctx):
 
 
 def write_rc_cover_letter(config, ctx):
-    with open(ctx.new_dir_mails + '/0000-cover-letter.patch', 'r') as f:
+    with open(ctx.new_dir_mails + '/0000-cover-letter.patch') as f:
         coverletter = f.read()
 
     coverletter = coverletter.replace('*** SUBJECT HERE ***',
                                       'Linux ' + str(ctx.new_tag))
 
     rc_text = ''
-    with open(get_rc_templ_path(config), 'r') as f:
+    with open(get_rc_templ_path(config)) as f:
         rc_text = f.read()
 
     r = cover_letter_replacements(config, ctx)
@@ -122,7 +127,7 @@ def send_rc_patches(config, ctx, args):
     gmd = ['git', 'send-email', '--confirm=never']
     if args.suppress_cc:
         gmd += ['--suppress-cc=all']
-    gmd += ['--to="{}"'.format(t) for t in config['MAIL_TO'].split(',')]
+    gmd += [f'--to="{t}"' for t in config['MAIL_TO'].split(',')]
     gmd += [ctx.new_dir_mails]
 
     print('Dry run')
@@ -183,7 +188,7 @@ def announce(config, ctx, args):
     timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
 
     stable_rt_text = ''
-    with open(get_announce_tmpl_path(config), 'r') as f:
+    with open(get_announce_tmpl_path(config)) as f:
         stable_rt_text = f.read()
 
     r = cover_letter_replacements(config, ctx)
@@ -195,18 +200,16 @@ def announce(config, ctx, args):
     print(stable_rt_text.format(**r))
 
     ref = find_starting_ref(ctx)
-    print(cmd(['git', '--no-pager', 'shortlog', '{0}..{1}'.
-               format(ref, ctx.new_tag)]))
+    print(cmd(['git', '--no-pager', 'shortlog', f'{ref}..{ctx.new_tag}']))
 
     print('---')
 
-    print(cmd(['git', '--no-pager', 'diff', '--stat', '{0}..{1}'.
-               format(ref, ctx.new_tag)]))
+    print(cmd(['git', '--no-pager', 'diff', '--stat',
+               f'{ref}..{ctx.new_tag}']))
 
     print('---')
 
-    print(cmd(['git', '--no-pager', 'diff', '{0}..{1}'.
-               format(ref, ctx.new_tag)]))
+    print(cmd(['git', '--no-pager', 'diff', f'{ref}..{ctx.new_tag}']))
 
 
 def add_argparser(parser):

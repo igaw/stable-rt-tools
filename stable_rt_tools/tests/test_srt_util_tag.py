@@ -36,7 +36,7 @@ class TestTag(TestCase):
     def test_stable_base_exception(self):
         tag = Tag('v4.4.144')
         with self.assertRaises(TagBaseError):
-            tag.base
+            _ = tag.base
 
     def test_stable_rebase(self):
         tag = Tag('v4.4.144')
@@ -51,7 +51,7 @@ class TestTag(TestCase):
     def test_stable_attr_exception(self):
         tag = Tag('v4.4.144')
         with self.assertRaises(TagAttrError):
-            tag.foo
+            _ = tag.foo
 
     def test_rt(self):
         tag = Tag('v4.4.144-rt134')

@@ -22,14 +22,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+import subprocess
 import sys
 import tempfile
 from email.utils import make_msgid
 from time import gmtime, strftime
-import subprocess
+
 from stable_rt_tools.srt_util import (
-    check_context, cmd, confirm, get_config, get_gpg_env,
-    get_remote_branch_name, get_gpg_fingerprint, get_template_path
+    check_context,
+    cmd,
+    confirm,
+    get_config,
+    get_gpg_env,
+    get_gpg_fingerprint,
+    get_remote_branch_name,
+    get_template_path,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -63,7 +70,7 @@ def do_patches(config, ctx, args):
     # 3.3. Date and Time Specification
     timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
     stable_rt_text = ''
-    with open(get_commit_tmpl_path(config), 'r') as f:
+    with open(get_commit_tmpl_path(config)) as f:
         stable_rt_text = f.read()
     r = cover_letter_replacements(config, ctx)
     r["date"] = timestamp
@@ -78,7 +85,7 @@ def do_patches(config, ctx, args):
     subprocess.run(['git', 'commit', '--edit', '-F', msg_path])
     tag = str(ctx.new_tag) + '-patches'
     msg = 'Patch queue for ' + str(ctx.new_tag)
-    print('tagging as {0} with message \'{1}\''.format(tag, msg))
+    print(f'tagging as {tag} with message \'{msg}\'')
     if confirm('OK to tag?'):
         cmd(
             ['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
@@ -89,7 +96,7 @@ def do_patches(config, ctx, args):
 
 def do_rebase(config, ctx, args):
     tag = str(ctx.new_tag) + '-rebase'
-    print('tagging as {0} with message \'{1}\''.format(tag, tag))
+    print(f'tagging as {tag} with message \'{tag}\'')
     if confirm('OK to tag?'):
         cmd(
             ['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
@@ -104,7 +111,7 @@ def do_release(config, ctx, args):
         ['git', 'commit', '-s', '-m', tag],
         env=get_gpg_env(config)
     )
-    print('tagging as {0} with message \'{1}\''.format(tag, tag))
+    print(f'tagging as {tag} with message \'{tag}\'')
     if confirm('OK to tag?'):
         cmd(
             ['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
@@ -140,7 +147,7 @@ DEPRECATED = {
 
 def execute(args):
     post_fix = get_remote_branch_name().split('-')[-1]
-    print('srt patches is deprecated, use "{0}"'.format(
+    print('srt patches is deprecated, use "{}"'.format(
         DEPRECATED.get(post_fix, 'srt quilt merge; srt quilt release')),
         file=sys.stderr)
     ctx = SrtContext(args)

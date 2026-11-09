@@ -42,7 +42,7 @@ def gpg_sign(config, filename):
         '--homedir', get_gnupghome(config),
         '--local-user', '{}!'.format(config['GPG_KEY_ID']),
         '--quiet', '--armor', '--detach-sign',
-        '-o', '{0}.sign'.format(f),
+        '-o', f'{f}.sign',
         '--set-filename', basename, '-'
     ]
 
@@ -57,7 +57,7 @@ def gpg_sign(config, filename):
 def sign(config, ctx):
     for f in ctx.get_files():
         if not os.path.isfile(f):
-            error('Unable to read {0}, did you remember to create?'.format(f))
+            error(f'Unable to read {f}, did you remember to create?')
             sys.exit(1)
         gpg_sign(config, f)
 

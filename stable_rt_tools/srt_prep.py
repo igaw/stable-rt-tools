@@ -26,9 +26,17 @@
 import os
 import sys
 from subprocess import CalledProcessError
+
 from stable_rt_tools.srt_util import (
-    get_remote_branch_name, get_old_tag, get_config, get_last_rt_tag, cmd,
-    write_srt_state, clear_srt_state, get_workflow_branch, is_quilt_workflow
+    clear_srt_state,
+    cmd,
+    get_config,
+    get_last_rt_tag,
+    get_old_tag,
+    get_remote_branch_name,
+    get_workflow_branch,
+    is_quilt_workflow,
+    write_srt_state,
 )
 
 
@@ -62,12 +70,12 @@ def worktree_dirs(rt_dir):
 
 
 def pull_stable(stable_dir):
-    print('Updating {0} (git pull --ff-only)'.format(stable_dir))
+    print(f'Updating {stable_dir} (git pull --ff-only)')
     try:
         cmd(['git', '-C', stable_dir, 'pull', '--ff-only'], verbose=True)
     except CalledProcessError:
-        sys.exit('git pull in {0} failed, fix it or use '
-                 '"srt prep --no-pull"'.format(stable_dir))
+        sys.exit(f'git pull in {stable_dir} failed, fix it or use '
+                 '"srt prep --no-pull"')
 
 
 def prep(config, pull=True):
@@ -80,7 +88,7 @@ def prep(config, pull=True):
     if quilt_workflow:
         missing = [d for d in dirs.values() if not os.path.isdir(d)]
         if missing:
-            sys.exit('quilt workflow worktree(s) missing: {0}'.format(
+            sys.exit('quilt workflow worktree(s) missing: {}'.format(
                 ', '.join(missing)))
         if pull:
             pull_stable(dirs['stable_dir'])

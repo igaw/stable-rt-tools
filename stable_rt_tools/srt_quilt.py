@@ -50,8 +50,14 @@ from time import gmtime, strftime
 
 from stable_rt_tools.srt_commit import localversion_set
 from stable_rt_tools.srt_prep import worktree_dirs
-from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gpg_env,
-                                      read_srt_state, update_srt_state)
+from stable_rt_tools.srt_util import (
+    cmd,
+    confirm,
+    get_config,
+    get_gpg_env,
+    read_srt_state,
+    update_srt_state,
+)
 from stable_rt_tools.srt_util_tag import Tag
 
 # The RT patch queue format. quilt must not pick it up from the user's
@@ -153,7 +159,7 @@ def dirty_files(path, ignore=()):
 def require_clean(path, ignore=()):
     files = dirty_files(path, ignore)
     if files:
-        sys.exit('{0} has uncommitted changes: {1}'.format(
+        sys.exit('{} has uncommitted changes: {}'.format(
             path, ', '.join(files)))
 
 
@@ -180,7 +186,7 @@ class Release:
             sys.exit('No release prepared: run "srt prep" in the -rt '
                      'worktree first')
         if not state.get('quilt_workflow'):
-            sys.exit('srt quilt: quilt_workflow is not enabled for {0}'
+            sys.exit('srt quilt: quilt_workflow is not enabled for {}'
                      .format(state.get('workflow_branch')))
         self.state = state
         if 'rt_dir' in state:
@@ -242,11 +248,11 @@ class Release:
         existing = rev(path, 'refs/tags/' + tag)
         if existing:
             if existing == rev(path, 'HEAD'):
-                print('{0} already tagged'.format(tag))
+                print(f'{tag} already tagged')
                 return
-            sys.exit('tag {0} exists but is not HEAD of {1}; delete it '
-                     'with "git tag -d {0}" and rerun'.format(tag, path))
-        print('tagging HEAD of {0} as {1}'.format(path, tag))
+            sys.exit(f'tag {tag} exists but is not HEAD of {path}; delete it '
+                     f'with "git tag -d {tag}" and rerun')
+        print(f'tagging HEAD of {path} as {tag}')
         if not confirm('OK to tag?'):
             sys.exit('not tagged, rerun to tag')
         git(path, 'tag', '-s', '-u', self.config['GPG_KEY_ID'],
@@ -268,7 +274,7 @@ class Release:
 
     def subjects(self):
         out = git(self.rt_dir, 'log', '--format=%s',
-                  '{0}..HEAD'.format(self.old))
+                  f'{self.old}..HEAD')
         return out.splitlines()
 
     def missing_patches(self):
@@ -315,10 +321,10 @@ def _already_applied(rel, name):
 
 def refresh(rel):
     if rev(rel.stable_dir, 'HEAD') != rev(rel.stable_dir, rel.base):
-        sys.exit('{0} is not at {1}; run "srt prep" to update it'.format(
-            rel.stable_dir, rel.base))
+        sys.exit(f'{rel.stable_dir} is not at {rel.base}; run "srt prep" '
+                 'to update it')
     if rel.has_tag(rel.patches_dir, rel.queue_tag):
-        sys.exit('{0} is already tagged'.format(rel.queue_tag))
+        sys.exit(f'{rel.queue_tag} is already tagged')
     env = _quilt_env(rel)
     while True:
         try:
@@ -329,15 +335,16 @@ def refresh(rel):
             _quilt(rel, ['push'], env)
         except CalledProcessError as e:
             if _already_applied(rel, name):
-                print('{0} is already in {1}'.format(name, rel.base))
+                print(f'{name} is already in {rel.base}')
                 if confirm('Drop it from the series?'):
                     drop_from_series(rel.quilt_patches, name)
                     continue
             elif e.stdout:
                 print(e.stdout.decode('utf-8'))
-            sys.exit('quilt push of {0} failed. Fix it in {1} '
-                     '(quilt push -f, edit, quilt refresh) and rerun '
-                     '"srt quilt refresh"'.format(name, rel.stable_dir))
+            sys.exit(f'quilt push of {name} failed. Fix it in '
+                     f'{rel.stable_dir} (quilt push -f, edit, quilt refresh) '
+                     'and rerun '
+                     '"srt quilt refresh"')
         _refresh(rel, env)
 
     localversion_set(os.path.join(rel.stable_dir, rel.localversion),
@@ -348,10 +355,10 @@ def refresh(rel):
 
     dropped, added = rel.series_changes()
     for p in dropped:
-        print('dropped: {0}'.format(p))
+        print(f'dropped: {p}')
     for p in added:
-        print('added:   {0}'.format(p))
-    print('review: git -C {0} diff'.format(rel.patches_dir))
+        print(f'added:   {p}')
+    print(f'review: git -C {rel.patches_dir} diff')
     print('next: srt quilt queue')
 
 
@@ -360,12 +367,14 @@ def refresh(rel):
 #
 
 def queue(rel):
-    from stable_rt_tools.srt_patches import (cover_letter_replacements,
-                                             get_commit_tmpl_path)
+    from stable_rt_tools.srt_patches import (
+        cover_letter_replacements,
+        get_commit_tmpl_path,
+    )
     from stable_rt_tools.srt_util_context import SrtContext
 
     if rel.done('queue'):
-        print('{0} already tagged'.format(rel.queue_tag))
+        print(f'{rel.queue_tag} already tagged')
         return
     if not rel.done('refresh'):
         sys.exit('run "srt quilt refresh" first')
@@ -385,8 +394,8 @@ def queue(rel):
         r['release_tag'] = rel.release_tag
         dropped, added = rel.series_changes()
         r['series_changes'] = ''.join(
-            ['  - dropped {0}\n'.format(p) for p in dropped] +
-            ['  - added {0}\n'.format(p) for p in added]) or '  - none\n'
+            [f'  - dropped {p}\n' for p in dropped] +
+            [f'  - added {p}\n' for p in added]) or '  - none\n'
         with open(get_commit_tmpl_path(rel.config)) as f:
             text = f.read().format(**r)
         with tempfile.NamedTemporaryFile('w', delete=False) as f:
@@ -410,17 +419,17 @@ def queue(rel):
 
 def rebase(rel):
     if rel.done('rebase'):
-        print('{0} already tagged'.format(rel.rebase_tag))
+        print(f'{rel.rebase_tag} already tagged')
         return
     queue_head = rev(rel.patches_dir, 'refs/tags/' + rel.queue_tag)
     if not queue_head:
         sys.exit('run "srt quilt queue" first')
     if rev(rel.patches_dir, 'HEAD') != queue_head or \
             dirty_files(rel.patches_dir):
-        sys.exit('{0} is not at {1}'.format(rel.patches_dir, rel.queue_tag))
+        sys.exit(f'{rel.patches_dir} is not at {rel.queue_tag}')
     require_clean(rel.rebase_dir)
-    print('reset {0} to {1} and import the {2} patches of {3}'.format(
-        rel.rebase_dir, rel.base, len(rel.new_series()), rel.queue_tag))
+    print(f'reset {rel.rebase_dir} to {rel.base} and import the '
+          f'{len(rel.new_series())} patches of {rel.queue_tag}')
     if not confirm('OK to reset?'):
         sys.exit('aborted')
     git(rel.rebase_dir, 'reset', '--hard', rel.base)
@@ -438,28 +447,27 @@ def merge(rel):
         sys.exit('run "srt quilt rebase" first')
     op = in_progress(rel.rt_dir)
     if op:
-        sys.exit('{0}: {1} in progress, finish it first'.format(
-            rel.rt_dir, op))
+        sys.exit(f'{rel.rt_dir}: {op} in progress, finish it first')
     require_clean(rel.rt_dir)
 
     if not is_ancestor(rel.rt_dir, rel.base):
-        print('merge {0}'.format(rel.base))
+        print(f'merge {rel.base}')
         try:
             git(rel.rt_dir, 'merge', '--no-edit', rel.base,
                 env=get_gpg_env(rel.config))
         except CalledProcessError:
             sys.exit('merge conflict: resolve it (the result has to match '
-                     '{0}), "git commit" and rerun "srt quilt merge"'
-                     .format(rel.rebase_tag))
+                     f'{rel.rebase_tag}), "git commit" and rerun '
+                     '"srt quilt merge"')
     for name in rel.missing_patches():
-        print('apply {0}'.format(name))
+        print(f'apply {name}')
         try:
             git(rel.rt_dir, 'am', '-3', '-s',
                 os.path.join(rel.quilt_patches, name),
                 env=get_gpg_env(rel.config))
         except CalledProcessError:
-            sys.exit('git am {0} failed: resolve it, "git am --continue" '
-                     'and rerun "srt quilt merge"'.format(name))
+            sys.exit(f'git am {name} failed: resolve it, "git am --continue" '
+                     'and rerun "srt quilt merge"')
     print('next: srt quilt release')
 
 
@@ -469,7 +477,7 @@ def merge(rel):
 
 def release(rel):
     if rel.done('release'):
-        print('{0} already tagged'.format(rel.release_tag))
+        print(f'{rel.release_tag} already tagged')
         return
     if not rel.done('merge'):
         sys.exit('run "srt quilt merge" first')
@@ -488,9 +496,9 @@ def release(rel):
             # don't let the fixup commit pick up the localversion bump
             git(rel.rt_dir, 'reset', '-q', 'HEAD', '--', rel.localversion)
             git(rel.rt_dir, 'checkout', '-q', '--', rel.localversion)
-        sys.exit('{0} differs from {1}: commit a fixup (see "git diff '
-                 '--cached {1}") and rerun "srt quilt release"'.format(
-                     rel.rt_dir, rel.rebase_tag))
+        sys.exit(f'{rel.rt_dir} differs from {rel.rebase_tag}: commit a '
+                 f'fixup (see "git diff --cached {rel.rebase_tag}") and '
+                 'rerun "srt quilt release"')
 
     if head_subject != rel.release_tag:
         git(rel.rt_dir, 'commit', '-s', '-m', rel.release_tag,
@@ -504,20 +512,20 @@ def release(rel):
 #
 
 def status(rel):
-    print('{0} -> {1}'.format(rel.old, rel.new))
+    print(f'{rel.old} -> {rel.new}')
     dropped, added = rel.series_changes()
     for p in dropped:
-        print('  dropped: {0}'.format(p))
+        print(f'  dropped: {p}')
     for p in added:
-        print('  added:   {0}'.format(p))
+        print(f'  added:   {p}')
     nxt = None
     for step in STEPS:
         done = rel.done(step)
         if not done and nxt is None:
             nxt = step
-        print('  [{0}] srt quilt {1}'.format('x' if done else ' ', step))
+        print('  [{}] srt quilt {}'.format('x' if done else ' ', step))
     if nxt:
-        print('next: srt quilt {0}'.format(nxt))
+        print(f'next: srt quilt {nxt}')
     else:
         print('next: srt create, srt sign, srt upload, srt push, '
               'srt announce')

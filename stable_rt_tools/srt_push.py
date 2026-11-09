@@ -22,9 +22,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
-                                      get_remote_branch_name,
-                                      is_quilt_workflow, clear_srt_state)
+from stable_rt_tools.srt_util import (
+    check_context,
+    clear_srt_state,
+    cmd,
+    confirm,
+    get_config,
+    get_remote_branch_name,
+    is_quilt_workflow,
+)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
@@ -34,15 +40,15 @@ def push(config, ctx):
     args = None
     if ctx.is_rc:
         args = [config['PRJ_GIT_TREE'],
-                '{0}^{{}}:{1}'.format(ctx.new_tag, branch),
+                f'{ctx.new_tag}^{{}}:{branch}',
                 'tag', str(ctx.new_tag)]
     else:
         args = [
             config['PRJ_GIT_TREE'],
-            '{0}^{{}}:{1}'.format(ctx.new_tag, branch),
-            '+{0}-rebase^{{}}:{1}-rebase'.format(ctx.new_tag, branch),
+            f'{ctx.new_tag}^{{}}:{branch}',
+            f'+{ctx.new_tag}-rebase^{{}}:{branch}-rebase',
             'tag', str(ctx.new_tag),
-            'tag', '{0}-rebase'.format(ctx.new_tag)
+            'tag', f'{ctx.new_tag}-rebase'
         ]
         if is_quilt_workflow(config):
             patches_branch = branch + '-patches'

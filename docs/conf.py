@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # stable-rt-tools documentation build configuration file, created by
 # sphinx-quickstart on Thu Jun 22 11:10:06 2017.
