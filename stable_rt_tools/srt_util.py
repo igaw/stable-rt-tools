@@ -317,15 +317,18 @@ def get_config() -> Config:
               'upstream branch (git branch -vv)')
         sys.exit(1)
 
-    config_name = f'{repo_name}/{branch_name}'
-    debug(f'Using configuration {config_name}')
     config = read_config()
-    if not config.has_section(config_name):
-        error(f'Could not retrieve configuration [{config_name}] from '
-              'srt.conf')
-        sys.exit(1)
-
-    return config[config_name]
+    # the -patches, -rebase and -next branches of a series can share the
+    # group of the series
+    names = [f'{repo_name}/{branch_name}',
+             f'{repo_name}/{get_workflow_branch(branch_name)}']
+    for config_name in names:
+        if config.has_section(config_name):
+            debug(f'Using configuration {config_name}')
+            return config[config_name]
+    error('Could not retrieve configuration [{}] from srt.conf'.format(
+        '] or ['.join(dict.fromkeys(names))))
+    sys.exit(1)
 
 
 def is_quilt_workflow(config: Mapping[str, Any]) -> bool:

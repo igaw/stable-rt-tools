@@ -308,3 +308,23 @@ class TestUtil(TestCase):
             srt.main()
         self.assertEqual(e.exception.code, 2)
         self.assertIn('usage: srt', err.getvalue())
+
+    def test_get_config_falls_back_to_the_series(self):
+        from configparser import ConfigParser
+        from unittest import mock
+
+        import stable_rt_tools.srt_util as srt_util
+
+        config = ConfigParser()
+        config.read_string('[linux/stable-rt/v6.12-rt]\nSUFFIX = rt\n'
+                           '[linux/stable-rt/v6.12-rt-rebase]\nSUFFIX = x\n')
+        for branch, suffix in (('v6.12-rt', 'rt'), ('v6.12-rt-patches', 'rt'),
+                               ('v6.12-rt-rebase', 'x')):
+            with mock.patch.object(srt_util, 'read_config',
+                                   return_value=config), \
+                    mock.patch.object(srt_util, 'get_remote_repo_name',
+                                      return_value='linux'), \
+                    mock.patch.object(srt_util, 'get_remote_branch_name',
+                                      return_value='stable-rt/' + branch):
+                self.assertEqual(srt_util.get_config()['SUFFIX'], suffix,
+                                 branch)
