@@ -29,17 +29,13 @@ from time import gmtime, strftime
 import subprocess
 from stable_rt_tools.srt_util import (
     check_context, cmd, confirm, get_config, get_gpg_env,
-    get_remote_branch_name, get_gpg_fingerprint
+    get_remote_branch_name, get_gpg_fingerprint, get_template_path
 )
 from stable_rt_tools.srt_util_context import SrtContext
-import importlib.resources as pkg_resources
 
 
 def get_commit_tmpl_path(config):
-    if 'COMMIT_TMPL' in config:
-        return config['COMMIT_TMPL']
-    with pkg_resources.path('stable_rt_tools', 'commit-tmpl.txt') as p:
-        return str(p)
+    return get_template_path(config, 'COMMIT_TMPL', 'commit-tmpl.txt')
 
 
 def cover_letter_replacements(config, ctx):

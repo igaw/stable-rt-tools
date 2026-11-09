@@ -23,6 +23,7 @@
 # SOFTWARE
 
 import os
+from importlib.resources import files
 import re
 import sys
 import json
@@ -269,6 +270,13 @@ def is_quilt_workflow(config):
     if isinstance(val, str):
         return val.lower() in ('1', 'yes', 'true', 'on')
     return False
+
+
+def get_template_path(config, key, name):
+    """Return the template configured as key, else the one shipped."""
+    if key in config:
+        return config[key]
+    return str(files('stable_rt_tools').joinpath(name))
 
 
 def get_gnupghome(config):

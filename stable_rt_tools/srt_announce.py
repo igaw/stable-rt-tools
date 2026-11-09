@@ -28,15 +28,11 @@ from datetime import date, timedelta
 from email.utils import make_msgid
 from time import gmtime, strftime
 
-try:
-    import importlib.resources as pkg_resources
-except ImportError:
-    import importlib_resources as pkg_resources
-
 from stable_rt_tools.srt_util import (check_context, cmd, confirm, get_config,
                                       get_gpg_fingerprint,
                                       get_local_branch_name,
-                                      get_remote_branch_name)
+                                      get_remote_branch_name,
+                                      get_template_path)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
@@ -144,22 +140,11 @@ def announce_rc(config, ctx, args):
 
 
 def get_announce_tmpl_path(config):
-    if 'ANNOUNCE' in config:
-        return config['ANNOUNCE']
-
-    # Use importlib.resources.files for modern resource access
-    return str(
-        pkg_resources.files('stable_rt_tools').joinpath('announce-srt.txt')
-    )
+    return get_template_path(config, 'ANNOUNCE', 'announce-srt.txt')
 
 
 def get_rc_templ_path(config):
-    if 'RC_TEXT' in config:
-        return config['RC_TEXT']
-
-    return str(
-        pkg_resources.files('stable_rt_tools').joinpath('announce-srt-rc.txt')
-    )
+    return get_template_path(config, 'RC_TEXT', 'announce-srt-rc.txt')
 
 
 def announce(config, ctx, args):

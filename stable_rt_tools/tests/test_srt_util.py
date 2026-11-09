@@ -196,3 +196,16 @@ class TestUtil(TestCase):
             self.assertEqual(config['a/b']['KEY'], 'from-env')
         finally:
             rmtree(tmp)
+
+    def test_get_template_path(self):
+        import os
+        import stable_rt_tools.srt_util as srt_util
+
+        for key, name in (('ANNOUNCE', 'announce-srt.txt'),
+                          ('RC_TEXT', 'announce-srt-rc.txt'),
+                          ('COMMIT_TMPL', 'commit-tmpl.txt')):
+            path = srt_util.get_template_path({}, key, name)
+            self.assertTrue(os.path.isfile(path), path)
+            self.assertEqual(
+                srt_util.get_template_path({key: '/my/tmpl'}, key, name),
+                '/my/tmpl')
