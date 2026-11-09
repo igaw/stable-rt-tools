@@ -14,14 +14,15 @@ prerequisites and configuration.
 Installation
 ------------
 
-This project depends on
+srt needs Python 3.12 or newer and has no Python dependencies. Install it
+with pip, or pipx to keep it in its own environment, to get the ``srt``
+command::
 
-- Python 3
-- distro Python 3 package
+    $ pipx install git+https://github.com/igaw/stable-rt-tools.git
 
-Install it via pip to get the ``srt`` command::
+or from a checkout::
 
-    $ pip3 install .
+    $ pip install .
 
 Prerequisites
 -------------

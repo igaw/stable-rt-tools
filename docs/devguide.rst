@@ -4,13 +4,34 @@ Developer Guide
 Deploy for development
 ----------------------
 
-This project uses pip to manage the package. If you want to work on the
-project yourself you can create the necessary links via::
+The package is described in ``pyproject.toml`` and needs Python 3.12 or
+newer. Create a virtual environment and install srt in editable mode with
+the development tools::
 
-    $ pip3 install --user -e .
+    $ python3 -m venv .venv
+    $ . .venv/bin/activate
+    $ pip install -e '.[dev]'
 
-That will install a backlink ~/.local/bin/srt to this project. Now you are
-able to call it from anywhere.
+``srt`` in the virtual environment then runs the code of the checkout.
+
+Run the linter and the tests::
+
+    $ ruff check .
+    $ pytest
+
+The tests need ``git``, ``gpg2``, ``quilt`` and ``patch``; without quilt
+the quilt workflow tests are skipped. ``test_srt.py`` runs a complete git
+workflow release and ``test_srt_quilt_workflow.py`` a complete quilt
+workflow release, both with temporary repositories and a temporary GPG
+key.
+
+Build the documentation and the package::
+
+    $ sphinx-build -b html docs docs/_build/html
+    $ python -m build
+
+The version is set in ``stable_rt_tools/about.py``. Pushing a ``v*`` tag
+publishes the package on PyPI.
 
 
 Community Resources
