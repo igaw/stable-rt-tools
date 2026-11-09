@@ -83,8 +83,10 @@ def main() -> None:
     else:
         logging.getLogger().setLevel(logging.INFO)
 
-    if args.cmd in sub_cmd:
-        sub_cmd[args.cmd].execute(args)
+    if args.cmd not in sub_cmd:
+        parser.print_help(sys.stderr)
+        sys.exit(2)
+    sub_cmd[args.cmd].execute(args)
 
 
 if __name__ == "__main__":

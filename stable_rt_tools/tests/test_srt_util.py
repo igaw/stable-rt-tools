@@ -295,3 +295,16 @@ class TestUtil(TestCase):
                 self.assertRaises(SystemExit) as e:
             srt_upload.upload({'PRJ_DIR': '/pub/rt/6.12'}, ctx)
         self.assertEqual(e.exception.code, 3)
+
+    def test_srt_without_command_shows_usage(self):
+        import io
+        from unittest import mock
+
+        from stable_rt_tools import srt
+
+        with mock.patch('sys.argv', ['srt']), \
+                mock.patch('sys.stderr', new_callable=io.StringIO) as err, \
+                self.assertRaises(SystemExit) as e:
+            srt.main()
+        self.assertEqual(e.exception.code, 2)
+        self.assertIn('usage: srt', err.getvalue())
