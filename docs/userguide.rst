@@ -40,7 +40,7 @@ signatures of revoked or expired keys.
 
 srt also calls the following external tools:
 
-- ``git`` including ``git send-email`` (``srt announce``)
+- ``git`` 2.36 or newer, including ``git send-email`` (``srt announce``)
 - ``gpg`` (GnuPG 2) with your kernel.org signing key (``srt tag``, ``srt sign``,
   ``srt quilt``, ``srt announce``)
 - ``kup`` (``srt upload``)

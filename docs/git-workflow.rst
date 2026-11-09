@@ -94,6 +94,11 @@ mailing list and do the proper release after a week or so.
   OK to push? (y/n): y
   [...]
 
+The review mails contain the patches since the last release and, if the
+stable merge had conflicts, the merge with its conflict resolution
+(``git show --remerge-diff``): the conflicts git left on the ``-`` lines,
+the merge as committed on the ``+`` lines.
+
 Release
 -------
 

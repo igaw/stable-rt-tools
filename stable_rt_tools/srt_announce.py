@@ -24,6 +24,7 @@
 
 
 import argparse
+import os
 import re
 from datetime import date, timedelta
 from email.utils import make_msgid
@@ -75,12 +76,97 @@ def add_review_text(path: str, tag: str) -> None:
         f.write(headers + sep + REVIEW_TEXT.format(tag=tag) + body)
 
 
+MERGE_NOTE = """\
+The resolution of the merge conflicts, as shown by
+git show --remerge-diff: the conflicts git left in the merge on the
+- lines, the merge as committed on the + lines.
+
+"""
+
+
+def resolved_merges(ref: str) -> list[str]:
+    """The merges of the release candidate with conflict resolutions.
+
+    git format-patch leaves out merges, but the conflict resolution of
+    a stable merge is a change to the series which needs review. The
+    merge at ref belongs to the candidate, find_starting_ref() starts
+    at the old tag when it was released already.
+    """
+    merges = cmd(['git', 'rev-list', '--reverse', '--topo-order',
+                  '--merges', '--first-parent', f'{ref}..']).split()
+    if cmd(['git', 'rev-list', '--no-walk', '--merges', ref]):
+        merges.insert(0, cmd(['git', 'rev-parse', f'{ref}^{{commit}}']))
+    # a clean merge has no remerge diff
+    return [m for m in merges
+            if cmd(['git', 'show', '--remerge-diff', '--format=', m])]
+
+
+def mail_subject(text: str, prefix: str) -> str:
+    """Number the subject of a mail with prefix, e.g. 'PATCH RT 1/3'."""
+    return re.sub(r'^Subject: \[[^]\n]*\]', f'Subject: [{prefix}]', text,
+                  count=1, flags=re.MULTILINE)
+
+
+def merge_mail(merge: str) -> tuple[str, str]:
+    """The file name slug and the mail of a merge, like git format-patch."""
+    mail = cmd(['git', 'show', '--format=email', '--remerge-diff',
+                '--stat', '--patch', merge]) + '\n'
+    head, sep, rest = mail.partition('\n---\n')
+    subject = cmd(['git', 'show', '-s', '--format=%s', merge])
+    slug = re.sub(r'[^A-Za-z0-9_]+', '-', subject).strip('-')[:64]
+    return slug, head + sep + MERGE_NOTE + rest
+
+
+def add_merge_mails(mails: list[str], ref: str, merges: list[str],
+                    prefix: str) -> list[str]:
+    """Put the merge mails into the series in commit order.
+
+    The patches of git format-patch are numbered again, the series has
+    more mails now.
+    """
+    order = cmd(['git', 'rev-list', '--reverse', '--topo-order',
+                 f'{ref}..']).split()
+    if merges and merges[0] not in order:
+        order.insert(0, merges[0])
+
+    cover = mails[0]
+    by_commit: dict[str, tuple[str, str]] = {}
+    for path in mails[1:]:
+        with open(path) as f:
+            text = f.read()
+        # format-patch starts a mail with 'From <commit> <date>'
+        by_commit[text.split()[1]] = (os.path.basename(path)[5:], text)
+        os.remove(path)
+    for m in merges:
+        slug, text = merge_mail(m)
+        by_commit[m] = (slug + '.patch', text)
+
+    series = [by_commit[c] for c in order if c in by_commit]
+    total = len(series)
+    directory = os.path.dirname(cover)
+    result = [cover]
+    for n, (name, text) in enumerate(series, start=1):
+        path = os.path.join(directory, f'{n:04d}-{name}')
+        with open(path, 'w') as f:
+            f.write(mail_subject(text, f'{prefix} {n}/{total}'))
+        result.append(path)
+
+    with open(cover) as f:
+        text = f.read()
+    with open(cover, 'w') as f:
+        f.write(mail_subject(text, f'{prefix} 0/{total}'))
+    return result
+
+
 def create_rc_patches(config: Config, ctx: SrtContext) -> None:
     ref = find_starting_ref(ctx)
+    prefix = f'PATCH {get_suffix(config).upper()}'
     mails = cmd(['git', 'format-patch', f'{ref}..',
-                 '-o', ctx.new_dir_mails, '--subject-prefix',
-                 f'PATCH {get_suffix(config).upper()}',
+                 '-o', ctx.new_dir_mails, '--subject-prefix', prefix,
                  '--cover-letter']).splitlines()
+    merges = resolved_merges(ref)
+    if merges:
+        mails = add_merge_mails(mails, ref, merges, prefix)
     for mail in mails:
         if not mail.endswith('/0000-cover-letter.patch'):
             add_review_text(mail, str(ctx.new_tag))

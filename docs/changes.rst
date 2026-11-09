@@ -1,6 +1,18 @@
 Changes
 =======
 
+2.1
+---
+
+Fixed
+~~~~~
+
+- The review mails of a release candidate left out the conflict
+  resolutions of the stable merge, ``git format-patch`` skips merges. The
+  merge is a mail of the series now, with the resolution as shown by
+  ``git show --remerge-diff``. A clean merge gets no mail. git 2.36 or
+  newer is needed.
+
 2.0
 ---
 

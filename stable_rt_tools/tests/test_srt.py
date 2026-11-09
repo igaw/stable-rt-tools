@@ -34,6 +34,7 @@ import unittest
 from logging import debug
 from pprint import pformat
 from shutil import rmtree
+from subprocess import DEVNULL, run
 from typing import cast
 
 from stable_rt_tools.srt_announce import announce
@@ -761,15 +762,87 @@ class TestReleaseCanditateNewProcess(TestSrtBase):
 
         patches = ['0000-cover-letter.patch',
                    '0001-Linux-4.4.14-rt4.patch']
-        for p in patches:
-            file_path = self.ctx.new_dir_mails + '/' + p
-            self.assertTrue(os.path.isfile(file_path))
+        # a clean merge has nothing to review, it gets no mail
+        self.assertEqual(sorted(os.listdir(self.ctx.new_dir_mails)), patches)
 
         filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
         with open(filename) as f:
             letter = f.read()
             debug(letter)
             self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
+
+
+class TestReleaseCanditateMergeConflict(TestSrtBase):
+    """The rc mails contain the resolution of a conflicting stable merge."""
+
+    def setUp(self):
+        super().setUp()
+
+        os.chdir(self.work_tree)
+        cmd(['git', 'checkout', self.branch_rt_next])
+        with open('Makefile', 'a') as f:
+            f.write('# rt\n')
+        cmd(['git', 'commit', '-a', '-m', 'rt: annotate the Makefile'])
+
+        os.chdir(self.stable_repo)
+        with open('Makefile', 'a') as f:
+            f.write('# stable\n')
+        cmd(['git', 'add', 'Makefile'])
+        self.setup_stable_new_release('4.4.15')
+
+        os.chdir(self.work_tree)
+        cmd(['git', 'fetch', '--all'])
+        res = run(['git', 'merge', '--no-edit', 'v4.4.15'],
+                  stdout=DEVNULL, stderr=DEVNULL)
+        self.assertNotEqual(res.returncode, 0)
+        with open('Makefile', 'w') as f:
+            f.write(makefile + '# rt\n# stable\n')
+        cmd(['git', 'add', 'Makefile'])
+        cmd(['git', 'commit', '-m',
+             "Merge tag 'v4.4.15' into v4.4-rt-next\n\n"
+             'This is the 4.4.15 stable release'])
+
+    def step1_commit(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        commit(self.config, rc=False)
+
+    def step2_tag(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config, rc=1)
+        self.assertTrue(tag_exists('v4.4.15-rt4-rc1'))
+
+    def step3_announce(self):
+        self.ctx = SrtContext(make_args('v4.4.13-rt3', 'v4.4.15-rt4-rc1'),
+                              path=self.work_tree)
+        args = argparse.Namespace(suppress_cc=False)
+        stub_stdin(self, 'n')
+        stub_stdouts(self)
+        announce(self.config, self.ctx, args)
+
+        mails = self.ctx.new_dir_mails
+        patches = ['0000-cover-letter.patch',
+                   '0001-Merge-tag-v4-4-15-into-v4-4-rt-next.patch',
+                   '0002-Linux-4.4.15-rt4.patch']
+        self.assertEqual(sorted(os.listdir(mails)), patches)
+
+        with open(f'{mails}/{patches[1]}') as f:
+            merge = f.read()
+        self.assertIn("Subject: [PATCH RT 1/2] Merge tag 'v4.4.15' into "
+                      'v4.4-rt-next', merge)
+        self.assertIn('This is the 4.4.15 stable release', merge)
+        self.assertIn('v4.4.15-rt4-rc1 stable review patch.', merge)
+        self.assertIn('git show --remerge-diff', merge)
+        # the conflict and its resolution: both lines are kept
+        self.assertIn('\n-<<<<<<< ', merge)
+        self.assertIn('\n-=======\n # stable\n->>>>>>> ', merge)
+
+        with open(f'{mails}/{patches[2]}') as f:
+            self.assertIn('Subject: [PATCH RT 2/2] Linux 4.4.15-rt4',
+                          f.read())
+        with open(f'{mails}/{patches[0]}') as f:
+            self.assertIn('Subject: [PATCH RT 0/2]', f.read())
 
 
 if __name__ == '__main__':
