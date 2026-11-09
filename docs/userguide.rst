@@ -148,9 +148,6 @@ The settings:
 ``ORIGIN_GIT_URL``
     What the repository is cloned from, default ``UPSTREAM_GIT_URL``
     (``srt setup``). Its basename is the first part of the group name.
-``TAKEOVER_BRANCH``, ``TAKEOVER_REMOTE``, ``TAKEOVER_GIT_URL``
-    Take the series over from another branch, see the quilt workflow
-    (``srt setup``).
 ``ANNOUNCE``, ``RC_TEXT``, ``COMMIT_TMPL``
     Own templates for the announcement, the review mails and the patch
     queue commit, instead of the ones srt ships.
@@ -177,9 +174,27 @@ branches, next to each other in the current directory (or ``--dir``):
   add   worktree .../rt/v6.12-rt-rebase (v6.12-rt-rebase tracking stable-rt/v6.12-rt-rebase)
   next: cd .../rt/v6.12-rt && srt prep
 
+Without a group in ``srt.conf`` srt setup takes the settings as options
+and adds the group to ``srt.conf`` (``$SRT_CONF`` or ``~/.config``). In an
+existing work area the URLs default to the ones of its remotes:
+
+.. code-block:: console
+
+  $ srt setup linux/stable-rt/v6.12-rt --workflow quilt \
+        --upstream-branch linux-6.12.y --upstream-remote stable \
+        --upstream-url https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git \
+        --origin-url https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git \
+        --prj-url https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git \
+        --push-url git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt \
+        --prj-dir /pub/linux/kernel/projects/rt/6.12
+
+``srt setup --help`` lists the options. Options which differ from an
+existing group are reported, edit ``srt.conf`` to change it.
+
 srt setup can be rerun: existing parts are checked, a remote with another
 URL or a worktree on another branch is reported, not changed. Run it in an
-existing work area to check it, or to add another series to it.
+existing work area to check it, or to add another series to it. To take
+over a series from another maintainer see :doc:`quilt-workflow`.
 
 Configuration from srt 1.x
 --------------------------

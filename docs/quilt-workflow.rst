@@ -62,34 +62,25 @@ Take over a series
 
 Series are handed over between maintainers in the shared stable-rt tree,
 e.g. linux-6.18.y-rt, linux-6.18.y-rt-patches and linux-6.18.y-rt-rebase.
-To keep the names, add the group of the series and set it up like any
-other:
-
-.. code-block:: ini
-
-  [linux/stable-rt/linux-6.18.y-rt]
-  WORKFLOW = quilt
-  UPSTREAM_BRANCH = linux-6.18.y
-  PRJ_DIR = /pub/linux/kernel/projects/rt/6.18
-
-To publish it under a new name, e.g. as v6.18-rt, name the branch it is
-taken over from:
-
-.. code-block:: ini
-
-  [linux/stable-rt/v6.18-rt]
-  WORKFLOW = quilt
-  UPSTREAM_BRANCH = linux-6.18.y
-  PRJ_DIR = /pub/linux/kernel/projects/rt/6.18
-  TAKEOVER_BRANCH = linux-6.18.y-rt
-
-``srt setup`` creates v6.18-rt, v6.18-rt-patches and v6.18-rt-rebase from
-the branches taken over, next to the series already in the work area, and
-prints how to publish them. It pushes nothing:
+Add it to the work area of the series you maintain already:
 
 .. code-block:: console
 
-  $ srt setup linux/stable-rt/v6.18-rt
+  $ cd rt
+  $ srt setup linux/stable-rt/linux-6.18.y-rt --workflow quilt \
+        --upstream-branch linux-6.18.y --prj-dir /pub/linux/kernel/projects/rt/6.18
+
+``srt setup`` adds the group to ``srt.conf``, with the URLs of the work
+area's remotes, and creates the worktrees of the series.
+
+To publish it under a new name, e.g. as v6.18-rt, name the branch it is
+taken over from with ``--from``:
+
+.. code-block:: console
+
+  $ srt setup linux/stable-rt/v6.18-rt --workflow quilt \
+        --upstream-branch linux-6.18.y --prj-dir /pub/linux/kernel/projects/rt/6.18 \
+        --from linux-6.18.y-rt
   ...
   take  .../rt/v6.18-rt (v6.18-rt from stable-rt/linux-6.18.y-rt)
   take  .../rt/v6.18-rt-patches (v6.18-rt-patches from stable-rt/linux-6.18.y-rt-patches)
@@ -99,9 +90,12 @@ prints how to publish them. It pushes nothing:
     git -C .../rt/v6.18-rt-patches push -u --follow-tags stable-rt v6.18-rt-patches
     git -C .../rt/v6.18-rt-rebase push -u --follow-tags stable-rt v6.18-rt-rebase
 
-After the push ``srt setup`` checks the series like any other. A series from
-another tree, e.g. rt-devel, needs ``TAKEOVER_REMOTE = rt-devel`` and, if
-the remote does not exist yet, ``TAKEOVER_GIT_URL``.
+``srt setup`` creates the branches from the ones taken over and prints how
+to publish them; it pushes nothing. ``--from`` is not stored, after the
+push ``srt setup linux/stable-rt/v6.18-rt`` checks the series like any
+other. A series from another tree, e.g. rt-devel, is taken over with
+``--from rt-devel/linux-6.18.y-rt`` and, if the remote does not exist yet,
+``--from-url``.
 
 Create a new release
 --------------------
