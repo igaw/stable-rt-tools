@@ -24,6 +24,8 @@
 
 
 import os
+import sys
+from subprocess import CalledProcessError
 from stable_rt_tools.srt_util import (
     get_remote_branch_name, get_old_tag, get_config, get_last_rt_tag, cmd,
     write_srt_state, clear_srt_state, get_workflow_branch, is_quilt_workflow
@@ -43,13 +45,45 @@ def get_next_stable_version(branch_name, tree_dir):
     return None
 
 
-def prep(config):
-    current_dir = os.path.basename(os.getcwd())
+def worktree_dirs(rt_dir):
+    """The quilt workflow worktrees, which are siblings of the -rt one.
+
+    For rt_dir .../v6.12-rt: .../v6.12, .../v6.12-rt-patches and
+    .../v6.12-rt-rebase.
+    """
+    rt_dir = os.path.abspath(rt_dir)
+    parent, name = os.path.split(rt_dir)
+    return {
+        'rt_dir': rt_dir,
+        'stable_dir': os.path.join(parent, name.split('-rt')[0]),
+        'patches_dir': os.path.join(parent, name + '-patches'),
+        'rebase_dir': os.path.join(parent, name + '-rebase'),
+    }
+
+
+def pull_stable(stable_dir):
+    print('Updating {0} (git pull --ff-only)'.format(stable_dir))
+    try:
+        cmd(['git', '-C', stable_dir, 'pull', '--ff-only'], verbose=True)
+    except CalledProcessError:
+        sys.exit('git pull in {0} failed, fix it or use '
+                 '"srt prep --no-pull"'.format(stable_dir))
+
+
+def prep(config, pull=True):
+    quilt_workflow = is_quilt_workflow(config)
+    dirs = worktree_dirs(os.getcwd())
 
     # quilt patches
-    quilt_patches = os.path.abspath(
-        os.path.join('..', f"{current_dir}-patches", "patches")
-    )
+    quilt_patches = os.path.join(dirs['patches_dir'], 'patches')
+
+    if quilt_workflow:
+        missing = [d for d in dirs.values() if not os.path.isdir(d)]
+        if missing:
+            sys.exit('quilt workflow worktree(s) missing: {0}'.format(
+                ', '.join(missing)))
+        if pull:
+            pull_stable(dirs['stable_dir'])
 
     # old tag
     old_tag = get_old_tag()
@@ -59,30 +93,34 @@ def prep(config):
     rt = get_last_rt_tag(branch_name, '')
     rt_ver = rt[3:]
     rt_ver = int(rt_ver) + 1
-    stable_tree_dir = os.path.abspath(
-        os.path.join('..', current_dir.split('-rt')[0])
-    )
-    next_stable = get_next_stable_version(branch_name, stable_tree_dir)
+    next_stable = get_next_stable_version(branch_name, dirs['stable_dir'])
     new_tag = f"{next_stable}-rt{rt_ver}"
 
-    write_srt_state({
+    state = {
         'old_tag': old_tag,
         'new_tag': new_tag,
         'quilt_patches': quilt_patches,
         'branch': branch_name,
         'workflow_branch': get_workflow_branch(branch_name),
-        'quilt_workflow': is_quilt_workflow(config),
-    })
+        'quilt_workflow': quilt_workflow,
+    }
+    if quilt_workflow:
+        state.update(dirs)
+    write_srt_state(state)
 
-    print(f"export QUILT_PATCHES={quilt_patches}")
-    print(f"export OLD_TAG={old_tag}")
-    print(f"export NEW_TAG={new_tag}")
+    print(f"OLD_TAG={old_tag}")
+    print(f"NEW_TAG={new_tag}")
+    if quilt_workflow:
+        print('next: srt quilt refresh')
 
 
 def add_argparser(parser):
     prs = parser.add_parser('prep')
     prs.add_argument('--clear', action='store_true',
                      help='Clear saved srt prep state')
+    prs.add_argument('--no-pull', action='store_true',
+                     help='Do not update the stable worktree (quilt '
+                     'workflow)')
     return prs
 
 
@@ -90,4 +128,4 @@ def execute(args):
     if getattr(args, 'clear', False):
         clear_srt_state()
         return
-    prep(get_config())
+    prep(get_config(), pull=not getattr(args, 'no_pull', False))

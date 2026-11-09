@@ -47,7 +47,10 @@ class TestPrepState(TestCase):
                             with patch(
                                 'stable_rt_tools.srt_prep.write_srt_state'
                             ) as write_state:
-                                prep(config)
+                                with patch('stable_rt_tools.srt_prep.'
+                                           'os.path.isdir',
+                                           return_value=True):
+                                    prep(config, pull=False)
                                 write_state.assert_called_once()
                                 state = write_state.call_args[0][0]
                                 self.assertEqual(
@@ -56,9 +59,21 @@ class TestPrepState(TestCase):
                                     state['new_tag'], 'v6.12.89-rt18')
                                 self.assertEqual(
                                     state['workflow_branch'], 'v6.12-rt')
+                                self.assertEqual(
+                                    state['stable_dir'], '/tmp/v6.12')
+                                self.assertEqual(
+                                    state['rebase_dir'],
+                                    '/tmp/v6.12-rt-rebase')
 
     def test_clear_state(self):
-        args = argparse.Namespace(clear=True)
+        args = argparse.Namespace(clear=True, no_pull=False)
         with patch('stable_rt_tools.srt_prep.clear_srt_state') as clear_state:
             execute(args)
             clear_state.assert_called_once()
+
+    def test_prep_requires_worktrees(self):
+        config = {'quilt_workflow': 'true'}
+        with patch('stable_rt_tools.srt_prep.os.getcwd',
+                   return_value='/nonexistent/v6.12-rt'):
+            with self.assertRaises(SystemExit):
+                prep(config)
