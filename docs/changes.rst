@@ -10,13 +10,23 @@ Fixed
 - The review mails of a release candidate left out the conflict
   resolutions of the stable merge, ``git format-patch`` skips merges. The
   merge is a mail of the series now, with the resolution as shown by
-  ``git show --remerge-diff``. A clean merge gets no mail. git 2.36 or
+  ``git show --remerge-diff``. A clean merge gets no mail. git 2.38 or
   newer is needed.
 - The review mails of a release candidate started at the last merge,
   patches committed before the stable merge were not mailed. The mails
   contain everything added to the series since the last release now. The
   cover letter lists all mails; its diffstat is left out when the series
   contains a stable merge, it would show the stable update.
+- ``srt announce`` of a release in the quilt workflow printed only the
+  announcement of the queue commit: no ``Message-ID``, no shortlog, no
+  delta, and an error message instead of failing when the tag was missing.
+  Both workflows print the same now: the announcement (the ``ANNOUNCE``
+  template, the queue commit in the quilt workflow), the shortlog since the
+  last release, the diffstat and the delta patch. The delta is the series'
+  own change against the old release with the new stable release merged
+  in: patches before and after the stable merge, conflict resolutions and
+  the release commit, not the stable update. The default ``COMMIT_TMPL``
+  says that the delta patch is appended.
 
 2.0
 ---

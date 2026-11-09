@@ -158,6 +158,8 @@ order ``-patches``, ``-rebase``, release.
     patch files, with the announcement as commit message and tags it
     ``v6.12.116-rt22-patches``. The editor is opened to complete the
     announcement; the dropped and added patches are listed already.
+    ``srt announce`` prints this announcement with the mail headers, the
+    shortlog since the last release and the delta patch appended.
 
 ``srt quilt rebase``
     Resets ``v6.12-rt-rebase`` to ``v6.12.116``, imports the tagged patch

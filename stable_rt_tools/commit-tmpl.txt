@@ -7,6 +7,8 @@ I'm pleased to announce the {new_version} stable release.
 Changes since {old_version}:
 
 {series_changes}
+The delta patch against {old_version} is appended below.
+
 You can get this release via the git tree at:
 
   https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git {release_tag}

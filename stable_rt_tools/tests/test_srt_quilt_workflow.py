@@ -45,11 +45,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from argparse import Namespace
 from shutil import rmtree
 from typing import cast
 from unittest import mock
 
 from stable_rt_tools import srt_quilt, srt_setup
+from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
 from stable_rt_tools.srt_sign import sign
@@ -388,6 +390,29 @@ class TestQuiltRelease(TestQuiltBase):
         for f in (f'patch-{v}.patch.xz', f'patches-{v}.tar.xz',
                   f'patch-{v}.patch.sign', f'patches-{v}.tar.sign'):
             self.assertTrue(os.path.isfile(d + f), f)
+
+    def step9_announce(self):
+        ctx = SrtContext(None, path=self.rt_dir)
+        stub_stdouts(self)
+        announce(self.config, ctx, Namespace(suppress_cc=False))
+        out = stdout_text()
+        headers, _, body = out.partition('\n\n')
+        self.assertIn(f'Subject: [ANNOUNCE] {self.new_tag}', headers)
+        self.assertIn('Message-ID: <', headers)
+        self.assertIn('To: Foo Bar <foo@bar.barf>', headers)
+        # the announcement of the queue commit, without its trailers
+        text, _, changes = body.partition('\n---\n')
+        self.assertIn('added new-fix.patch', text)
+        self.assertIn(f'The delta patch against {self.old_tag[1:]} is '
+                      'appended below', text)
+        self.assertNotIn('Signed-off-by', text)
+        # the series' own commits and delta, not the stable update
+        self.assertIn('rt: Fix line15', changes)
+        self.assertIn(f"Merge tag 'v6.1.2' into {self.series}", changes)
+        self.assertNotIn('Linux 6.1.2', changes)
+        self.assertIn('+rt_line15\n', changes)
+        self.assertIn(f'+-{self.suffix}2\n', changes)
+        self.assertNotIn('stable_line28', changes)
 
     def test_release(self):
         for step in sort_steps(dir(self)):

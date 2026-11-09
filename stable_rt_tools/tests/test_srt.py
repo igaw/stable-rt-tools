@@ -361,7 +361,14 @@ class TestRelease(TestSrtBase):
 
         letter = stdout_text()
         debug(letter)
-        self.assertNotEqual(letter, '')
+        changes = letter.split('Changes from v4.4.13-rt3:\n---\n')[1]
+        # the series' own commits, the stable merge in the shortlog
+        self.assertIn('Linux 4.4.14-rt4', changes)
+        self.assertIn("Merge tag 'v4.4.14' into v4.4-rt", changes)
+        self.assertNotIn('New stable release', changes)
+        # the delta: the localversion, not the stable update
+        self.assertIn('+-rt4\n', changes)
+        self.assertNotIn('+4.4.14', changes)
 
 
 class TestReleaseCanditate(TestSrtBase):
@@ -859,6 +866,35 @@ class TestReleaseCanditateMergeConflict(TestSrtBase):
                       '  Linux 4.4.15-rt4\n', cover)
         self.assertNotIn('New stable release', cover)
         self.assertNotIn('file changed', cover)
+
+
+class TestReleaseMergeConflict(TestReleaseCanditateMergeConflict):
+    """The announcement of a release across a conflicting stable merge."""
+
+    def step2_tag(self):
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        tag(self.config, rc=False)
+        self.assertTrue(tag_exists('v4.4.15-rt4'))
+
+    def step3_announce(self):
+        ctx = SrtContext(make_args('v4.4.13-rt3', 'v4.4.15-rt4'),
+                         path=self.work_tree)
+        stub_stdin(self, '')
+        stub_stdouts(self)
+        announce(self.config, ctx, argparse.Namespace(suppress_cc=False))
+        changes = stdout_text().split('Changes from v4.4.13-rt3:\n---\n')[1]
+        debug(changes)
+        # everything added since the last release, the patch before the
+        # merge too, the merge itself
+        self.assertIn('      rt: annotate the Makefile\n'
+                      "      Merge tag 'v4.4.15' into v4.4-rt-next\n"
+                      '      Linux 4.4.15-rt4\n', changes)
+        self.assertNotIn('New stable release', changes)
+        # the delta has the patch before the merge, not the stable update
+        self.assertIn('+# rt\n', changes)
+        self.assertNotIn('+# stable', changes)
+        self.assertNotIn('+4.4.15', changes)
 
 
 if __name__ == '__main__':

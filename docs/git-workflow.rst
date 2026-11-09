@@ -125,3 +125,8 @@ Release
   $ cat ../announce-rt | msmtp -t --
   or
   $ mutt -H ../announce-rt
+
+The announcement ends with the shortlog since the last release, the
+diffstat and the delta patch: the series' own change against the old
+release with the new stable release merged in, i.e. the patches, conflict
+resolutions and the release commit, not the stable update.

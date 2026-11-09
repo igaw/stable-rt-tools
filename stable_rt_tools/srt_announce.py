@@ -26,8 +26,10 @@
 import argparse
 import os
 import re
+import sys
 from datetime import date, timedelta
 from email.utils import make_msgid
+from subprocess import DEVNULL, PIPE, run
 from time import gmtime, strftime
 
 from stable_rt_tools.srt_util import (
@@ -43,21 +45,6 @@ from stable_rt_tools.srt_util import (
     get_template_path,
 )
 from stable_rt_tools.srt_util_context import SrtContext
-
-
-def find_starting_ref(ctx: SrtContext) -> str:
-    # find starting point. first check for stable update only
-    ref = cmd(['git', 'log', '--pretty=format:%H', '--merges', '-n', '1'])
-
-    # if patches have been added, we find the old tag and should start there
-    # and not the last merge
-    commits = cmd(['git', 'log', '--simplify-by-decoration',
-                   '--oneline', str(ref) + '..'])
-    if ' '.join(commits.split('\n')).find(str(ctx.old_short_tag)) != -1:
-        ref = str(ctx.old_tag)
-
-    return ref
-
 
 REVIEW_TEXT = """\
 {tag} stable review patch.
@@ -293,6 +280,49 @@ def strip_trailers(msg: str) -> str:
     return '\n\n'.join(paragraphs)
 
 
+def delta_base(ctx: SrtContext) -> str:
+    """Where the delta of a release starts: the old release with the new
+    stable release merged in, as git merges it.
+
+    The delta is then the series' own change, also across a stable
+    update: patches before and after the merge, conflict resolutions
+    (as conflict markers which are removed) and the release commit, but
+    not the stable update.
+    """
+    old, base = str(ctx.old_tag), ctx.new_tag.base
+    if ctx.old_tag.base == base:
+        return old
+    p = run(['git', 'merge-tree', '--write-tree', old, base],
+            stdout=PIPE, stderr=DEVNULL, encoding='utf-8')
+    # 1: the merge has conflicts, the tree contains the conflict markers
+    if p.returncode not in (0, 1):
+        sys.exit(f'git merge-tree {old} {base} failed')
+    return p.stdout.splitlines()[0]
+
+
+def print_changes(ctx: SrtContext) -> None:
+    """The shortlog, diffstat and delta of the release."""
+    new = str(ctx.new_tag)
+    base = delta_base(ctx)
+    print(cmd(['git', '--no-pager', 'shortlog', '--first-parent',
+               f'{ctx.old_tag}..{new}']))
+    print('---')
+    print(cmd(['git', '--no-pager', 'diff', '--stat', base, new]))
+    print('---')
+    print(cmd(['git', '--no-pager', 'diff', base, new]))
+
+
+def quilt_announcement(ctx: SrtContext) -> str:
+    """The announcement of the queue commit, srt quilt queue wrote it."""
+    msg = cmd(['git', 'show', '-s', '--format=%B',
+               f'{ctx.new_tag}-patches^{{commit}}'])
+    subject, _, body = msg.partition('\n')
+    if not subject.startswith('[ANNOUNCE]'):
+        sys.exit(f'{ctx.new_tag}-patches: the commit message is not an '
+                 'announcement, it starts with ' + repr(subject))
+    return strip_trailers(body.lstrip('\n'))
+
+
 def announce(config: Config, ctx: SrtContext,
              args: argparse.Namespace) -> None:
     from stable_rt_tools.srt_util import is_quilt_workflow
@@ -300,35 +330,22 @@ def announce(config: Config, ctx: SrtContext,
         announce_rc(config, ctx, args)
         return
 
-    if is_quilt_workflow(config):
-        import subprocess
-        tag = str(ctx.new_tag) + '-patches'
-        try:
-            msg = subprocess.check_output([
-                'git', 'show', '-s', '--format=%B', tag
-            ], encoding='utf-8').strip()
-            announce_start = msg.find('[ANNOUNCE]')
-            if announce_start != -1:
-                lines = msg[announce_start:].splitlines()
-                msg = '\n'.join(lines[1:]).lstrip('\n')
-            else:
-                pass
-            msg = strip_trailers(msg)
-            timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
-            sender = config.get('SENDER', '')
-            mail_to = config.get('MAIL_TO', '')
-            print(f"From: {sender}")
-            print(f"To: {mail_to}")
-            print(f"Subject: [ANNOUNCE] {ctx.new_tag}")
-            print(f"Date: {timestamp}\n")
-            print(msg)
-        except Exception as e:
-            print(f"Error extracting announcement from tag {tag}: {e}")
-        return
-
     # rfc2822.html
     # 3.3. Date and Time Specification
     timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
+
+    if is_quilt_workflow(config):
+        print(f"From: {config.get('SENDER', '')}")
+        print(f"Subject: [ANNOUNCE] {ctx.new_tag}")
+        print(f"Date: {timestamp}")
+        print(f"Message-ID: {make_msgid()}")
+        print(f"To: {config.get('MAIL_TO', '')}")
+        print()
+        print(quilt_announcement(ctx))
+        print()
+        print('---')
+        print_changes(ctx)
+        return
 
     stable_rt_text = ''
     with open(get_announce_tmpl_path(config)) as f:
@@ -341,18 +358,7 @@ def announce(config: Config, ctx: SrtContext,
     r["branch_head"] = cmd(['git', 'rev-parse', 'HEAD'])
 
     print(stable_rt_text.format(**r))
-
-    ref = find_starting_ref(ctx)
-    print(cmd(['git', '--no-pager', 'shortlog', f'{ref}..{ctx.new_tag}']))
-
-    print('---')
-
-    print(cmd(['git', '--no-pager', 'diff', '--stat',
-               f'{ref}..{ctx.new_tag}']))
-
-    print('---')
-
-    print(cmd(['git', '--no-pager', 'diff', f'{ref}..{ctx.new_tag}']))
+    print_changes(ctx)
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
