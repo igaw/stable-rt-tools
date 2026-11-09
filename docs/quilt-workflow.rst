@@ -204,6 +204,7 @@ order ``-patches``, ``-rebase``, release.
     ``srt quilt release``.
 
 Every step can be rerun: finished work is detected and skipped.
+``srt quilt undo`` undoes the steps as long as nothing is pushed.
 
 Test the release
 ~~~~~~~~~~~~~~~~
@@ -218,15 +219,21 @@ the target boards, e.g. with `srt-build <https://github.com/igaw/srt-build>`_
 and LAVA, from within the ``v6.12-rt`` worktree. srt itself doesn't run
 tests.
 
-If a test fails, fix the patch queue and redo the release. As long as
-nothing is pushed, delete the release tags, drop the release commits on
-``v6.12-rt`` and undo the queue commit, keeping the refreshed patches:
+If a test fails, undo the release with ``srt quilt undo``, fix the patch
+queue and redo the release:
 
 .. code-block:: console
 
-  $ git tag -d v6.12.116-rt22 v6.12.116-rt22-rebase v6.12.116-rt22-patches
-  $ git reset --hard @{u}
-  $ git -C ../v6.12-rt-patches reset --soft HEAD~1
+  $ srt quilt undo
+  undo the v6.12.116-rt22 release:
+    delete tag v6.12.116-rt22
+    delete tag v6.12.116-rt22-rebase
+    delete tag v6.12.116-rt22-patches
+    reset .../rt/v6.12-rt to stable-rt/v6.12-rt, dropping:
+      74e55e127cb5 v6.12.116-rt22
+      2eb339592977 Merge tag 'v6.12.116' into v6.12-rt
+    undo the queue commit in .../rt/v6.12-rt-patches, keeping the patches
+  OK to undo? (y/n): y
 
   [fix or add the patch in ../v6.12-rt-patches/patches]
 
@@ -238,8 +245,11 @@ nothing is pushed, delete the release tags, drop the release commits on
 
   [test again]
 
-``srt quilt rebase`` resets ``v6.12-rt-rebase`` itself, it needs no
-cleanup.
+``srt quilt undo`` deletes the local release tags, resets ``v6.12-rt`` to
+its upstream branch and undoes the queue commit, keeping the refreshed
+patches staged. ``srt quilt rebase`` resets ``v6.12-rt-rebase`` itself, so
+it needs no cleanup. ``srt quilt undo`` refuses to undo anything which is
+pushed already. It works the same way to abandon a release at any step.
 
 Add or drop patches
 ~~~~~~~~~~~~~~~~~~~
