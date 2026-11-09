@@ -72,8 +72,10 @@ def upload(config: Config, ctx: SrtContext) -> None:
         try:
             cmd(kup)
         except CalledProcessError as e:
+            # kup reports a failed upload with its exit status since 0.4
             print(f'kup failed with error code {e.returncode}',
                   file=sys.stderr)
+            sys.exit(e.returncode)
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

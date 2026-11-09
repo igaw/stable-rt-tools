@@ -271,3 +271,23 @@ class TestUtil(TestCase):
                   'GPG_KEY_ID': self.config['GPG_KEY_ID']}
         fpr = srt_util.get_gpg_fingerprint(config)
         self.assertEqual(fpr.replace(' ', ''), self.config['GPG_KEY_ID'])
+
+    def test_upload_fails_with_kup(self):
+        import argparse
+        from subprocess import CalledProcessError
+        from unittest import mock
+
+        from stable_rt_tools import srt_upload
+        from stable_rt_tools.srt_util_context import SrtContext
+
+        ctx = SrtContext(argparse.Namespace(OLD_TAG='v6.12.111-rt21',
+                                            NEW_TAG='v6.12.116-rt22'),
+                         path=self.tdir)
+        with mock.patch('os.path.isfile', return_value=True), \
+                mock.patch.object(srt_upload, 'confirm', return_value=True), \
+                mock.patch.object(srt_upload, 'cmd',
+                                  side_effect=CalledProcessError(3, 'kup')), \
+                mock.patch('sys.stdout'), mock.patch('sys.stderr'), \
+                self.assertRaises(SystemExit) as e:
+            srt_upload.upload({'PRJ_DIR': '/pub/rt/6.12'}, ctx)
+        self.assertEqual(e.exception.code, 3)
