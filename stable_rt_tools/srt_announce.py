@@ -24,7 +24,6 @@
 
 
 import argparse
-import os
 import re
 from datetime import date, timedelta
 from email.utils import make_msgid
@@ -38,7 +37,6 @@ from stable_rt_tools.srt_util import (
     confirm,
     get_config,
     get_gpg_fingerprint,
-    get_local_branch_name,
     get_remote_branch_name,
     get_template_path,
 )
@@ -59,26 +57,31 @@ def find_starting_ref(ctx: SrtContext) -> str:
     return ref
 
 
+REVIEW_TEXT = """\
+{tag} stable review patch.
+If anyone has any objections, please let me know.
+
+-----------
+
+"""
+
+
+def add_review_text(path: str, tag: str) -> None:
+    """Put the review note at the top of the body of a patch mail."""
+    with open(path) as f:
+        headers, sep, body = f.read().partition('\n\n')
+    with open(path, 'w') as f:
+        f.write(headers + sep + REVIEW_TEXT.format(tag=tag) + body)
+
+
 def create_rc_patches(config: Config, ctx: SrtContext) -> None:
-    branch_name = get_local_branch_name()
-    cmd(['git', 'checkout', '-b', 'next-tmp'])
-
-    srt_env = os.environ.copy()
-    srt_env['SRT_REVIEW_TAG'] = str(ctx.new_tag)
-    srt_env['FILTER_BRANCH_SQUELCH_WARNING'] = str(1)
-    srt_path = os.path.dirname(os.path.realpath(__file__))
-
     ref = find_starting_ref(ctx)
-    cmd(['git', 'filter-branch', '-f', '--msg-filter',
-         srt_path + '/srt_git_filter.py', str(ref) + '..'],
-        env=srt_env)
-
-    cmd(['git', 'format-patch', str(ref) + '..',
-         '-o', ctx.new_dir_mails, '--subject-prefix', 'PATCH RT',
-         '--cover-letter'])
-
-    cmd(['git', 'checkout', branch_name])
-    cmd(['git', 'branch', '-D', 'next-tmp'])
+    mails = cmd(['git', 'format-patch', f'{ref}..',
+                 '-o', ctx.new_dir_mails, '--subject-prefix', 'PATCH RT',
+                 '--cover-letter']).splitlines()
+    for mail in mails:
+        if not mail.endswith('/0000-cover-letter.patch'):
+            add_review_text(mail, str(ctx.new_tag))
 
 
 def cover_letter_replacements(config: Config,
@@ -133,7 +136,8 @@ def send_rc_patches(config: Config, ctx: SrtContext,
     gmd = ['git', 'send-email', '--confirm=never']
     if args.suppress_cc:
         gmd += ['--suppress-cc=all']
-    gmd += [f'--to="{t}"' for t in config['MAIL_TO'].split(',')]
+    # an argument list, no shell: quotes would end up in the address
+    gmd += [f'--to={t.strip()}' for t in config['MAIL_TO'].split(',')]
     gmd += [ctx.new_dir_mails]
 
     print('Dry run')

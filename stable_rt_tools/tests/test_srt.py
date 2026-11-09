@@ -517,26 +517,33 @@ class TestReleaseCanditate(TestSrtBase):
         stub_stdin(self, 'n')
         stub_stdouts(self)
         announce(self.config, self.ctx, args)
-        msg = ('git send-email --dry-run ' +
-               '--to="Foo Bar <foo@bar.barf>" --to="example@example.com" ' +
+        msg = ('git send-email --dry-run --confirm=never '
+               '--to=Foo Bar <foo@bar.barf> --to=<example@example.com> '
                f'{self.work_tree}/patches/v4.4.14-rt5-rc1/mails\n')
         res = stdout_text()
         self.maxDiff = None
-        self.assertTrue(res.find(msg))
+        self.assertIn(msg, res)
 
-        patches = ['0000-cover-letter.patch',
-                   '0001-Add-file1.txt.patch',
+        patches = ['0001-Add-file1.txt.patch',
                    '0002-Add-file2.txt.patch',
                    '0003-Linux-4.4.14-rt5-rc1.patch']
+        review = ('\n\nv4.4.14-rt5-rc1 stable review patch.\n'
+                  'If anyone has any objections, please let me know.\n')
         for p in patches:
-            file_path = self.ctx.new_dir_mails + '/' + p
-            self.assertTrue(os.path.isfile(file_path))
+            with open(self.ctx.new_dir_mails + '/' + p) as f:
+                mail = f.read()
+            # the review note opens the body, the headers stay intact
+            self.assertIn(review, mail)
+            self.assertIn('Subject: [PATCH RT', mail.split(review)[0])
 
         filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
         with open(filename) as f:
             letter = f.read()
             debug(letter)
-            self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
+        self.assertIn('Linux ' + str(self.ctx.new_tag), letter)
+        self.assertNotIn('stable review patch', letter)
+        # the history is not rewritten, no branch left behind
+        self.assertNotIn('next-tmp', cmd(['git', 'branch']))
 
 
 class TestSrtContext(TestReleaseCanditate):
