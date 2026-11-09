@@ -37,12 +37,12 @@ srt also calls the following external tools:
 
 - ``git`` including ``git send-email`` (``srt announce``)
 - ``gpg2`` with your kernel.org signing key (``srt tag``, ``srt sign``,
-  ``srt patches``, ``srt announce``)
+  ``srt quilt``, ``srt announce``)
 - ``kup`` (``srt upload``)
 - ``make``, ``gcc``, ``flex`` and ``bison`` to determine the kernel release
-  (``srt commit``, ``srt patches``)
+  (``srt commit``)
 - ``tar`` and ``xz`` (``srt create``, ``srt sign``)
-- ``quilt`` (quilt workflow only, ``srt quilt``)
+- ``quilt`` and ``patch`` (quilt workflow only, ``srt quilt``)
 - optionally ``msmtp`` or ``mutt`` to send the announcement
 
 Repository layout

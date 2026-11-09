@@ -8,8 +8,8 @@ Branches and layout
 -------------------
 
 The workflow uses four worktrees which must be siblings of each other. The
-names matter: ``srt prep`` finds ``../v6.12`` and ``../v6.12-rt-patches``
-relative to the ``v6.12-rt`` worktree::
+names matter: ``srt prep`` finds ``../v6.12``, ``../v6.12-rt-patches`` and
+``../v6.12-rt-rebase`` relative to the ``v6.12-rt`` worktree::
 
   rt/
   ├── linux               main repository
@@ -20,7 +20,7 @@ relative to the ``v6.12-rt`` worktree::
 
 ``v6.12``
     The stable tree. The RT quilt series is pushed onto it with
-    ``srt quilt`` to refresh the patches.
+    ``srt quilt refresh`` to refresh the patches.
 ``v6.12-rt``
     The released stable-rt tree, stable releases are merged into it.
 ``v6.12-rt-patches``
@@ -129,32 +129,28 @@ needs to find the configuration group.
 Create a new release
 --------------------
 
+The release is made in a fixed sequence of steps. ``srt prep`` records the
+release (``OLD_TAG``, ``NEW_TAG`` and the worktrees) and every ``srt quilt``
+step works on the right worktree itself, so all commands are run from
+``v6.12-rt``. ``srt status`` shows the steps done and the next one:
+
 .. code-block:: console
 
-  $ cd v6.12
-  $ git pull
-
-  $ cd ../v6.12-rt
+  $ cd v6.12-rt
   $ srt prep
+  Updating .../rt/v6.12 (git pull --ff-only)
+  OLD_TAG=v6.12.111-rt21
+  NEW_TAG=v6.12.116-rt22
+  next: srt quilt refresh
 
-  $ cd ../v6.12
-  $ srt quilt
+  [add or drop patches, see below]
 
-  $ cd ../v6.12-rt-patches
-  $ git add -u
-  $ srt patches
-
-  $ cd ../v6.12-rt-rebase
-  $ git reset --hard stable/linux-6.12.y
-  $ git quiltimport --patches ../v6.12-rt-patches/patches
-  $ srt patches
-
-  $ cd ../v6.12-rt
-  $ git merge stable/linux-6.12.y
-  $ vim localversion-rt
-  $ git diff v6.12-rt-rebase
-  $ git add -u
-  $ srt patches
+  $ srt quilt refresh
+  $ git -C ../v6.12-rt-patches diff
+  $ srt quilt queue
+  $ srt quilt rebase
+  $ srt quilt merge
+  $ srt quilt release
 
   $ srt create
   $ srt sign
@@ -164,15 +160,83 @@ Create a new release
   $ srt announce > ../announce-rt
   $ mutt -H ../announce-rt
 
-``srt quilt`` pushes the RT series onto the stable tree one patch at a time,
-refreshes each patch, bumps ``localversion-rt`` and pops the series again.
-It ignores ``~/.quiltrc`` and refreshes the patches in the format the RT
-series uses (``-p ab --no-index --no-timestamps``, GNU diff function
-context), so only hunk offsets and the localversion change. Review the
-result with ``git diff`` in ``v6.12-rt-patches``.
+The steps follow the linux-6.18.y-rt releases. The tags are created in the
+order ``-patches``, ``-rebase``, release.
+
+``srt prep``
+    Updates ``v6.12`` with ``git pull --ff-only`` (skip it with
+    ``--no-pull``) and determines the new release from the latest stable
+    tag, e.g. ``v6.12.116-rt22``. A release without a new stable release
+    (only RT changes) gets the same stable version and the next -rt number.
+
+``srt quilt refresh``
+    Pushes the RT series onto ``v6.12`` one patch at a time, refreshes each
+    patch, sets ``localversion-rt`` and pops the series again. It ignores
+    ``~/.quiltrc`` and refreshes the patches in the format the RT series
+    uses (``-p ab --no-index --no-timestamps``, GNU diff function context),
+    so only hunk offsets and the localversion change. A patch which stable
+    already contains is detected and srt offers to drop it from the series.
+    If a patch doesn't apply, fix it in ``v6.12`` (``quilt push -f``,
+    edit, ``quilt refresh``) and rerun ``srt quilt refresh``.
+
+``srt quilt queue``
+    Commits ``patches/`` in ``v6.12-rt-patches``, including added and removed
+    patch files, with the announcement as commit message and tags it
+    ``v6.12.116-rt22-patches``. The editor is opened to complete the
+    announcement; the dropped and added patches are listed already.
+
+``srt quilt rebase``
+    Resets ``v6.12-rt-rebase`` to ``v6.12.116``, imports the tagged patch
+    queue with ``git quiltimport`` and tags it ``v6.12.116-rt22-rebase``.
+
+``srt quilt merge``
+    Merges the ``v6.12.116`` tag into ``v6.12-rt`` and applies the added
+    patches with ``git am``. On a conflict resolve it, ``git commit`` (or
+    ``git am --continue``) and rerun ``srt quilt merge``.
+
+``srt quilt release``
+    Sets ``localversion-rt``, checks that the tree is identical to
+    ``v6.12.116-rt22-rebase``, commits ``v6.12.116-rt22`` and tags it. If the
+    trees differ, e.g. because stable picked up an RT patch in a different
+    form, srt shows the difference; commit a fixup in ``v6.12-rt`` and rerun
+    ``srt quilt release``.
+
+Every step can be rerun: finished work is detected and skipped.
+
+Add or drop patches
+~~~~~~~~~~~~~~~~~~~
+
+The patch queue is edited in ``v6.12-rt-patches/patches`` before
+``srt quilt refresh``. srt compares the series with the one of
+``OLD_TAG-patches`` to find the added and dropped patches.
+
+To add a patch, put it in ``patches/`` and add it to ``series``. Use the
+mail format with ``From:``, ``Date:`` and ``Subject:``, e.g. for an
+upstream commit:
+
+.. code-block:: console
+
+  $ git format-patch -1 --stdout --no-signature --zero-commit 5f339c46f153 \
+        > ../v6.12-rt-patches/patches/printk-Postpone-kthread-startup.patch
+  $ vim ../v6.12-rt-patches/patches/series
+
+``srt quilt merge`` applies it on ``v6.12-rt`` with ``git am``.
+
+To drop a patch, remove it from ``series`` and delete the file. A patch
+which stable picked up is found by ``srt quilt refresh``. On ``v6.12-rt``
+the stable merge usually brings in the same change; if the trees differ
+afterwards, ``srt quilt release`` asks for a fixup commit.
+
+Release state
+~~~~~~~~~~~~~
 
 The ``srt prep`` command stores release state in git metadata shared by the
-worktrees. Commands such as ``srt patches``, ``srt create``, ``srt sign``,
+worktrees. ``srt quilt``, ``srt status``, ``srt create``, ``srt sign``,
 ``srt upload`` and ``srt push`` read this state automatically when tags are
 not provided explicitly. ``srt push`` clears the state after a successful push.
 If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
+
+Release candidates are not supported by the quilt workflow.
+
+``srt patches`` is deprecated. It still works as before in the worktree it
+is called in, but prints the ``srt quilt`` step to use instead.
