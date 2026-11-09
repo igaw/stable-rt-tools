@@ -118,3 +118,16 @@ class TestSrtContext(TestCase):
             ):
                 with self.assertRaises(SystemExit):
                     SrtContext(make_args(), '/tmp')
+
+    def test_default_path_is_cwd_at_call_time(self):
+        import os
+        import tempfile
+
+        old = os.getcwd()
+        tmp = os.path.realpath(tempfile.gettempdir())
+        try:
+            os.chdir(tmp)
+            ctx = SrtContext(make_args('v4.4.114-rt37', 'v4.4.115-rt38'))
+        finally:
+            os.chdir(old)
+        self.assertEqual(ctx.path, tmp)

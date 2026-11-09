@@ -47,9 +47,9 @@ def _read_and_validate_state(path):
 
 
 class SrtContext:
-    def __init__(self, args, path=os.getcwd()):
+    def __init__(self, args, path=None):
         self.is_rc = False
-        self.path = path
+        self.path = path if path is not None else os.getcwd()
 
         old_tag = None
         new_tag = None
@@ -60,7 +60,7 @@ class SrtContext:
         elif os.environ.get("OLD_TAG"):
             old_tag = os.environ["OLD_TAG"]
         else:
-            state = _read_and_validate_state(path)
+            state = _read_and_validate_state(self.path)
             if state:
                 old_tag = state.get('old_tag')
             else:
@@ -72,7 +72,7 @@ class SrtContext:
             new_tag = os.environ["NEW_TAG"]
         else:
             if state is None:
-                state = _read_and_validate_state(path)
+                state = _read_and_validate_state(self.path)
             if state:
                 new_tag = state.get('new_tag')
             else:
