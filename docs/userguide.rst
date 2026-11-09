@@ -148,6 +148,9 @@ The settings:
 ``ORIGIN_GIT_URL``
     What the repository is cloned from, default ``UPSTREAM_GIT_URL``
     (``srt setup``). Its basename is the first part of the group name.
+``TAKEOVER_BRANCH``, ``TAKEOVER_REMOTE``, ``TAKEOVER_GIT_URL``
+    Take the series over from another branch, see the quilt workflow
+    (``srt setup``).
 ``ANNOUNCE``, ``RC_TEXT``, ``COMMIT_TMPL``
     Own templates for the announcement, the review mails and the patch
     queue commit, instead of the ones srt ships.
@@ -176,7 +179,18 @@ branches, next to each other in the current directory (or ``--dir``):
 
 srt setup can be rerun: existing parts are checked, a remote with another
 URL or a worktree on another branch is reported, not changed. Run it in an
-existing work area to check it.
+existing work area to check it, or to add another series to it.
+
+Configuration from srt 1.x
+--------------------------
+
+The first srt command converts the ``srt.conf`` files it reads to this
+format and keeps the old file as ``srt.conf.bak``: ``quilt_workflow =
+true`` becomes ``WORKFLOW = quilt``, groups of ``-patches``, ``-rebase``
+and ``-next`` branches with the settings of their series and
+``LOCALVERSION`` settings with the default value are dropped, and settings
+which are the same in all groups move to ``[DEFAULT]``. srt prints what it
+changed. Comments are only kept in the backup.
 
 Troubleshooting
 ---------------

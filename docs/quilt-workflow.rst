@@ -57,35 +57,51 @@ This clones the repository, adds the remotes (fetching via https, pushing
 via gitolite) and creates the four worktrees. Nothing is pushed. Rerun it to
 check an existing work area.
 
-Bootstrap a new series from rt-devel
-------------------------------------
+Take over a series
+------------------
 
-Use this only once, when a new stable-rt series is started from the rt-devel
-tree. It publishes the branches and tags on stable-rt.
+Series are handed over between maintainers in the shared stable-rt tree,
+e.g. linux-6.18.y-rt, linux-6.18.y-rt-patches and linux-6.18.y-rt-rebase.
+To keep the names, add the group of the series and set it up like any
+other:
+
+.. code-block:: ini
+
+  [linux/stable-rt/linux-6.18.y-rt]
+  WORKFLOW = quilt
+  UPSTREAM_BRANCH = linux-6.18.y
+  PRJ_DIR = /pub/linux/kernel/projects/rt/6.18
+
+To publish it under a new name, e.g. as v6.18-rt, name the branch it is
+taken over from:
+
+.. code-block:: ini
+
+  [linux/stable-rt/v6.18-rt]
+  WORKFLOW = quilt
+  UPSTREAM_BRANCH = linux-6.18.y
+  PRJ_DIR = /pub/linux/kernel/projects/rt/6.18
+  TAKEOVER_BRANCH = linux-6.18.y-rt
+
+``srt setup`` creates v6.18-rt, v6.18-rt-patches and v6.18-rt-rebase from
+the branches taken over, next to the series already in the work area, and
+prints how to publish them. It pushes nothing:
 
 .. code-block:: console
 
-  $ cd linux
-  $ git worktree add --track -b linux-6.12.y ../v6.12 stable/linux-6.12.y
+  $ srt setup linux/stable-rt/v6.18-rt
+  ...
+  take  .../rt/v6.18-rt (v6.18-rt from stable-rt/linux-6.18.y-rt)
+  take  .../rt/v6.18-rt-patches (v6.18-rt-patches from stable-rt/linux-6.18.y-rt-patches)
+  take  .../rt/v6.18-rt-rebase (v6.18-rt-rebase from stable-rt/linux-6.18.y-rt-rebase)
+  publish the series on stable-rt (srt setup pushes nothing):
+    git -C .../rt/v6.18-rt push -u --follow-tags stable-rt v6.18-rt
+    git -C .../rt/v6.18-rt-patches push -u --follow-tags stable-rt v6.18-rt-patches
+    git -C .../rt/v6.18-rt-rebase push -u --follow-tags stable-rt v6.18-rt-rebase
 
-  $ git worktree add -b v6.12-rt-patches ../v6.12-rt-patches rt-devel/linux-6.12.y-rt-patches
-  $ git worktree add -b v6.12-rt-rebase  ../v6.12-rt-rebase  rt-devel/linux-6.12.y-rt-rebase
-  $ git worktree add -b v6.12-rt         ../v6.12-rt         rt-devel/linux-6.12.y-rt
-
-  $ git tag | grep -E '^v6\.12\..*-rt[^-]*-.*$' | xargs -r git push stable-rt
-
-  $ cd ../v6.12-rt-patches
-  $ git push -u stable-rt v6.12-rt-patches
-  $ git push --dry-run stable-rt $(git tag --merged rt-devel/linux-6.12.y-rt-patches)
-
-  $ cd ../v6.12-rt-rebase
-  $ git push -u stable-rt v6.12-rt-rebase
-
-  $ cd ../v6.12-rt
-  $ git push -u stable-rt v6.12-rt
-
-``git push -u`` sets the upstream of each branch to stable-rt, which srt
-needs to find the configuration group.
+After the push ``srt setup`` checks the series like any other. A series from
+another tree, e.g. rt-devel, needs ``TAKEOVER_REMOTE = rt-devel`` and, if
+the remote does not exist yet, ``TAKEOVER_GIT_URL``.
 
 Create a new release
 --------------------
