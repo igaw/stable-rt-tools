@@ -36,8 +36,9 @@ from stable_rt_tools.srt_util import (
     confirm,
     get_config,
     get_gpg_env,
-    get_last_rt_tag,
+    get_last_release_number,
     get_remote_branch_name,
+    get_suffix,
     is_dirty,
 )
 
@@ -50,10 +51,11 @@ def localversion_set(filename: str, version: str) -> None:
 
 def localversion_inc(filename: str) -> None:
     with open(filename, 'r+') as f:
-        line = f.readline()
-        version = int(line[3:])
+        m = re.match(r'-([a-z]+)([0-9]+)', f.readline())
+        if not m:
+            sys.exit(f'{filename} does not hold a -<suffix><number> version')
         f.seek(0)
-        f.write(f'-rt{version+1}\n')
+        f.write(f'-{m.group(1)}{int(m.group(2)) + 1}\n')
         f.truncate()
 
 
@@ -78,9 +80,9 @@ def last_commit_was_release_commit() -> bool:
 
 def commit(config: Config, rc: int | None) -> None:
     if is_dirty():
-        print('repo is dirty -> abort', file=sys.stderr)
-        return
+        sys.exit('repo is dirty -> abort')
 
+    suffix = get_suffix(config)
     branch_name = get_remote_branch_name()
     post_fix = branch_name.split('-')[-1]
     branch_rebase = post_fix == 'rebase'
@@ -88,13 +90,13 @@ def commit(config: Config, rc: int | None) -> None:
     old_head = cmd(['git', 'rev-parse', 'HEAD'])
 
     if branch_rebase:
-        rt = get_last_rt_tag(branch_name, '-rebase')
+        number = get_last_release_number(branch_name, suffix, '-rebase')
         if last_commit_was_release_commit():
             cmd(['git', 'reset', 'HEAD~'])
-        localversion_set(config['LOCALVERSION'], rt)
+        localversion_set(config['LOCALVERSION'], f'-{suffix}{number}')
     elif rc:
-        rt_ver = int(get_last_rt_tag(branch_name, '-next')[3:]) + 1
-        localversion_set(config['LOCALVERSION'], f'-rt{rt_ver}-rc{rc}')
+        number = get_last_release_number(branch_name, suffix, '-next') + 1
+        localversion_set(config['LOCALVERSION'], f'-{suffix}{number}-rc{rc}')
     else:
         localversion_inc(config['LOCALVERSION'])
 

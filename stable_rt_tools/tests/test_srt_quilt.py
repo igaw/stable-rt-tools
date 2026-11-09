@@ -104,6 +104,28 @@ class TestHelpers(unittest.TestCase):
         finally:
             rmtree(d)
 
+    def test_worktree_dirs_other_suffix(self):
+        self.assertEqual(worktree_dirs('/w/v6.1-foo', 'foo'), {
+            'rt_dir': '/w/v6.1-foo',
+            'stable_dir': '/w/v6.1',
+            'patches_dir': '/w/v6.1-foo-patches',
+            'rebase_dir': '/w/v6.1-foo-rebase'})
+
+    def test_localversion_inc(self):
+        from stable_rt_tools.srt_commit import localversion_inc
+
+        d = tempfile.mkdtemp()
+        try:
+            for old, new in (('-rt21\n', '-rt22\n'), ('-foo9\n', '-foo10\n')):
+                path = os.path.join(d, 'localversion')
+                with open(path, 'w') as f:
+                    f.write(old)
+                localversion_inc(path)
+                with open(path) as f:
+                    self.assertEqual(f.read(), new)
+        finally:
+            rmtree(d)
+
     def test_worktree_dirs(self):
         self.assertEqual(worktree_dirs('/rt/v6.12-rt'), {
             'rt_dir': '/rt/v6.12-rt',

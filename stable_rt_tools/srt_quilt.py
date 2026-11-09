@@ -209,7 +209,8 @@ class Release:
         else:
             # state written by an older srt prep
             patches_dir = os.path.dirname(state['quilt_patches'])
-            dirs = worktree_dirs(patches_dir[:-len('-patches')])
+            dirs = worktree_dirs(patches_dir[:-len('-patches')],
+                                 state.get('suffix', 'rt'))
         self.rt_dir = dirs['rt_dir']
         self.stable_dir = dirs['stable_dir']
         self.patches_dir = dirs['patches_dir']

@@ -38,8 +38,9 @@ class TestPrepState(TestCase):
                        return_value='v6.12.79-rt17'):
                 with patch('stable_rt_tools.srt_prep.get_remote_branch_name',
                            return_value='v6.12-rt'):
-                    with patch('stable_rt_tools.srt_prep.get_last_rt_tag',
-                               return_value='-rt17'):
+                    with patch(
+                            'stable_rt_tools.srt_prep.get_last_release_number',
+                            return_value=17):
                         with patch(
                             'stable_rt_tools.srt_prep.get_next_stable_version',
                             return_value='v6.12.89'

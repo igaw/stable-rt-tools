@@ -38,6 +38,7 @@ from stable_rt_tools.srt_util import (
     get_config,
     get_gpg_fingerprint,
     get_remote_branch_name,
+    get_suffix,
     get_template_path,
 )
 from stable_rt_tools.srt_util_context import SrtContext
@@ -77,7 +78,8 @@ def add_review_text(path: str, tag: str) -> None:
 def create_rc_patches(config: Config, ctx: SrtContext) -> None:
     ref = find_starting_ref(ctx)
     mails = cmd(['git', 'format-patch', f'{ref}..',
-                 '-o', ctx.new_dir_mails, '--subject-prefix', 'PATCH RT',
+                 '-o', ctx.new_dir_mails, '--subject-prefix',
+                 f'PATCH {get_suffix(config).upper()}',
                  '--cover-letter']).splitlines()
     for mail in mails:
         if not mail.endswith('/0000-cover-letter.patch'):
@@ -97,7 +99,9 @@ def cover_letter_replacements(config: Config,
         "message_id": make_msgid(),
         "sender": config['SENDER'],
         "name": config['NAME'],
-        "new_tag_rt": ctx.new_tag.rt,
+        # new_tag_rt: the name templates know from before 2.0
+        "new_tag_rt": ctx.new_tag.number,
+        "new_tag_number": ctx.new_tag.number,
         "gpg_key_fingerprint": get_gpg_fingerprint(config),
     }
     if ctx.is_rc:

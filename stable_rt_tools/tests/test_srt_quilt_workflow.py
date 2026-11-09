@@ -140,25 +140,36 @@ class TestQuiltBase(unittest.TestCase):
             replace_line(r + '/kernel.c', 'line10', 'fixed_line10')
 
         def localversion(r):
-            write(r + '/localversion-rt', '-rt1\n')
+            write(r + '/' + self.localversion, f'-{self.suffix}1\n')
 
         # -rt: the RT commits on top of stable, tagged v6.1.1-rt1
-        git(repo, 'checkout', '-q', '-b', 'v6.1-rt', 'v6.1.1')
+        git(repo, 'checkout', '-q', '-b', self.series, 'v6.1.1')
         self.make_patch(repo, 'rt-feature.patch', 'rt: Add the feature',
                         rt_feature)
         self.make_patch(repo, 'upstreamed.patch', 'fix: line10 is broken',
                         upstreamed)
         self.make_patch(repo, 'Add_localversion_for_-RT_release.patch',
                         'Add localversion for -RT release', localversion)
-        git(repo, 'tag', '-a', '-m', 'v6.1.1-rt1', 'v6.1.1-rt1')
+        git(repo, 'tag', '-a', '-m', self.old_tag, self.old_tag)
 
-        # -rebase: same commits, created with git quiltimport normally
-        git(repo, 'branch', 'v6.1-rt-rebase', 'v6.1-rt')
-        git(repo, 'tag', '-a', '-m', 'v6.1.1-rt1-rebase',
-            'v6.1.1-rt1-rebase', 'v6.1-rt')
+        # -rebase: the same patches as own commits on top of stable, made
+        # with git quiltimport normally. Its tag must not be on the -rt
+        # commit, git describe would pick either of them.
+        git(repo, 'checkout', '-q', '-b', self.series + '-rebase', 'v6.1.1')
+        later = dict(os.environ, GIT_COMMITTER_DATE='2030-01-01T00:00:00')
+        for name in ('rt-feature.patch', 'upstreamed.patch',
+                     'Add_localversion_for_-RT_release.patch'):
+            path = os.path.join(self.tdir, name)
+            write(path, self.patches[name])
+            cmd(['git', '-C', repo, 'am', '-q', path], env=later)
+        git(repo, 'tag', '-a', '-m', self.old_tag + '-rebase',
+            self.old_tag + '-rebase')
+        assert git(repo, 'rev-parse', 'HEAD') != \
+            git(repo, 'rev-parse', self.series)
+        git(repo, 'checkout', '-q', self.series)
 
         # -patches: the quilt queue
-        git(repo, 'checkout', '-q', '--orphan', 'v6.1-rt-patches')
+        git(repo, 'checkout', '-q', '--orphan', self.series + '-patches')
         git(repo, 'rm', '-q', '-rf', '.')
         for name, text in self.patches.items():
             write(repo + '/patches/' + name, text)
@@ -169,9 +180,9 @@ class TestQuiltBase(unittest.TestCase):
               '\n# RT release version\n'
               'Add_localversion_for_-RT_release.patch\n')
         git(repo, 'add', 'patches')
-        git(repo, 'commit', '-q', '-m', '[ANNOUNCE] 6.1.1-rt1')
-        git(repo, 'tag', '-a', '-m', 'Patch queue for v6.1.1-rt1',
-            'v6.1.1-rt1-patches')
+        git(repo, 'commit', '-q', '-m', '[ANNOUNCE] ' + self.old_tag[1:])
+        git(repo, 'tag', '-a', '-m', 'Patch queue for ' + self.old_tag,
+            self.old_tag + '-patches')
         git(repo, 'checkout', '-q', 'master')
 
     def setup_work_area(self):
@@ -183,7 +194,8 @@ class TestQuiltBase(unittest.TestCase):
         git(linux, 'fetch', '-q', '--all', '--tags')
         git(linux, 'worktree', 'add', '-q', '--track', '-b', 'v6.1.y',
             self.stable_dir, 'stable/master')
-        for b in ('v6.1-rt', 'v6.1-rt-patches', 'v6.1-rt-rebase'):
+        for b in (self.series, f'{self.series}-patches',
+                  f'{self.series}-rebase'):
             git(linux, 'worktree', 'add', '-q', '--track', '-b', b,
                 self.rt + '/' + b, 'origin/' + b)
 
@@ -197,19 +209,27 @@ class TestQuiltBase(unittest.TestCase):
         git(self.stable_repo, 'commit', '-q', '-am', 'Linux 6.1.2')
         git(self.stable_repo, 'tag', '-a', '-m', 'v6.1.2', 'v6.1.2')
 
+    # the release suffix: tags vX.Y.Z-<suffix>N, series v6.1-<suffix>
+    suffix = 'rt'
+
     def setUp(self):
+        self.series = f'v6.1-{self.suffix}'
+        self.old_tag = f'v6.1.1-{self.suffix}1'
+        self.new_tag = f'v6.1.2-{self.suffix}2'
+        self.localversion = f'localversion-{self.suffix}'
         self.cwd = tempfile.gettempdir()
         self.tdir = tempfile.mkdtemp()
         self.stable_repo = self.tdir + '/stable-repo'
         self.rt_repo = self.tdir + '/rt-repo'
         self.rt = self.tdir + '/rt'
         self.stable_dir = self.rt + '/v6.1'
-        self.rt_dir = self.rt + '/v6.1-rt'
-        self.patches_dir = self.rt + '/v6.1-rt-patches'
-        self.rebase_dir = self.rt + '/v6.1-rt-rebase'
+        self.rt_dir = self.rt + '/' + self.series
+        self.patches_dir = self.rt + '/' + self.series + '-patches'
+        self.rebase_dir = self.rt + '/' + self.series + '-rebase'
         self.config = {
             'quilt_workflow': 'true',
-            'LOCALVERSION': 'localversion-rt',
+            'LOCALVERSION': self.localversion,
+            'SUFFIX': self.suffix,
             'PRJ_GIT_TREE': self.rt_repo,
             'PRJ_DIR': '/pub/linux/kernel/projects/rt/6.1',
             'MAIL_TO': 'Foo Bar <foo@bar.barf>',
@@ -275,8 +295,8 @@ class TestQuiltRelease(TestQuiltBase):
         self.prepare()
         state = read_srt_state()
         assert state is not None
-        self.assertEqual(state['old_tag'], 'v6.1.1-rt1')
-        self.assertEqual(state['new_tag'], 'v6.1.2-rt2')
+        self.assertEqual(state['old_tag'], self.old_tag)
+        self.assertEqual(state['new_tag'], self.new_tag)
         self.assertEqual(state['patches_dir'], self.patches_dir)
         # srt prep pulled the stable worktree
         self.assertEqual(git(self.stable_dir, 'describe'), 'v6.1.2')
@@ -291,7 +311,7 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertNotIn('upstreamed', read(patches + 'series'))
         self.assertFalse(os.path.exists(patches + 'upstreamed.patch'))
         lv = read(patches + 'Add_localversion_for_-RT_release.patch')
-        self.assertIn('+-rt2', lv)
+        self.assertIn(f'+-{self.suffix}2', lv)
         # the RT series format is kept
         self.assertIn('--- a/kernel.c', read(patches + 'rt-feature.patch'))
         self.assertNotIn('Index:', read(patches + 'rt-feature.patch'))
@@ -302,10 +322,10 @@ class TestQuiltRelease(TestQuiltBase):
     def step3_queue(self):
         self.run_step('queue')
         msg = git(self.patches_dir, 'log', '-1', '--format=%B')
-        self.assertTrue(msg.startswith('[ANNOUNCE] 6.1.2-rt2'))
+        self.assertTrue(msg.startswith('[ANNOUNCE] ' + self.new_tag[1:]))
         self.assertIn('dropped upstreamed.patch', msg)
         self.assertIn('added new-fix.patch', msg)
-        self.assertIn('linux-stable-rt.git v6.1.2-rt2', msg)
+        self.assertIn('linux-stable-rt.git ' + self.new_tag, msg)
         self.assertEqual(git(self.patches_dir, 'status', '--porcelain'), '')
         self.assertTrue(srt_quilt.Release().done('queue'))
 
@@ -321,19 +341,22 @@ class TestQuiltRelease(TestQuiltBase):
         out = self.run_step('merge')
         self.assertIn('apply new-fix.patch', out)
         log = git(self.rt_dir, 'log', '--first-parent', '--format=%s',
-                  'v6.1.1-rt1..HEAD')
+                  self.old_tag + '..HEAD')
         self.assertEqual(log.splitlines(), [
-            'rt: Fix line15', "Merge tag 'v6.1.2' into v6.1-rt"])
+            'rt: Fix line15', f"Merge tag 'v6.1.2' into {self.series}"])
         body = git(self.rt_dir, 'log', '-1', '--format=%b')
         self.assertIn('Signed-off-by: Mighty Eagle', body)
 
     def step6_release(self):
         self.run_step('release')
         self.assertEqual(git(self.rt_dir, 'log', '-1', '--format=%s'),
-                         'v6.1.2-rt2')
-        self.assertEqual(read(self.rt_dir + '/localversion-rt'), '-rt2\n')
-        self.assertEqual(git(self.rt_dir, 'diff', 'v6.1.2-rt2-rebase'), '')
-        for t in ('v6.1.2-rt2', 'v6.1.2-rt2-rebase', 'v6.1.2-rt2-patches'):
+                         self.new_tag)
+        self.assertEqual(read(f'{self.rt_dir}/{self.localversion}'),
+                         f'-{self.suffix}2\n')
+        self.assertEqual(
+            git(self.rt_dir, 'diff', f'{self.new_tag}-rebase'), '')
+        for t in (self.new_tag, f'{self.new_tag}-rebase',
+                  f'{self.new_tag}-patches'):
             cmd(['git', 'tag', '-v', t],
                 env=dict(os.environ, GNUPGHOME=self.gnupghome))
 
@@ -341,7 +364,7 @@ class TestQuiltRelease(TestQuiltBase):
         stub_stdouts(self)
         srt_quilt.status(srt_quilt.Release())
         out = stdout_text()
-        self.assertIn('v6.1.1-rt1 -> v6.1.2-rt2', out)
+        self.assertIn(f'{self.old_tag} -> {self.new_tag}', out)
         self.assertNotIn('[ ]', out)
         self.assertIn('next: srt create', out)
 
@@ -349,15 +372,21 @@ class TestQuiltRelease(TestQuiltBase):
         ctx = SrtContext(None, path=self.rt_dir)
         create(self.config, ctx)
         sign(self.config, ctx)
-        d = self.rt_dir + '/patches/v6.1.2-rt2/'
-        for f in ('patch-6.1.2-rt2.patch.xz', 'patches-6.1.2-rt2.tar.xz',
-                  'patch-6.1.2-rt2.patch.sign',
-                  'patches-6.1.2-rt2.tar.sign'):
+        d = self.rt_dir + '/patches/' + self.new_tag + '/'
+        v = self.new_tag[1:]
+        for f in (f'patch-{v}.patch.xz', f'patches-{v}.tar.xz',
+                  f'patch-{v}.patch.sign', f'patches-{v}.tar.sign'):
             self.assertTrue(os.path.isfile(d + f), f)
 
     def test_release(self):
         for step in sort_steps(dir(self)):
             getattr(self, step)()
+
+
+class TestQuiltReleaseOtherSuffix(TestQuiltRelease):
+    """The same release for a series which is not -rt."""
+
+    suffix = 'foo'
 
 
 class TestQuiltChecks(TestQuiltBase):
@@ -373,8 +402,10 @@ class TestQuiltChecks(TestQuiltBase):
         git(self.rt_dir, 'commit', '-q', '-am', 'stray change')
         with self.assertRaises(SystemExit) as e:
             self.run_step('release')
-        self.assertIn('differs from v6.1.2-rt2-rebase', str(e.exception))
-        self.assertIsNone(srt_quilt.rev(self.rt_dir, 'refs/tags/v6.1.2-rt2'))
+        self.assertIn(f'differs from {self.new_tag}-rebase',
+                      str(e.exception))
+        self.assertIsNone(
+            srt_quilt.rev(self.rt_dir, f'refs/tags/{self.new_tag}'))
         # a fixup commit makes the trees match again
         replace_line(self.rt_dir + '/kernel.c', 'unexpected', 'line20')
         git(self.rt_dir, 'commit', '-q', '-am', 'fixup the stable merge')
@@ -404,19 +435,21 @@ class TestQuiltChecks(TestQuiltBase):
         git(self.patches_dir, 'reset', '-q', '--soft', 'HEAD~1')
         self.run_step('queue')
         self.assertIn('# a late change', git(
-            self.patches_dir, 'show', 'v6.1.2-rt2-patches:patches/series'))
+            self.patches_dir, 'show',
+            f'{self.new_tag}-patches:patches/series'))
 
     def test_undo_and_redo(self):
         self.release_until('release')
-        old_queue = git(self.patches_dir, 'rev-parse', 'v6.1.1-rt1-patches^{}')
+        old_queue = git(self.patches_dir, 'rev-parse',
+                        f'{self.old_tag}-patches^{{}}')
         out = self.run_step('undo')
-        self.assertIn('delete tag v6.1.2-rt2', out)
-        self.assertIn("Merge tag 'v6.1.2' into v6.1-rt", out)
+        self.assertIn('delete tag ' + self.new_tag, out)
+        self.assertIn(f"Merge tag 'v6.1.2' into {self.series}", out)
         rel = srt_quilt.Release()
         for step in ('refresh', 'queue', 'rebase', 'merge', 'release'):
             self.assertFalse(rel.done(step), step)
         self.assertEqual(git(self.rt_dir, 'rev-parse', 'HEAD'),
-                         git(self.rt_dir, 'rev-parse', 'v6.1.1-rt1^{}'))
+                         git(self.rt_dir, 'rev-parse', self.old_tag + '^{}'))
         self.assertEqual(git(self.patches_dir, 'rev-parse', 'HEAD'),
                          old_queue)
         # the refreshed patches are kept, staged
@@ -429,7 +462,7 @@ class TestQuiltChecks(TestQuiltBase):
 
     def test_undo_refuses_pushed_release(self):
         self.release_until('release')
-        git(self.rt_dir, 'push', '-q', 'origin', 'HEAD:v6.1-rt')
+        git(self.rt_dir, 'push', '-q', 'origin', 'HEAD:' + self.series)
         git(self.rt_dir, 'fetch', '-q', 'origin')
         with self.assertRaises(SystemExit) as e:
             self.run_step('undo')

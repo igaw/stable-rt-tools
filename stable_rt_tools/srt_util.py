@@ -61,6 +61,7 @@ class SrtState(TypedDict, total=False):
     new_tag: str
     branch: str
     workflow_branch: str
+    suffix: str
     quilt_workflow: bool
     quilt_patches: str
     rt_dir: str
@@ -150,14 +151,21 @@ def get_last_tag(branch_name: str, postfix: str | None = None) -> str:
     return last_tag
 
 
-def get_last_rt_tag(branch_name: str, postfix: str | None = None) -> str:
+def get_suffix(config: Mapping[str, Any]) -> str:
+    """The release suffix of the patch series, rt for v6.12.116-rt22."""
+    return str(config.get('SUFFIX', 'rt'))
+
+
+def get_last_release_number(branch_name: str, suffix: str,
+                            postfix: str | None = None) -> int:
+    """Return N of the last vX.Y.Z-<suffix>N tag on the branch."""
     last_tag = get_last_tag(branch_name, postfix)
-    m = re.search(r'(-rt[0-9]+)$', last_tag)
+    m = re.search(rf'-{re.escape(suffix)}([0-9]+)$', last_tag)
     if not m:
-        print(f'Last tag {last_tag} does not end in -rt[0-9]+ on '
+        print(f'Last tag {last_tag} does not end in -{suffix}[0-9]+ on '
               f'{branch_name}', file=sys.stderr)
         sys.exit(1)
-    return m.group(1)
+    return int(m.group(1))
 
 
 def get_old_tag() -> str:
@@ -167,8 +175,9 @@ def get_old_tag() -> str:
     log = logging.getLogger()
     log.debug("Last tag: %s", last_tag)
 
-    # Match tags like: v6.12.28-rt10[-rc1][-patches]
-    tag_re = r'^v(\d+)\.(\d+)\.(\d+)-rt(\d+)(-rc(\d+))?(-patches)?$'
+    # Match tags like: v6.12.28-rt10[-rc1][-patches], any release suffix
+    tag_re = (r'^v(\d+)\.(\d+)\.(\d+)-([a-z]+)(\d+)(-rc(\d+))?'
+              r'(-patches)?$')
     m = re.match(tag_re, last_tag)
     if not m:
         print(f'Invalid last tag format: {last_tag}')
@@ -176,15 +185,17 @@ def get_old_tag() -> str:
 
     major = int(m.group(1))
     minor = int(m.group(2))
+    suffix = m.group(4)
     base_version = f'v{major}.{minor}'
 
     tags = cmd(['git', 'ls-remote', '--tags'])
     # Look for all matching tags with optional -rcN and -patches
-    match_re = rf'.*({base_version}\.\d+-rt\d+(-rc\d+)?(-patches)?)$'
+    match_re = (rf'.*({re.escape(base_version)}\.\d+-{suffix}\d+'
+                r'(-rc\d+)?(-patches)?)$')
     matches = re.findall(match_re, tags, re.MULTILINE)
 
     if not matches:
-        print('Last remote tag -rt[0-9]+ not found on '
+        print(f'Last remote tag -{suffix}[0-9]+ not found on '
               f'{get_remote_branch_name()}')
         sys.exit(1)
 
@@ -198,8 +209,8 @@ def get_old_tag() -> str:
         if not m2:
             continue
         patch = int(m2.group(3))
-        rt = int(m2.group(4))
-        rc_str = m2.group(6)
+        rt = int(m2.group(5))
+        rc_str = m2.group(7)
         rc = int(rc_str) if rc_str else None
 
         if patch > last_patch or (patch == last_patch and rt > last_rt):
@@ -210,7 +221,7 @@ def get_old_tag() -> str:
               and (last_rc is None or rc > last_rc)):
             last_rc = rc
 
-    tag = f'{base_version}.{last_patch}-rt{last_rt}'
+    tag = f'{base_version}.{last_patch}-{suffix}{last_rt}'
     if last_rc is not None:
         tag += f'-rc{last_rc}'
     return tag

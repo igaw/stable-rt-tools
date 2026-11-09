@@ -25,6 +25,7 @@
 
 import argparse
 import os
+import re
 import sys
 from subprocess import CalledProcessError
 
@@ -36,9 +37,10 @@ from stable_rt_tools.srt_util import (
     clear_srt_state,
     cmd,
     get_config,
-    get_last_rt_tag,
+    get_last_release_number,
     get_old_tag,
     get_remote_branch_name,
+    get_suffix,
     get_workflow_branch,
     is_quilt_workflow,
     write_srt_state,
@@ -53,12 +55,13 @@ def get_next_stable_version(branch_name: str, tree_dir: str) -> str | None:
         'git', '-C', tree_dir, 'tag', '--merged', branch, '--sort=-v:refname'
     ]).splitlines()
     for tag in tags:
-        if tag.startswith('v') and '-rt' not in tag:
+        # a stable release, not a -rc, -rt or other suffixed tag
+        if re.fullmatch(r'v\d+\.\d+\.\d+', tag):
             return tag
     return None
 
 
-def worktree_dirs(rt_dir: str) -> Worktrees:
+def worktree_dirs(rt_dir: str, suffix: str = 'rt') -> Worktrees:
     """The quilt workflow worktrees, which are siblings of the -rt one.
 
     For rt_dir .../v6.12-rt: .../v6.12, .../v6.12-rt-patches and
@@ -68,7 +71,7 @@ def worktree_dirs(rt_dir: str) -> Worktrees:
     parent, name = os.path.split(rt_dir)
     return Worktrees(
         rt_dir=rt_dir,
-        stable_dir=os.path.join(parent, name.split('-rt')[0]),
+        stable_dir=os.path.join(parent, name.split(f'-{suffix}')[0]),
         patches_dir=os.path.join(parent, name + '-patches'),
         rebase_dir=os.path.join(parent, name + '-rebase'),
     )
@@ -85,7 +88,8 @@ def pull_stable(stable_dir: str) -> None:
 
 def prep(config: Config, pull: bool = True) -> None:
     quilt_workflow = is_quilt_workflow(config)
-    dirs = worktree_dirs(os.getcwd())
+    suffix = get_suffix(config)
+    dirs = worktree_dirs(os.getcwd(), suffix)
 
     # quilt patches
     quilt_patches = os.path.join(dirs['patches_dir'], 'patches')
@@ -105,11 +109,11 @@ def prep(config: Config, pull: bool = True) -> None:
 
     # new tag
     branch_name = get_remote_branch_name()
-    rt_ver = int(get_last_rt_tag(branch_name, '')[3:]) + 1
+    number = get_last_release_number(branch_name, suffix) + 1
     next_stable = get_next_stable_version(branch_name, dirs['stable_dir'])
     if next_stable is None:
         sys.exit(f'no stable release tag found in {dirs["stable_dir"]}')
-    new_tag = f'{next_stable}-rt{rt_ver}'
+    new_tag = f'{next_stable}-{suffix}{number}'
 
     state = SrtState(
         old_tag=old_tag,
@@ -117,6 +121,7 @@ def prep(config: Config, pull: bool = True) -> None:
         quilt_patches=quilt_patches,
         branch=branch_name,
         workflow_branch=get_workflow_branch(branch_name),
+        suffix=suffix,
         quilt_workflow=quilt_workflow,
     )
     if quilt_workflow:
