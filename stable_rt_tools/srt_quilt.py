@@ -30,32 +30,49 @@ from stable_rt_tools.srt_commit import localversion_inc
 from stable_rt_tools.srt_util import cmd, read_srt_state
 
 
+# The RT patch queue format. quilt must not pick it up from the user's
+# quiltrc, otherwise a refresh rewrites every patch header (Index: lines,
+# v6.12.orig/ prefixes, different function context).
+QUILT_REFRESH_ARGS = ['-p', 'ab', '--no-index', '--no-timestamps']
+QUILT_DIFF_OPTS = '-F ^[[:alpha:]$_].*[^:]$'
+
+
 def _quilt_env():
     env = os.environ.copy()
+    env['QUILT_DIFF_OPTS'] = QUILT_DIFF_OPTS
     state = read_srt_state()
     if state and state.get('quilt_patches'):
         env['QUILT_PATCHES'] = state['quilt_patches']
     return env
 
 
+def _quilt(args, env):
+    # '--quiltrc -' makes quilt ignore ~/.quiltrc and /etc/quilt.quiltrc
+    return cmd(['quilt', '--quiltrc', '-'] + args, env=env)
+
+
+def _refresh(env):
+    _quilt(['refresh'] + QUILT_REFRESH_ARGS, env)
+
+
 def quilt(localversion):
     env = _quilt_env()
     while True:
         try:
-            cmd(['quilt', 'next'], env=env)
+            _quilt(['next'], env)
         except CalledProcessError:
             break
         try:
-            cmd(['quilt', 'push'], env=env)
+            _quilt(['push'], env)
         except CalledProcessError as e:
             if e.stdout:
                 print(e.stdout.decode('utf-8'))
             sys.exit('quilt push failed')
-        cmd(['quilt', 'refresh'], env=env)
+        _refresh(env)
 
     localversion_inc(localversion)
-    cmd(['quilt', 'refresh'], env=env)
-    cmd(['quilt', 'pop', '-a'], env=env)
+    _refresh(env)
+    _quilt(['pop', '-a'], env)
 
 
 def add_argparser(parser):

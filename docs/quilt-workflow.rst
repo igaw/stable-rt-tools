@@ -164,6 +164,13 @@ Create a new release
   $ srt announce > ../announce-rt
   $ mutt -H ../announce-rt
 
+``srt quilt`` pushes the RT series onto the stable tree one patch at a time,
+refreshes each patch, bumps ``localversion-rt`` and pops the series again.
+It ignores ``~/.quiltrc`` and refreshes the patches in the format the RT
+series uses (``-p ab --no-index --no-timestamps``, GNU diff function
+context), so only hunk offsets and the localversion change. Review the
+result with ``git diff`` in ``v6.12-rt-patches``.
+
 The ``srt prep`` command stores release state in git metadata shared by the
 worktrees. Commands such as ``srt patches``, ``srt create``, ``srt sign``,
 ``srt upload`` and ``srt push`` read this state automatically when tags are

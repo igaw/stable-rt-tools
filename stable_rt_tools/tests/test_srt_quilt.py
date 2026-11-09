@@ -28,7 +28,8 @@ import unittest
 from subprocess import CalledProcessError
 from unittest.mock import patch
 
-from stable_rt_tools.srt_quilt import quilt, execute, _quilt_env
+from stable_rt_tools.srt_quilt import (quilt, execute, _quilt_env,
+                                       QUILT_DIFF_OPTS)
 
 _QUILT_PATCHES = '/some/patches/dir'
 _STATE = {'quilt_patches': _QUILT_PATCHES}
@@ -44,7 +45,17 @@ def test_quilt_env_uses_state():
 def test_quilt_env_fallback_when_no_state():
     with patch('stable_rt_tools.srt_quilt.read_srt_state', return_value=None):
         env = _quilt_env()
-    assert env == os.environ.copy()
+    expected = os.environ.copy()
+    expected['QUILT_DIFF_OPTS'] = QUILT_DIFF_OPTS
+    assert env == expected
+
+
+def test_quilt_env_overrides_diff_opts():
+    with patch.dict(os.environ, {'QUILT_DIFF_OPTS': '-p'}):
+        with patch('stable_rt_tools.srt_quilt.read_srt_state',
+                   return_value=None):
+            env = _quilt_env()
+    assert env['QUILT_DIFF_OPTS'] == QUILT_DIFF_OPTS
 
 
 def _assert_quilt_patch_env(calls):
@@ -52,6 +63,11 @@ def _assert_quilt_patch_env(calls):
         env = c.kwargs.get('env') or (c.args[1] if len(c.args) > 1 else None)
         assert env is not None, 'cmd called without env kwarg'
         assert env.get('QUILT_PATCHES') == _QUILT_PATCHES
+        assert env.get('QUILT_DIFF_OPTS') == QUILT_DIFF_OPTS
+
+
+Q = ['quilt', '--quiltrc', '-']
+REFRESH = Q + ['refresh', '-p', 'ab', '--no-index', '--no-timestamps']
 
 
 def test_quilt_runs_expected_sequence():
@@ -74,15 +90,15 @@ def test_quilt_runs_expected_sequence():
                 quilt('localversion-rt')
                 lv_inc.assert_called_once_with('localversion-rt')
                 assert [ca.args[0] for ca in c.call_args_list] == [
-                    ['quilt', 'next'],
-                    ['quilt', 'push'],
-                    ['quilt', 'refresh'],
-                    ['quilt', 'next'],
-                    ['quilt', 'push'],
-                    ['quilt', 'refresh'],
-                    ['quilt', 'next'],
-                    ['quilt', 'refresh'],
-                    ['quilt', 'pop', '-a'],
+                    Q + ['next'],
+                    Q + ['push'],
+                    REFRESH,
+                    Q + ['next'],
+                    Q + ['push'],
+                    REFRESH,
+                    Q + ['next'],
+                    REFRESH,
+                    Q + ['pop', '-a'],
                 ]
                 _assert_quilt_patch_env(c.call_args_list)
 
@@ -101,8 +117,8 @@ def test_quilt_returns_early_on_push_failure():
                     quilt('localversion-rt')
                 lv_inc.assert_not_called()
                 assert [ca.args[0] for ca in c.call_args_list] == [
-                    ['quilt', 'next'],
-                    ['quilt', 'push'],
+                    Q + ['next'],
+                    Q + ['push'],
                 ]
                 _assert_quilt_patch_env(c.call_args_list)
 
