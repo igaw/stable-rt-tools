@@ -28,7 +28,7 @@ import shutil
 import sys
 import tempfile
 
-from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gnupghome,
+from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gpg_env,
                                       get_last_rt_tag, get_remote_branch_name,
                                       is_dirty)
 
@@ -100,7 +100,7 @@ def commit(config, rc):
     if confirm('OK to commit?'):
         cmd(['git', 'add', config['LOCALVERSION']])
         cmd(['git', 'commit', '-s', '-m', msg],
-            env={'GNUPGHOME': get_gnupghome(config)})
+            env=get_gpg_env(config))
     else:
         cmd(['git', 'reset', '--hard', old_head])
 

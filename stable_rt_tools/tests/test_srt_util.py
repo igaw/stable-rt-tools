@@ -164,3 +164,13 @@ class TestUtil(TestCase):
                 self.assertRaises(SystemExit):
             srt_util.get_config()
         self.assertIn('upstream', log.output[0])
+
+    def test_get_gpg_env_keeps_environment(self):
+        import os
+        from unittest import mock
+        import stable_rt_tools.srt_util as srt_util
+
+        with mock.patch.dict(os.environ, {'HOME': '/home/someone'}):
+            env = srt_util.get_gpg_env({'GNUPGHOME': '~/keys'})
+        self.assertEqual(env['HOME'], '/home/someone')
+        self.assertEqual(env['GNUPGHOME'], '/home/someone/keys')

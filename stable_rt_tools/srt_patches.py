@@ -29,7 +29,7 @@ from email.utils import make_msgid
 from time import gmtime, strftime
 import subprocess
 from stable_rt_tools.srt_util import (
-    check_context, cmd, confirm, get_config, get_gnupghome,
+    check_context, cmd, confirm, get_config, get_gpg_env,
     get_remote_branch_name, get_gpg_fingerprint
 )
 from stable_rt_tools.srt_util_context import SrtContext
@@ -119,7 +119,7 @@ def do_patches(config, ctx, args):
         cmd(
             ['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
              '-m', msg, tag],
-            env={'GNUPGHOME': get_gnupghome(config)}
+            env=get_gpg_env(config)
         )
 
 
@@ -130,7 +130,7 @@ def do_rebase(config, ctx, args):
         cmd(
             ['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
              '-m', tag, tag],
-            env={'GNUPGHOME': get_gnupghome(config)}
+            env=get_gpg_env(config)
         )
 
 
@@ -138,14 +138,14 @@ def do_release(config, ctx, args):
     tag = str(ctx.new_tag)
     cmd(
         ['git', 'commit', '-s', '-m', tag],
-        env={'GNUPGHOME': get_gnupghome(config)}
+        env=get_gpg_env(config)
     )
     print('tagging as {0} with message \'{1}\''.format(tag, tag))
     if confirm('OK to tag?'):
         cmd(
             ['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
              '-m', tag, tag],
-            env={'GNUPGHOME': get_gnupghome(config)}
+            env=get_gpg_env(config)
         )
 
 

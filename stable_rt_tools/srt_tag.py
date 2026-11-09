@@ -25,7 +25,7 @@
 
 import re
 
-from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gnupghome)
+from stable_rt_tools.srt_util import (cmd, confirm, get_config, get_gpg_env)
 
 
 def tag(config, rc):
@@ -43,7 +43,7 @@ def tag(config, rc):
         if confirm('OK to tag?'):
             cmd(['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
                  '-m', msg, tag],
-                env={'GNUPGHOME': get_gnupghome(config)})
+                env=get_gpg_env(config))
 
 
 def add_argparser(parser):

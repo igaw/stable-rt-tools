@@ -269,6 +269,14 @@ def get_gnupghome(config):
     return gnupghome
 
 
+def get_gpg_env(config):
+    # Extend the environment, don't replace it: git needs HOME for
+    # ~/.gitconfig (user identity) and gpg the agent/tty variables.
+    env = os.environ.copy()
+    env['GNUPGHOME'] = os.path.expanduser(get_gnupghome(config))
+    return env
+
+
 def get_gpg_fingerprint(config):
     out = cmd(['gpg2',
                '--homedir', get_gnupghome(config),
