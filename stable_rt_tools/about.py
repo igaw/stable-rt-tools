@@ -19,33 +19,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""
-    Setup script for stable-rt-tools, a tool to support out of
-    tree patch workflows
-"""
-
-__all__ = [
-    '__version__',
-    '__title__',
-    '__summary__',
-    '__uri__',
-    '__doc_uri__',
-    '__author__',
-    '__email__',
-    '__license__',
-    '__copyright__',
-]
+"""The stable-rt-tools version, the single source for pyproject.toml."""
 
 __version__ = '1.5'
-
-__title__ = 'stable-rt-tools'
-__summary__ = 'Support out of tree patch workflows'
-__uri__ = 'https://github.com/igaw/stable-rt-tools/' \
-    'releases/archive/{version}.tar.gz'.format(version=__version__)
-__doc_uri__ = 'https://stable-rt-tools.readthedocs.io'
-
-__author__ = "Daniel Wagner"
-__email__ = 'dwagner@suse.de'
-
-__license__ = 'MIT'
-__copyright__ = 'Copyright (c) {} <{}>'.format(__author__, __email__)

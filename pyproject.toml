@@ -1,3 +1,55 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "stable-rt-tools"
+dynamic = ["version"]
+description = "Support out of tree patch workflows"
+readme = "README.rst"
+license = "MIT"
+requires-python = ">=3.12"
+authors = [{ name = "Daniel Wagner", email = "dwagner@suse.de" }]
+keywords = ["Linux", "PREEMPT_RT", "stable", "quilt"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+lint = ["ruff>=0.6"]
+docs = ["sphinx>=7", "sphinx-rtd-theme>=2", "sphinx-argparse>=0.4"]
+dev = ["stable-rt-tools[test,lint,docs]", "build"]
+
+[project.scripts]
+srt = "stable_rt_tools.srt:main"
+
+[project.urls]
+Homepage = "https://github.com/igaw/stable-rt-tools"
+Documentation = "https://stable-rt-tools.readthedocs.io"
+Source = "https://github.com/igaw/stable-rt-tools.git"
+
+[tool.setuptools.dynamic]
+version = { attr = "stable_rt_tools.about.__version__" }
+
+[tool.setuptools]
+# only what package-data lists, not everything git or egg-info knows
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["stable_rt_tools"]
+
+[tool.setuptools.package-data]
+stable_rt_tools = ["*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["stable_rt_tools/tests"]
+addopts = "-ra"
