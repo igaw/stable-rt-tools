@@ -34,27 +34,26 @@ The srt.conf group [<repo>/<remote>/<series>] describes it:
   UPSTREAM_REMOTE   the name of its remote (default: upstream)
   ORIGIN_GIT_URL    what <repo> is cloned from (default: UPSTREAM_GIT_URL)
 
-To take over a series which exists under another name, e.g. from
-another maintainer:
-
-  TAKEOVER_BRANCH   the branch of the series to take over, its -patches,
-                    -rebase and -next branches are taken over as well
-  TAKEOVER_REMOTE   its remote (default: <remote>)
-  TAKEOVER_GIT_URL  its URL, if srt setup has to add the remote
+The settings can be given as options; srt setup adds the group to
+srt.conf if there is none. In an existing work area the URLs default to
+the ones of its remotes.
 
 The repository <repo> and the worktrees are created next to each other
 in the setup directory; existing ones are checked, so a series can be
-added to the work area of another one.
+added to the work area of another one. --from takes a series over which
+exists under another name, e.g. from another maintainer.
 """
 
 import argparse
 import os
 import sys
+from collections import ChainMap
 from collections.abc import Mapping
 from subprocess import CalledProcessError
 
 from stable_rt_tools.srt_prep import worktree_dirs
 from stable_rt_tools.srt_util import (
+    Config,
     SubParsers,
     cmd,
     get_suffix,
@@ -88,7 +87,9 @@ def _repo_name(url: str) -> str:
 def _require(config: Mapping[str, str], key: str) -> str:
     value = config.get(key)
     if not value:
-        raise SetupError(f'{key} is not set')
+        option = {k: o for o, k in OPTIONS.items()}[key].replace('_', '-')
+        raise SetupError(f'{key} is not set, add it to srt.conf or use '
+                         f'--{option}')
     return value
 
 
@@ -184,7 +185,7 @@ def setup_series_worktree(repo: str, path: str, branch: str, remote: str,
         print(f'ok    {path} ({branch}, not published yet)')
         return True
     if source is None:
-        raise SetupError(f'{upstream} does not exist; set TAKEOVER_BRANCH '
+        raise SetupError(f'{upstream} does not exist; use --from BRANCH '
                          'to take the series over from another branch')
     if _query(repo, 'rev-parse', '--verify', '--quiet', source) is None:
         raise SetupError(f'{upstream} does not exist and neither does the '
@@ -198,7 +199,22 @@ def setup_series_worktree(repo: str, path: str, branch: str, remote: str,
     return True
 
 
-def setup(group: str, config: Mapping[str, str], parent: str) -> None:
+def _split_takeover(repo: str, remote: str, takeover: str,
+                    takeover_url: str | None) -> tuple[str, str]:
+    """[REMOTE/]BRANCH -> (remote, branch), the series' remote by default."""
+    if '/' in takeover:
+        name, branch = takeover.split('/', 1)
+        if takeover_url or _query(repo, 'config', '--get',
+                                  f'remote.{name}.url') is not None:
+            return name, branch
+    if takeover_url:
+        raise SetupError('--from-url needs --from REMOTE/BRANCH')
+    return remote, takeover
+
+
+def setup(group: str, config: Mapping[str, str], parent: str,
+          takeover: str | None = None,
+          takeover_url: str | None = None) -> None:
     try:
         repo_name, remote, series = group.split('/', 2)
     except ValueError:
@@ -220,15 +236,12 @@ def setup(group: str, config: Mapping[str, str], parent: str) -> None:
         setup_remote(repo, upstream_remote, upstream_url)
     setup_remote(repo, remote, _require(config, 'PRJ_GIT_URL'),
                  config.get('PRJ_GIT_TREE'))
-    takeover = config.get('TAKEOVER_BRANCH')
-    takeover_remote = config.get('TAKEOVER_REMOTE', remote)
-    if takeover and takeover_remote != remote:
-        if config.get('TAKEOVER_GIT_URL'):
-            setup_remote(repo, takeover_remote, config['TAKEOVER_GIT_URL'])
-        elif _query(repo, 'config', '--get',
-                    f'remote.{takeover_remote}.url') is None:
-            raise SetupError(f'remote {takeover_remote} does not exist, set '
-                             'TAKEOVER_GIT_URL')
+    takeover_remote = remote
+    if takeover:
+        takeover_remote, takeover = _split_takeover(repo, remote, takeover,
+                                                    takeover_url)
+        if takeover_url:
+            setup_remote(repo, takeover_remote, takeover_url)
     print('fetch')
     for name in dict.fromkeys(('origin', upstream_remote, remote,
                                takeover_remote if takeover else remote)):
@@ -268,6 +281,63 @@ def setup(group: str, config: Mapping[str, str], parent: str) -> None:
     print(f'next: cd {os.path.join(parent, series)} && srt prep')
 
 
+# options of srt setup and the settings they stand for
+OPTIONS = {
+    'workflow': 'WORKFLOW',
+    'suffix': 'SUFFIX',
+    'upstream_branch': 'UPSTREAM_BRANCH',
+    'upstream_url': 'UPSTREAM_GIT_URL',
+    'upstream_remote': 'UPSTREAM_REMOTE',
+    'origin_url': 'ORIGIN_GIT_URL',
+    'prj_url': 'PRJ_GIT_URL',
+    'push_url': 'PRJ_GIT_TREE',
+    'prj_dir': 'PRJ_DIR',
+}
+
+
+def derive_settings(group: str, config: Mapping[str, str],
+                    parent: str) -> dict[str, str]:
+    """The URLs of an existing work area, from its remotes."""
+    repo_name, remote, _ = group.split('/', 2)
+    repo = os.path.join(os.path.abspath(parent), repo_name)
+    if not os.path.isdir(repo):
+        return {}
+    upstream_remote = config.get('UPSTREAM_REMOTE', 'upstream')
+    derived = {}
+    for key, git_key in (('ORIGIN_GIT_URL', 'remote.origin.url'),
+                         ('PRJ_GIT_URL', f'remote.{remote}.url'),
+                         ('PRJ_GIT_TREE', f'remote.{remote}.pushurl'),
+                         ('UPSTREAM_GIT_URL',
+                          f'remote.{upstream_remote}.url')):
+        value = _query(repo, 'config', '--get', git_key)
+        if value:
+            derived[key] = value
+    return derived
+
+
+def config_path() -> str:
+    """The srt.conf srt setup adds groups to."""
+    if 'SRT_CONF' in os.environ:
+        return os.path.join(os.environ['SRT_CONF'], 'srt.conf')
+    return os.path.expanduser('~/.config/srt.conf')
+
+
+def add_group(path: str, group: str, settings: Mapping[str, str]) -> None:
+    """Append the group to srt.conf, keeping what is there."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    text = ''
+    if os.path.exists(path):
+        with open(path) as f:
+            text = f.read()
+    with open(path, 'a') as f:
+        if text and not text.endswith('\n\n'):
+            f.write('\n' if text.endswith('\n') else '\n\n')
+        f.write(f'[{group}]\n')
+        for key, value in settings.items():
+            f.write(f'{key} = {value}\n')
+    print(f'added [{group}] to {path}')
+
+
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser(
         'setup', help='create or check the work area of a patch series')
@@ -277,15 +347,56 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs.add_argument('--dir', default='.',
                      help='directory for the repository and the worktrees '
                      '(default: the current directory)')
+    opt = prs.add_argument_group(
+        'settings', 'written to srt.conf for a new group; the URLs default '
+        'to the remotes of an existing work area')
+    opt.add_argument('--workflow', choices=('quilt', 'git'))
+    opt.add_argument('--suffix', help='release suffix (default: rt)')
+    opt.add_argument('--upstream-branch', metavar='BRANCH',
+                     help='upstream branch, e.g. linux-6.12.y')
+    opt.add_argument('--upstream-url', metavar='URL')
+    opt.add_argument('--upstream-remote', metavar='NAME',
+                     help='default: upstream')
+    opt.add_argument('--origin-url', metavar='URL',
+                     help='default: the upstream URL')
+    opt.add_argument('--prj-url', metavar='URL',
+                     help='URL to fetch the series from')
+    opt.add_argument('--push-url', metavar='URL',
+                     help='URL to push the series to')
+    opt.add_argument('--prj-dir', metavar='DIR',
+                     help='kup directory to upload releases to')
+    take = prs.add_argument_group('take over a series')
+    take.add_argument('--from', dest='takeover', metavar='[REMOTE/]BRANCH',
+                      help='create the series from this branch and its '
+                      '-patches, -rebase and -next branches if it does not '
+                      'exist yet; not stored in srt.conf')
+    take.add_argument('--from-url', dest='takeover_url', metavar='URL',
+                      help='URL of REMOTE if it does not exist yet')
     return prs
 
 
 def execute(args: argparse.Namespace) -> None:
+    options = {key: getattr(args, opt) for opt, key in OPTIONS.items()
+               if getattr(args, opt, None) is not None}
     config = read_config()
-    if not config.has_section(args.group):
-        sys.exit(f'no group [{args.group}] in srt.conf')
     try:
-        setup(args.group, with_defaults(config[args.group]), args.dir)
+        if config.has_section(args.group):
+            group = with_defaults(config[args.group])
+            for key, value in options.items():
+                if group.get(key) != value:
+                    print(f'{key} = {value} differs from srt.conf, edit '
+                          f'{config_path()} to keep it', file=sys.stderr)
+        else:
+            group = with_defaults(config[config.default_section])
+        settings: Config = ChainMap(options, group)  # type: ignore[arg-type]
+        derived = derive_settings(args.group, settings, args.dir)
+        settings = ChainMap(options, group, derived)  # type: ignore[arg-type]
+        if not config.has_section(args.group):
+            new = {**{k: v for k, v in derived.items()
+                      if k not in group}, **options}
+            add_group(config_path(), args.group, new)
+        setup(args.group, settings, args.dir, args.takeover,
+              args.takeover_url)
     except SetupError as e:
         sys.exit(f'srt setup: {e}')
     except CalledProcessError as e:

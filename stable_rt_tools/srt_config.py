@@ -106,8 +106,9 @@ def convert(parser: ConfigParser) -> list[str]:
             changes.append(f'[{group}]: dropped LOCALVERSION, it is the '
                            'default')
 
+    # only for a file in the 1.x format, srt doesn't rewrite 2.0 files
     groups = _groups(parser)
-    if len(groups) > 1:
+    if changes and len(groups) > 1:
         first = dict(parser.items(groups[0]))
         for key, value in first.items():
             if any(_get(parser, g, key) != value for g in groups[1:]):

@@ -39,11 +39,14 @@ upstreamed.patch (picked up by stable v6.1.2, so it has to be dropped)
 and the localversion patch. The release v6.1.2-rt2 adds new-fix.patch.
 """
 
+import io
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from shutil import rmtree
+from typing import cast
 from unittest import mock
 
 from stable_rt_tools import srt_quilt, srt_setup
@@ -263,9 +266,11 @@ class TestQuiltBase(unittest.TestCase):
         srt_quilt.COMMANDS[step](srt_quilt.Release())
         return stdout_text()
 
-    def run_setup(self, config, group=None, parent=None):
+    def run_setup(self, config, group=None, parent=None, takeover=None,
+                  takeover_url=None):
         stub_stdouts(self)
-        srt_setup.setup(group or self.group, config, parent or self.rt)
+        srt_setup.setup(group or self.group, config, parent or self.rt,
+                        takeover, takeover_url)
         return stdout_text()
 
     def add_new_patch(self):
@@ -446,8 +451,7 @@ class TestTakeover(TestQuiltBase):
         git(self.rt_repo, 'tag', '-a', '-m', 'v6.2.0-rt1', 'v6.2.0-rt1',
             'linux-6.2.y-rt')
         self.config_v62 = dict(self.setup_config(),
-                               UPSTREAM_BRANCH='linux-6.2.y',
-                               TAKEOVER_BRANCH='linux-6.2.y-rt')
+                               UPSTREAM_BRANCH='linux-6.2.y')
         self.series_v62 = 'v6.2-rt'
 
     def publish(self, out):
@@ -457,7 +461,8 @@ class TestTakeover(TestQuiltBase):
 
     def test_takeover_on_the_same_remote(self):
         out = self.run_setup(self.config_v62,
-                             group='linux/stable-rt/v6.2-rt')
+                             group='linux/stable-rt/v6.2-rt',
+                             takeover='linux-6.2.y-rt')
         for b in ('', '-patches', '-rebase'):
             path = f'{self.rt}/v6.2-rt{b}'
             self.assertIn(f'take  {path} (v6.2-rt{b} from '
@@ -470,7 +475,7 @@ class TestTakeover(TestQuiltBase):
         self.assertIn('srt setup pushes nothing', out)
         self.assertNotIn('v6.2-rt', git(self.rt_repo, 'branch'))
 
-        # rerun before publishing
+        # rerun before publishing, --from is not needed anymore
         out = self.run_setup(self.config_v62,
                              group='linux/stable-rt/v6.2-rt')
         self.assertIn(f'ok    {self.rt}/v6.2-rt-patches (v6.2-rt-patches, '
@@ -489,18 +494,69 @@ class TestTakeover(TestQuiltBase):
             self.setup_config()))
 
     def test_takeover_from_another_remote(self):
-        config = dict(self.config_v62, TAKEOVER_REMOTE='rt-devel',
-                      TAKEOVER_GIT_URL=self.rt_repo)
-        out = self.run_setup(config, group='linux/stable-rt/v6.2-rt')
+        out = self.run_setup(self.config_v62, group='linux/stable-rt/v6.2-rt',
+                             takeover='rt-devel/linux-6.2.y-rt',
+                             takeover_url=self.rt_repo)
         self.assertIn(f'add   remote rt-devel {self.rt_repo}', out)
         self.assertIn('from rt-devel/linux-6.2.y-rt-rebase)', out)
 
     def test_missing_series_without_takeover(self):
-        config = dict(self.config_v62)
-        del config['TAKEOVER_BRANCH']
         with self.assertRaises(srt_setup.SetupError) as e:
-            self.run_setup(config, group='linux/stable-rt/v6.2-rt')
-        self.assertIn('set TAKEOVER_BRANCH', str(e.exception))
+            self.run_setup(self.config_v62, group='linux/stable-rt/v6.2-rt')
+        self.assertIn('use --from BRANCH', str(e.exception))
+
+    def srt_setup_cli(self, *argv):
+        """Run 'srt setup' with its own srt.conf in self.tdir/conf."""
+        from stable_rt_tools import srt
+
+        env = {'SRT_CONF': self.tdir + '/conf', 'HOME': self.tdir}
+        os.makedirs(env['SRT_CONF'], exist_ok=True)
+        stub_stdouts(self)
+        with mock.patch.dict(os.environ, env), \
+                mock.patch('sys.argv', ['srt', 'setup', *argv]):
+            srt.main()
+        return stdout_text()
+
+    def test_cli_takeover_in_existing_area(self):
+        conf = self.tdir + '/conf/srt.conf'
+        os.makedirs(self.tdir + '/conf')
+        write(conf, '# my srt.conf\n[DEFAULT]\nMAIL_TO = a@b\n')
+        out = self.srt_setup_cli(
+            'linux/stable-rt/v6.2-rt', '--dir', self.rt,
+            '--workflow', 'quilt', '--upstream-branch', 'linux-6.2.y',
+            '--upstream-remote', 'stable', '--from', 'linux-6.2.y-rt')
+        self.assertIn('added [linux/stable-rt/v6.2-rt]', out)
+        self.assertIn(f'take  {self.rt}/v6.2-rt ', out)
+        text = read(conf)
+        self.assertTrue(text.startswith('# my srt.conf\n[DEFAULT]\n'))
+        # the URLs come from the work area, --from is not stored
+        self.assertIn(f'PRJ_GIT_URL = {self.rt_repo}', text)
+        self.assertIn(f'UPSTREAM_GIT_URL = {self.stable_repo}', text)
+        self.assertIn('WORKFLOW = quilt', text)
+        self.assertNotIn('linux-6.2.y-rt', text)
+        # a valid configuration, used by the next run without options
+        out = self.srt_setup_cli('linux/stable-rt/v6.2-rt', '--dir', self.rt)
+        self.assertIn('not published yet', out)
+        self.assertNotIn('added', out)
+        self.assertEqual(read(conf).count('[linux/stable-rt/v6.2-rt]'), 1)
+
+    def test_cli_new_group_needs_settings(self):
+        with self.assertRaises(SystemExit) as e:
+            self.srt_setup_cli('linux/stable-rt/v6.2-rt', '--dir',
+                               self.tdir + '/new')
+        self.assertIn('--upstream-url', str(e.exception))
+
+    def test_cli_options_differ_from_config(self):
+        conf = self.tdir + '/conf/srt.conf'
+        os.makedirs(self.tdir + '/conf')
+        write(conf, '[linux/stable-rt/v6.2-rt]\nWORKFLOW = quilt\n'
+              'UPSTREAM_BRANCH = linux-6.2.y\nUPSTREAM_REMOTE = stable\n')
+        self.srt_setup_cli('linux/stable-rt/v6.2-rt', '--dir', self.rt,
+                           '--from', 'linux-6.2.y-rt', '--prj-dir', '/x')
+        # the StringIO stub_stdouts() installed
+        err = cast(io.StringIO, sys.stderr).getvalue()
+        self.assertIn('PRJ_DIR = /x differs from srt.conf', err)
+        self.assertNotIn('PRJ_DIR', read(conf))
 
 
 class TestQuiltChecks(TestQuiltBase):
