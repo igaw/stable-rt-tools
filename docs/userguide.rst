@@ -34,6 +34,10 @@ trusted GPG key and account.
 Find kup here: `https://git.kernel.org/pub/scm/utils/kup/kup.git
 <https://git.kernel.org/pub/scm/utils/kup/kup.git>`_.
 
+Use kup 0.4 or newer: older versions exit with 0 even when an upload
+fails, so ``srt upload`` cannot tell. Since 0.4 kup-server also refuses
+signatures of revoked or expired keys.
+
 srt also calls the following external tools:
 
 - ``git`` including ``git send-email`` (``srt announce``)
