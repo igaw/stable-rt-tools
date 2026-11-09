@@ -22,113 +22,151 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+
 import argparse
 import os
+import tempfile
 import unittest
-from subprocess import CalledProcessError
+from shutil import rmtree
 from unittest.mock import patch
 
-from stable_rt_tools.srt_quilt import (quilt, execute, _quilt_env,
-                                       QUILT_DIFF_OPTS)
+from stable_rt_tools import srt_quilt
+from stable_rt_tools.srt_prep import worktree_dirs
+from stable_rt_tools.srt_quilt import (drop_from_series, parse_series,
+                                       patch_subject, rt_localversion,
+                                       series_changes)
 
-_QUILT_PATCHES = '/some/patches/dir'
-_STATE = {'quilt_patches': _QUILT_PATCHES}
+SERIES = """\
+# Applied upstream
 
+###########################################################################
+# Posted
+###########################################################################
+0001-hrtimer-Use-__raise_softirq_irqoff.patch
+0002-timers-Use-__raise_softirq_irqoff.patch  -p1
 
-def test_quilt_env_uses_state():
-    with patch('stable_rt_tools.srt_quilt.read_srt_state',
-               return_value=_STATE):
-        env = _quilt_env()
-    assert env['QUILT_PATCHES'] == _QUILT_PATCHES
-
-
-def test_quilt_env_fallback_when_no_state():
-    with patch('stable_rt_tools.srt_quilt.read_srt_state', return_value=None):
-        env = _quilt_env()
-    expected = os.environ.copy()
-    expected['QUILT_DIFF_OPTS'] = QUILT_DIFF_OPTS
-    assert env == expected
+# RT release version
+Add_localversion_for_-RT_release.patch
+"""
 
 
-def test_quilt_env_overrides_diff_opts():
-    with patch.dict(os.environ, {'QUILT_DIFF_OPTS': '-p'}):
-        with patch('stable_rt_tools.srt_quilt.read_srt_state',
-                   return_value=None):
-            env = _quilt_env()
-    assert env['QUILT_DIFF_OPTS'] == QUILT_DIFF_OPTS
+class TestHelpers(unittest.TestCase):
+    def test_parse_series(self):
+        self.assertEqual(parse_series(SERIES), [
+            '0001-hrtimer-Use-__raise_softirq_irqoff.patch',
+            '0002-timers-Use-__raise_softirq_irqoff.patch',
+            'Add_localversion_for_-RT_release.patch'])
+
+    def test_series_changes(self):
+        old = ['a.patch', 'b.patch', 'lv.patch']
+        new = ['a.patch', 'c.patch', 'lv.patch']
+        self.assertEqual(series_changes(old, new), (['b.patch'],
+                                                    ['c.patch']))
+        self.assertEqual(series_changes(old, old), ([], []))
+
+    def test_patch_subject(self):
+        self.assertEqual(patch_subject(
+            'From: A <a@b>\nSubject: [PATCH] printk: Postpone kthread '
+            'startup\n\nbody\n'), 'printk: Postpone kthread startup')
+        self.assertEqual(patch_subject(
+            'Subject: [PATCH v2 1/3] [RT] sched: A very long subject\n'
+            ' which is folded\n\n---\n'),
+            'sched: A very long subject which is folded')
+        self.assertEqual(patch_subject(
+            'Subject: no prefix\n'), 'no prefix')
+        # quilt patch without mail headers
+        self.assertIsNone(patch_subject(
+            '--- a/x\n+++ b/x\nSubject: in the diff\n'))
+
+    def test_rt_localversion(self):
+        self.assertEqual(rt_localversion('v6.12.116-rt22'), '-rt22')
+
+    def test_drop_from_series(self):
+        d = tempfile.mkdtemp()
+        try:
+            with open(os.path.join(d, 'series'), 'w') as f:
+                f.write(SERIES)
+            name = '0002-timers-Use-__raise_softirq_irqoff.patch'
+            with open(os.path.join(d, name), 'w') as f:
+                f.write('patch')
+            drop_from_series(d, name)
+            with open(os.path.join(d, 'series')) as f:
+                text = f.read()
+            self.assertNotIn(name, text)
+            self.assertIn('# Posted', text)
+            self.assertEqual(len(parse_series(text)), 2)
+            self.assertFalse(os.path.exists(os.path.join(d, name)))
+        finally:
+            rmtree(d)
+
+    def test_worktree_dirs(self):
+        self.assertEqual(worktree_dirs('/rt/v6.12-rt'), {
+            'rt_dir': '/rt/v6.12-rt',
+            'stable_dir': '/rt/v6.12',
+            'patches_dir': '/rt/v6.12-rt-patches',
+            'rebase_dir': '/rt/v6.12-rt-rebase'})
 
 
-def _assert_quilt_patch_env(calls):
-    for c in calls:
-        env = c.kwargs.get('env') or (c.args[1] if len(c.args) > 1 else None)
-        assert env is not None, 'cmd called without env kwarg'
-        assert env.get('QUILT_PATCHES') == _QUILT_PATCHES
-        assert env.get('QUILT_DIFF_OPTS') == QUILT_DIFF_OPTS
+STATE = {
+    'old_tag': 'v6.12.111-rt21',
+    'new_tag': 'v6.12.116-rt22',
+    'quilt_patches': '/rt/v6.12-rt-patches/patches',
+    'workflow_branch': 'v6.12-rt',
+    'quilt_workflow': True,
+}
 
 
-Q = ['quilt', '--quiltrc', '-']
-REFRESH = Q + ['refresh', '-p', 'ab', '--no-index', '--no-timestamps']
+class TestRelease(unittest.TestCase):
+    def test_tags(self):
+        rel = srt_quilt.Release(dict(STATE))
+        self.assertEqual(rel.base, 'v6.12.116')
+        self.assertEqual(rel.release_tag, 'v6.12.116-rt22')
+        self.assertEqual(rel.rebase_tag, 'v6.12.116-rt22-rebase')
+        self.assertEqual(rel.queue_tag, 'v6.12.116-rt22-patches')
+        self.assertEqual(rel.old_queue_tag, 'v6.12.111-rt21-patches')
+
+    def test_dirs_from_old_state(self):
+        # state written before srt prep recorded the worktrees
+        rel = srt_quilt.Release(dict(STATE))
+        self.assertEqual(rel.rt_dir, '/rt/v6.12-rt')
+        self.assertEqual(rel.stable_dir, '/rt/v6.12')
+        self.assertEqual(rel.rebase_dir, '/rt/v6.12-rt-rebase')
+
+    def test_requires_prep(self):
+        with self.assertRaises(SystemExit):
+            srt_quilt.Release({})
+
+    def test_requires_quilt_workflow(self):
+        with self.assertRaises(SystemExit):
+            srt_quilt.Release(dict(STATE, quilt_workflow=False))
+
+    def test_rejects_release_candidate(self):
+        with self.assertRaises(SystemExit):
+            srt_quilt.Release(dict(STATE, new_tag='v6.12.116-rt22-rc1'))
 
 
-def test_quilt_runs_expected_sequence():
-    side_effects = [
-        '',  # quilt next
-        '',  # quilt push
-        '',  # quilt refresh
-        '',  # quilt next
-        '',  # quilt push
-        '',  # quilt refresh
-        CalledProcessError(1, ['quilt', 'next']),  # end of series
-        '',  # final quilt refresh
-        '',  # quilt pop -a
-    ]
-    with patch('stable_rt_tools.srt_quilt.read_srt_state',
-               return_value=_STATE):
-        with patch('stable_rt_tools.srt_quilt.cmd',
-                   side_effect=side_effects) as c:
-            with patch('stable_rt_tools.srt_quilt.localversion_inc') as lv_inc:
-                quilt('localversion-rt')
-                lv_inc.assert_called_once_with('localversion-rt')
-                assert [ca.args[0] for ca in c.call_args_list] == [
-                    Q + ['next'],
-                    Q + ['push'],
-                    REFRESH,
-                    Q + ['next'],
-                    Q + ['push'],
-                    REFRESH,
-                    Q + ['next'],
-                    REFRESH,
-                    Q + ['pop', '-a'],
-                ]
-                _assert_quilt_patch_env(c.call_args_list)
+class TestQuiltCmd(unittest.TestCase):
+    def test_quilt_ignores_quiltrc(self):
+        rel = srt_quilt.Release(dict(STATE))
+        with patch('stable_rt_tools.srt_quilt.cmd') as c:
+            env = srt_quilt._quilt_env(rel)
+            srt_quilt._refresh(rel, env)
+        args = c.call_args
+        self.assertEqual(args.args[0], [
+            'quilt', '--quiltrc', '-', 'refresh', '-p', 'ab',
+            '--no-index', '--no-timestamps'])
+        self.assertEqual(args.kwargs['cwd'], '/rt/v6.12')
+        self.assertEqual(args.kwargs['env']['QUILT_PATCHES'],
+                         '/rt/v6.12-rt-patches/patches')
+        self.assertEqual(args.kwargs['env']['QUILT_DIFF_OPTS'],
+                         srt_quilt.QUILT_DIFF_OPTS)
 
-
-def test_quilt_returns_early_on_push_failure():
-    side_effects = [
-        '',  # quilt next
-        CalledProcessError(1, ['quilt', 'push']),  # patch apply failure
-    ]
-    with patch('stable_rt_tools.srt_quilt.read_srt_state',
-               return_value=_STATE):
-        with patch('stable_rt_tools.srt_quilt.cmd',
-                   side_effect=side_effects) as c:
-            with patch('stable_rt_tools.srt_quilt.localversion_inc') as lv_inc:
-                with unittest.TestCase().assertRaises(SystemExit):
-                    quilt('localversion-rt')
-                lv_inc.assert_not_called()
-                assert [ca.args[0] for ca in c.call_args_list] == [
-                    Q + ['next'],
-                    Q + ['push'],
-                ]
-                _assert_quilt_patch_env(c.call_args_list)
-
-
-class TestQuiltExecute(unittest.TestCase):
-    def test_execute(self):
-        args = argparse.Namespace(localversion='localversion-rt')
-        with patch('stable_rt_tools.srt_quilt.quilt') as q:
-            execute(args)
-            q.assert_called_once_with('localversion-rt')
+    def test_execute_defaults_to_refresh(self):
+        with patch('stable_rt_tools.srt_quilt.Release'), \
+                patch.dict(srt_quilt.COMMANDS,
+                           {'refresh': unittest.mock.Mock()}) as cmds:
+            srt_quilt.execute(argparse.Namespace(quilt_cmd=None))
+            cmds['refresh'].assert_called_once()
 
 
 if __name__ == '__main__':

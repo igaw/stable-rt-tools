@@ -33,12 +33,12 @@ from logging import debug, error
 from subprocess import PIPE, DEVNULL, CalledProcessError, run
 
 
-def cmd(args, verbose=False, env=None):
+def cmd(args, verbose=False, env=None, cwd=None):
     if verbose:
         print(' '.join(args))
-    debug('run: ' + ' '.join(args))
+    debug('run: ' + ' '.join(args) + (' (in {})'.format(cwd) if cwd else ''))
     p = run(args, check=True, stdout=PIPE,
-            stderr=None if verbose else DEVNULL, env=env)
+            stderr=None if verbose else DEVNULL, env=env, cwd=cwd)
     r = p.stdout.decode('utf-8').strip()
     debug('     ' + r)
     return r
@@ -184,6 +184,13 @@ def write_srt_state(state, path=None):
     state['updated_at'] = datetime.now(timezone.utc).isoformat()
     with open(state_path, 'w') as f:
         json.dump(state, f, sort_keys=True)
+
+
+def update_srt_state(changes, path=None):
+    state = read_srt_state(path) or {}
+    state.update(changes)
+    write_srt_state(state, path)
+    return state
 
 
 def clear_srt_state(path=None):

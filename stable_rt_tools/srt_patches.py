@@ -22,8 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
-import re
-import shutil
+import sys
 import tempfile
 from email.utils import make_msgid
 from time import gmtime, strftime
@@ -34,40 +33,6 @@ from stable_rt_tools.srt_util import (
 )
 from stable_rt_tools.srt_util_context import SrtContext
 import importlib.resources as pkg_resources
-
-
-def localversion_set(filename, version):
-    with open(filename, 'w') as f:
-        f.write(version)
-        f.write('\n')
-
-
-def localversion_inc(filename):
-    with open(filename, 'r+') as f:
-        line = f.readline()
-        version = int(line[3:])
-        f.seek(0)
-        f.write('-rt{0}\n'.format(version+1))
-        f.truncate()
-
-
-def get_kernel_version():
-    tmp = tempfile.mkdtemp()
-    cmd(['make', 'O=%s' % tmp, 'defconfig'])
-    line = cmd(['make', '-s', 'O=%s' % tmp, 'kernelrelease'])
-    shutil.rmtree(tmp)
-    return line.strip()[:-1]
-
-
-def last_commit_was_release_commit():
-    p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
-    lines = cmd(['git', 'log', '-1', '--pretty=%B'])
-    for msg in iter(lines.splitlines()):
-        m = p.match(msg)
-        if not m:
-            continue
-        return True
-    return False
 
 
 def get_commit_tmpl_path(config):
@@ -108,6 +73,9 @@ def do_patches(config, ctx, args):
     r["date"] = timestamp
     r["branch_name"] = get_remote_branch_name()
     r["branch_head"] = cmd(['git', 'rev-parse', 'HEAD'])
+    r["release_tag"] = str(ctx.new_tag)
+    r["series_changes"] = ''
+
     with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
         f.write(stable_rt_text.format(**r))
         msg_path = f.name
@@ -168,7 +136,17 @@ def add_argparser(parser):
     return prs
 
 
+DEPRECATED = {
+    'patches': 'srt quilt queue',
+    'rebase': 'srt quilt rebase',
+}
+
+
 def execute(args):
+    post_fix = get_remote_branch_name().split('-')[-1]
+    print('srt patches is deprecated, use "{0}"'.format(
+        DEPRECATED.get(post_fix, 'srt quilt merge; srt quilt release')),
+        file=sys.stderr)
     ctx = SrtContext(args)
     check_context(ctx)
     patches(get_config(), ctx, args)

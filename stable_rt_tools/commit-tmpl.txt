@@ -4,12 +4,14 @@ Hello RT-list!
 
 I'm pleased to announce the {new_version} stable release.
 
+Changes since {old_version}:
+
+{series_changes}
 You can get this release via the git tree at:
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+  https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git {release_tag}
 
   branch: {branch_name}
-  Head SHA1: {branch_head}
 
 Or to build {new_version} directly, the following patches should be applied:
 
