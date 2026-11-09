@@ -6,7 +6,7 @@ Changes
 
 The quilt workflow release is now a sequence of named ``srt quilt``
 steps, modelled on the linux-6.18.y-rt releases. See :doc:`quilt-workflow`.
-srt sets up work areas, takes over series from other maintainers, needs a
+srt sets up work areas, continues series of other maintainers, needs a
 much shorter configuration, and is no longer tied to PREEMPT_RT.
 
 New
