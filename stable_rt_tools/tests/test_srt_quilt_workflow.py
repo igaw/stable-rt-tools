@@ -27,7 +27,7 @@
 
 Layout created by setUp, mirroring kernel.org:
 
-  stable-repo     stable tree, v6.1.1 and later v6.1.2
+  upstream/linux  stable tree, v6.1.1 and later v6.1.2
   rt-repo         stable-rt: v6.1-rt, v6.1-rt-patches and v6.1-rt-rebase
                   with the v6.1.1-rt1 release
   rt/linux        work area clone with the worktrees
@@ -46,7 +46,7 @@ import unittest
 from shutil import rmtree
 from unittest import mock
 
-from stable_rt_tools import srt_quilt
+from stable_rt_tools import srt_quilt, srt_setup
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
 from stable_rt_tools.srt_sign import sign
@@ -108,7 +108,7 @@ class TestQuiltBase(unittest.TestCase):
         self.config['GNUPGHOME'] = self.gnupghome
 
     def setup_stable_repo(self):
-        os.mkdir(self.stable_repo)
+        os.makedirs(self.stable_repo)
         git(self.stable_repo, 'init', '--initial-branch=master')
         identity(self.stable_repo)
         write(self.stable_repo + '/version', '6.1.1\n\n')
@@ -185,19 +185,19 @@ class TestQuiltBase(unittest.TestCase):
             self.old_tag + '-patches')
         git(repo, 'checkout', '-q', 'master')
 
+    def setup_config(self) -> dict[str, str]:
+        """The srt.conf group of the series, for srt setup."""
+        return dict(self.config,
+                    UPSTREAM_GIT_URL=self.stable_repo,
+                    UPSTREAM_BRANCH='master',
+                    UPSTREAM_REMOTE='stable',
+                    PRJ_GIT_URL=self.rt_repo)
+
     def setup_work_area(self):
-        linux = self.rt + '/linux'
         os.mkdir(self.rt)
-        git(self.rt, 'clone', '-q', self.rt_repo, linux)
-        identity(linux)
-        git(linux, 'remote', 'add', 'stable', self.stable_repo)
-        git(linux, 'fetch', '-q', '--all', '--tags')
-        git(linux, 'worktree', 'add', '-q', '--track', '-b', 'v6.1.y',
-            self.stable_dir, 'stable/master')
-        for b in (self.series, f'{self.series}-patches',
-                  f'{self.series}-rebase'):
-            git(linux, 'worktree', 'add', '-q', '--track', '-b', b,
-                self.rt + '/' + b, 'origin/' + b)
+        with mock.patch('sys.stdout'):
+            srt_setup.setup(self.group, self.setup_config(), self.rt)
+        identity(self.rt + '/linux')
 
     def setup_stable_new_release(self):
         replace_line(self.stable_repo + '/kernel.c', 'line10',
@@ -214,12 +214,13 @@ class TestQuiltBase(unittest.TestCase):
 
     def setUp(self):
         self.series = f'v6.1-{self.suffix}'
+        self.group = f'linux/stable-rt/{self.series}'
         self.old_tag = f'v6.1.1-{self.suffix}1'
         self.new_tag = f'v6.1.2-{self.suffix}2'
         self.localversion = f'localversion-{self.suffix}'
         self.cwd = tempfile.gettempdir()
         self.tdir = tempfile.mkdtemp()
-        self.stable_repo = self.tdir + '/stable-repo'
+        self.stable_repo = self.tdir + '/upstream/linux'
         self.rt_repo = self.tdir + '/rt-repo'
         self.rt = self.tdir + '/rt'
         self.stable_dir = self.rt + '/v6.1'
@@ -389,6 +390,48 @@ class TestQuiltReleaseOtherSuffix(TestQuiltRelease):
     suffix = 'foo'
 
 
+class TestSetup(TestQuiltBase):
+    def run_setup(self, config, group=None, parent=None):
+        stub_stdouts(self)
+        srt_setup.setup(group or self.group, config, parent or self.rt)
+        return stdout_text()
+
+    def test_rerun_checks(self):
+        out = self.run_setup(self.setup_config())
+        self.assertNotIn('add ', out)
+        for d in (self.stable_dir, self.rt_dir, self.patches_dir,
+                  self.rebase_dir):
+            self.assertIn(f'ok    {d} ', out)
+
+    def test_wrong_remote_url(self):
+        config = dict(self.setup_config(), PRJ_GIT_URL='/elsewhere')
+        with self.assertRaises(srt_setup.SetupError) as e:
+            self.run_setup(config)
+        self.assertIn('remote stable-rt is', str(e.exception))
+
+    def test_origin_must_match_the_group(self):
+        with self.assertRaises(srt_setup.SetupError) as e:
+            self.run_setup(self.setup_config(),
+                           group=f'other/stable-rt/{self.series}')
+        self.assertIn('does not match the repository name other',
+                      str(e.exception))
+
+    def test_git_workflow(self):
+        config = self.setup_config()
+        del config['quilt_workflow']
+        parent = self.tdir + '/git-workflow'
+        os.mkdir(parent)
+        self.run_setup(config, parent=parent)
+        # no stable and -patches worktrees, -rebase exists on the remote
+        self.assertEqual(sorted(os.listdir(parent)),
+                         sorted(['linux', self.series,
+                                 f'{self.series}-rebase']))
+        self.assertEqual(
+            git(f'{parent}/{self.series}', 'rev-parse', '--abbrev-ref',
+                '--symbolic-full-name', '@{u}'),
+            f'stable-rt/{self.series}')
+
+
 class TestQuiltChecks(TestQuiltBase):
     def test_steps_in_order(self):
         self.prepare()
@@ -462,8 +505,8 @@ class TestQuiltChecks(TestQuiltBase):
 
     def test_undo_refuses_pushed_release(self):
         self.release_until('release')
-        git(self.rt_dir, 'push', '-q', 'origin', 'HEAD:' + self.series)
-        git(self.rt_dir, 'fetch', '-q', 'origin')
+        git(self.rt_dir, 'push', '-q', 'stable-rt', 'HEAD:' + self.series)
+        git(self.rt_dir, 'fetch', '-q', 'stable-rt')
         with self.assertRaises(SystemExit) as e:
             self.run_step('undo')
         self.assertIn('pushed already', str(e.exception))

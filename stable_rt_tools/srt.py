@@ -34,6 +34,7 @@ from stable_rt_tools import (
     srt_prep,
     srt_push,
     srt_quilt,
+    srt_setup,
     srt_sign,
     srt_status,
     srt_tag,
@@ -41,6 +42,7 @@ from stable_rt_tools import (
 )
 
 sub_cmd = {
+    'setup': srt_setup,
     'prep': srt_prep,
     'commit': srt_commit,
     'tag': srt_tag,

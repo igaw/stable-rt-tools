@@ -196,5 +196,14 @@ class TestQuiltCmd(unittest.TestCase):
             cmds['refresh'].assert_called_once()
 
 
+class TestSetupHelpers(unittest.TestCase):
+    def test_repo_name(self):
+        from stable_rt_tools.srt_setup import _repo_name
+        for url in ('https://git.kernel.org/pub/scm/linux/kernel/git/'
+                    'stable/linux.git', 'git@example.com:foo/linux',
+                    '/srv/git/linux/'):
+            self.assertEqual(_repo_name(url), 'linux', url)
+
+
 if __name__ == '__main__':
     unittest.main()
