@@ -4,14 +4,25 @@ Changes
 2.1
 ---
 
+Everything added to a series since the last release is reviewed and
+announced: the review mails of a release candidate and the release
+announcement contain the patches before and after the stable merge and
+the conflict resolutions of the merge, but not the stable update. The
+release announcement is the same for the git and the quilt workflow.
+
+New
+~~~
+
+- The releases of stable-rt-tools are published on GitHub too, with the
+  changelog as release notes.
+
 Fixed
 ~~~~~
 
 - The review mails of a release candidate left out the conflict
   resolutions of the stable merge, ``git format-patch`` skips merges. The
   merge is a mail of the series now, with the resolution as shown by
-  ``git show --remerge-diff``. A clean merge gets no mail. git 2.38 or
-  newer is needed.
+  ``git show --remerge-diff``. A clean merge gets no mail.
 - The review mails of a release candidate started at the last merge,
   patches committed before the stable merge were not mailed. The mails
   contain everything added to the series since the last release now. The
@@ -27,6 +38,12 @@ Fixed
   in: patches before and after the stable merge, conflict resolutions and
   the release commit, not the stable update. The default ``COMMIT_TMPL``
   says that the delta patch is appended.
+
+Incompatible changes
+~~~~~~~~~~~~~~~~~~~~
+
+- git 2.38 or newer is required (``git show --remerge-diff``,
+  ``git merge-tree --write-tree``).
 
 2.0
 ---

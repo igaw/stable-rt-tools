@@ -21,4 +21,4 @@
 # SOFTWARE.
 """The stable-rt-tools version, the single source for pyproject.toml."""
 
-__version__ = '2.0'
+__version__ = '2.1'
