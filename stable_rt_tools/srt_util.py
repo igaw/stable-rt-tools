@@ -224,7 +224,9 @@ def read_config():
             '/etc/srt']
     if 'SRT_CONF' in os.environ:
         dirs.insert(0, os.environ.get('SRT_CONF'))
-    config.read(list(map(lambda x: x + '/srt.conf', dirs)))
+    # ConfigParser.read() lets later files override earlier ones, the
+    # first directory in the list has to win
+    config.read([d + '/srt.conf' for d in reversed(dirs)])
     return config
 
 

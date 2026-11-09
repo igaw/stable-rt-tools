@@ -174,3 +174,23 @@ class TestUtil(TestCase):
             env = srt_util.get_gpg_env({'GNUPGHOME': '~/keys'})
         self.assertEqual(env['HOME'], '/home/someone')
         self.assertEqual(env['GNUPGHOME'], '/home/someone/keys')
+
+    def test_read_config_srt_conf_wins(self):
+        import os
+        from unittest import mock
+        import stable_rt_tools.srt_util as srt_util
+
+        tmp = tempfile.mkdtemp()
+        try:
+            for d, val in (('env', 'from-env'), ('home', 'from-home')):
+                os.makedirs(os.path.join(tmp, d, '.config'))
+                with open(os.path.join(tmp, d, '.config', 'srt.conf'),
+                          'w') as f:
+                    f.write('[a/b]\nKEY = {0}\n'.format(val))
+            env = {'SRT_CONF': os.path.join(tmp, 'env', '.config'),
+                   'HOME': os.path.join(tmp, 'home')}
+            with mock.patch.dict(os.environ, env):
+                config = srt_util.read_config()
+            self.assertEqual(config['a/b']['KEY'], 'from-env')
+        finally:
+            rmtree(tmp)
