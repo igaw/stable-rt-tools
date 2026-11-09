@@ -24,6 +24,7 @@
 
 
 import os
+import re
 from datetime import date, timedelta
 from email.utils import make_msgid
 from time import gmtime, strftime
@@ -152,6 +153,16 @@ def get_rc_templ_path(config):
     return get_template_path(config, 'RC_TEXT', 'announce-srt-rc.txt')
 
 
+def strip_trailers(msg):
+    """Remove the trailer block (Signed-off-by: ...) of a commit message."""
+    paragraphs = msg.rstrip().split('\n\n')
+    last = paragraphs[-1].splitlines()
+    if len(paragraphs) > 1 and all(
+            re.match(r'^[A-Za-z][A-Za-z0-9-]*: ', line) for line in last):
+        paragraphs = paragraphs[:-1]
+    return '\n\n'.join(paragraphs)
+
+
 def announce(config, ctx, args):
     from stable_rt_tools.srt_util import is_quilt_workflow
     if ctx.is_rc:
@@ -171,6 +182,7 @@ def announce(config, ctx, args):
                 msg = '\n'.join(lines[1:]).lstrip('\n')
             else:
                 pass
+            msg = strip_trailers(msg)
             timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
             sender = config.get('SENDER', '')
             mail_to = config.get('MAIL_TO', '')
