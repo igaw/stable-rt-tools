@@ -105,7 +105,7 @@ class TestHelpers(unittest.TestCase):
             rmtree(d)
 
     def test_worktree_dirs_rt_devel_names(self):
-        # a series taken over in the shared tree with its branch names
+        # a series of another maintainer, worked on with its branch names
         self.assertEqual(worktree_dirs('/w/linux-6.18.y-rt'), {
             'rt_dir': '/w/linux-6.18.y-rt',
             'stable_dir': '/w/linux-6.18.y',

@@ -266,11 +266,11 @@ class TestQuiltBase(unittest.TestCase):
         srt_quilt.COMMANDS[step](srt_quilt.Release())
         return stdout_text()
 
-    def run_setup(self, config, group=None, parent=None, takeover=None,
-                  takeover_url=None):
+    def run_setup(self, config, group=None, parent=None, source_branch=None,
+                  source_url=None):
         stub_stdouts(self)
         srt_setup.setup(group or self.group, config, parent or self.rt,
-                        takeover, takeover_url)
+                        source_branch, source_url)
         return stdout_text()
 
     def add_new_patch(self):
@@ -437,9 +437,9 @@ class TestSetup(TestQuiltBase):
             f'stable-rt/{self.series}')
 
 
-class TestTakeover(TestQuiltBase):
-    """Take over linux-6.2.y-rt, published by another maintainer, as
-    v6.2-rt next to the existing v6.1-rt work area."""
+class TestFromBranch(TestQuiltBase):
+    """Start v6.2-rt from linux-6.2.y-rt of another maintainer, next to
+    the existing v6.1-rt work area."""
 
     def setUp(self):
         super().setUp()
@@ -459,13 +459,13 @@ class TestTakeover(TestQuiltBase):
             if line.startswith('  git -C '):
                 cmd(line.split())
 
-    def test_takeover_on_the_same_remote(self):
+    def test_from_the_same_remote(self):
         out = self.run_setup(self.config_v62,
                              group='linux/stable-rt/v6.2-rt',
-                             takeover='linux-6.2.y-rt')
+                             source_branch='linux-6.2.y-rt')
         for b in ('', '-patches', '-rebase'):
             path = f'{self.rt}/v6.2-rt{b}'
-            self.assertIn(f'take  {path} (v6.2-rt{b} from '
+            self.assertIn(f'new   {path} (v6.2-rt{b} from '
                           f'stable-rt/linux-6.2.y-rt{b})', out)
             self.assertEqual(git(path, 'rev-parse', 'HEAD'),
                              git(self.rt_repo, 'rev-parse',
@@ -493,14 +493,14 @@ class TestTakeover(TestQuiltBase):
         self.assertIn(f'ok    {self.rt_dir} ', self.run_setup(
             self.setup_config()))
 
-    def test_takeover_from_another_remote(self):
+    def test_from_another_remote(self):
         out = self.run_setup(self.config_v62, group='linux/stable-rt/v6.2-rt',
-                             takeover='rt-devel/linux-6.2.y-rt',
-                             takeover_url=self.rt_repo)
+                             source_branch='rt-devel/linux-6.2.y-rt',
+                             source_url=self.rt_repo)
         self.assertIn(f'add   remote rt-devel {self.rt_repo}', out)
         self.assertIn('from rt-devel/linux-6.2.y-rt-rebase)', out)
 
-    def test_missing_series_without_takeover(self):
+    def test_missing_series_without_from(self):
         with self.assertRaises(srt_setup.SetupError) as e:
             self.run_setup(self.config_v62, group='linux/stable-rt/v6.2-rt')
         self.assertIn('use --from BRANCH', str(e.exception))
@@ -517,7 +517,7 @@ class TestTakeover(TestQuiltBase):
             srt.main()
         return stdout_text()
 
-    def test_cli_takeover_in_existing_area(self):
+    def test_cli_from_in_existing_area(self):
         conf = self.tdir + '/conf/srt.conf'
         os.makedirs(self.tdir + '/conf')
         write(conf, '# my srt.conf\n[DEFAULT]\nMAIL_TO = a@b\n')
@@ -526,7 +526,7 @@ class TestTakeover(TestQuiltBase):
             '--workflow', 'quilt', '--upstream-branch', 'linux-6.2.y',
             '--upstream-remote', 'stable', '--from', 'linux-6.2.y-rt')
         self.assertIn('added [linux/stable-rt/v6.2-rt]', out)
-        self.assertIn(f'take  {self.rt}/v6.2-rt ', out)
+        self.assertIn(f'new   {self.rt}/v6.2-rt ', out)
         text = read(conf)
         self.assertTrue(text.startswith('# my srt.conf\n[DEFAULT]\n'))
         # the URLs come from the work area, --from is not stored

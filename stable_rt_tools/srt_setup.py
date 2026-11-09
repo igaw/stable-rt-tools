@@ -40,8 +40,8 @@ the ones of its remotes.
 
 The repository <repo> and the worktrees are created next to each other
 in the setup directory; existing ones are checked, so a series can be
-added to the work area of another one. --from takes a series over which
-exists under another name, e.g. from another maintainer.
+added to the work area of another one. --from starts a series which
+does not exist yet from other branches, e.g. of another maintainer.
 """
 
 import argparse
@@ -171,7 +171,7 @@ def _has_remote_branch(repo: str, remote: str, branch: str) -> bool:
 
 def setup_series_worktree(repo: str, path: str, branch: str, remote: str,
                           source: str | None) -> bool:
-    """A worktree for a branch of the series, taken over from source if
+    """A worktree for a branch of the series, started from source if
     the branch is not on remote yet. Return True if it still needs to be
     published."""
     upstream = f'{remote}/{branch}'
@@ -186,35 +186,35 @@ def setup_series_worktree(repo: str, path: str, branch: str, remote: str,
         return True
     if source is None:
         raise SetupError(f'{upstream} does not exist; use --from BRANCH '
-                         'to take the series over from another branch')
+                         'to start it from another branch')
     if _query(repo, 'rev-parse', '--verify', '--quiet', source) is None:
         raise SetupError(f'{upstream} does not exist and neither does the '
-                         f'branch {source} to take it over from')
+                         f'branch {source} to start it from')
     if _query(repo, 'rev-parse', '--verify', '--quiet',
               f'refs/heads/{branch}') is not None:
         raise SetupError(f'the branch {branch} exists already, but not on '
                          f'{remote}; publish or delete it')
-    print(f'take  {path} ({branch} from {source})')
+    print(f'new   {path} ({branch} from {source})')
     _git(repo, 'worktree', 'add', '--no-track', '-b', branch, path, source)
     return True
 
 
-def _split_takeover(repo: str, remote: str, takeover: str,
-                    takeover_url: str | None) -> tuple[str, str]:
+def _split_source(repo: str, remote: str, source_branch: str,
+                    source_url: str | None) -> tuple[str, str]:
     """[REMOTE/]BRANCH -> (remote, branch), the series' remote by default."""
-    if '/' in takeover:
-        name, branch = takeover.split('/', 1)
-        if takeover_url or _query(repo, 'config', '--get',
+    if '/' in source_branch:
+        name, branch = source_branch.split('/', 1)
+        if source_url or _query(repo, 'config', '--get',
                                   f'remote.{name}.url') is not None:
             return name, branch
-    if takeover_url:
+    if source_url:
         raise SetupError('--from-url needs --from REMOTE/BRANCH')
-    return remote, takeover
+    return remote, source_branch
 
 
 def setup(group: str, config: Mapping[str, str], parent: str,
-          takeover: str | None = None,
-          takeover_url: str | None = None) -> None:
+          source_branch: str | None = None,
+          source_url: str | None = None) -> None:
     try:
         repo_name, remote, series = group.split('/', 2)
     except ValueError:
@@ -236,21 +236,21 @@ def setup(group: str, config: Mapping[str, str], parent: str,
         setup_remote(repo, upstream_remote, upstream_url)
     setup_remote(repo, remote, _require(config, 'PRJ_GIT_URL'),
                  config.get('PRJ_GIT_TREE'))
-    takeover_remote = remote
-    if takeover:
-        takeover_remote, takeover = _split_takeover(repo, remote, takeover,
-                                                    takeover_url)
-        if takeover_url:
-            setup_remote(repo, takeover_remote, takeover_url)
+    source_remote = remote
+    if source_branch:
+        source_remote, source_branch = _split_source(
+            repo, remote, source_branch, source_url)
+        if source_url:
+            setup_remote(repo, source_remote, source_url)
     print('fetch')
     for name in dict.fromkeys(('origin', upstream_remote, remote,
-                               takeover_remote if takeover else remote)):
+                               source_remote if source_branch else remote)):
         _git(repo, 'fetch', '--tags', name)
 
     def source(branch: str) -> str | None:
-        if not takeover:
+        if not source_branch:
             return None
-        return f'{takeover_remote}/{takeover}{branch.removeprefix(series)}'
+        return f'{source_remote}/{source_branch}{branch.removeprefix(series)}'
 
     def exists(branch: str) -> bool:
         src = source(branch)
@@ -365,12 +365,15 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
                      help='URL to push the series to')
     opt.add_argument('--prj-dir', metavar='DIR',
                      help='kup directory to upload releases to')
-    take = prs.add_argument_group('take over a series')
-    take.add_argument('--from', dest='takeover', metavar='[REMOTE/]BRANCH',
-                      help='create the series from this branch and its '
-                      '-patches, -rebase and -next branches if it does not '
-                      'exist yet; not stored in srt.conf')
-    take.add_argument('--from-url', dest='takeover_url', metavar='URL',
+    start = prs.add_argument_group(
+        'start a series from other branches, e.g. to publish a series of '
+        'another maintainer under a new name')
+    start.add_argument('--from', dest='source_branch',
+                       metavar='[REMOTE/]BRANCH',
+                       help='start the series from this branch and its '
+                       '-patches, -rebase and -next branches if it does not '
+                       'exist yet; not stored in srt.conf')
+    start.add_argument('--from-url', dest='source_url', metavar='URL',
                       help='URL of REMOTE if it does not exist yet')
     return prs
 
@@ -395,8 +398,8 @@ def execute(args: argparse.Namespace) -> None:
             new = {**{k: v for k, v in derived.items()
                       if k not in group}, **options}
             add_group(config_path(), args.group, new)
-        setup(args.group, settings, args.dir, args.takeover,
-              args.takeover_url)
+        setup(args.group, settings, args.dir, args.source_branch,
+              args.source_url)
     except SetupError as e:
         sys.exit(f'srt setup: {e}')
     except CalledProcessError as e:
