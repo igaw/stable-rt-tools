@@ -29,19 +29,7 @@ from shutil import rmtree
 from unittest import TestCase
 
 from stable_rt_tools.srt_util import cmd, get_gpg_fingerprint
-
-gnupg_config = """
-Key-Type: DSA
-Key-Length: 1024
-Subkey-Type: ELG-E
-Subkey-Length: 1024
-Name-Real: Mighty Eagle
-Name-Email: me@incredible.com
-Expire-Date: 0
-%no-protection
-%commit
-%echo done
-"""
+from stable_rt_tools.tests.test_srt import gnupg_config
 
 
 class TestUtil(TestCase):
@@ -79,9 +67,9 @@ class TestUtil(TestCase):
         with open(cfg_file, 'w') as f:
             f.write(gnupg_config)
 
-        cmd(['gpg2', '--batch', '--generate-key', cfg_file],
+        cmd(['gpg', '--batch', '--generate-key', cfg_file],
             env={'GNUPGHOME': self.gnupghome})
-        lines = cmd(['gpg2', '--list-secret-keys', '--with-colons'],
+        lines = cmd(['gpg', '--list-secret-keys', '--with-colons'],
                     env={'GNUPGHOME': self.gnupghome})
 
         key = ''

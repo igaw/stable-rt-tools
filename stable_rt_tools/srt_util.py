@@ -349,7 +349,7 @@ def get_gpg_env(config: Config) -> dict[str, str]:
 
 
 def get_gpg_fingerprint(config: Config) -> str:
-    out = cmd(['gpg2',
+    out = cmd(['gpg',
                '--homedir', get_gnupghome(config),
                '--local-user', config['GPG_KEY_ID'],
                '--fingerprint'])

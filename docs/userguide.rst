@@ -37,7 +37,7 @@ Find kup here: `https://git.kernel.org/pub/scm/utils/kup/kup.git
 srt also calls the following external tools:
 
 - ``git`` including ``git send-email`` (``srt announce``)
-- ``gpg2`` with your kernel.org signing key (``srt tag``, ``srt sign``,
+- ``gpg`` (GnuPG 2) with your kernel.org signing key (``srt tag``, ``srt sign``,
   ``srt quilt``, ``srt announce``)
 - ``kup`` (``srt upload``)
 - ``make``, ``gcc``, ``flex`` and ``bison`` to determine the kernel release

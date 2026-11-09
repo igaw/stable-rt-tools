@@ -24,7 +24,7 @@ The package is fully annotated and checked with ``mypy --strict``, the
 tests are checked without requiring annotations. Configuration for all
 three tools is in ``pyproject.toml``.
 
-The tests need ``git``, ``gpg2``, ``quilt`` and ``patch``; without quilt
+The tests need ``git``, ``gpg``, ``quilt`` and ``patch``; without quilt
 the quilt workflow tests are skipped. ``test_srt.py`` runs a complete git
 workflow release and ``test_srt_quilt_workflow.py`` a complete quilt
 workflow release, both with temporary repositories and a temporary GPG

@@ -98,8 +98,8 @@ class TestQuiltBase(unittest.TestCase):
         batch = os.path.join(self.gnupghome, 'gpg.batch')
         write(batch, gnupg_config)
         env = {'GNUPGHOME': self.gnupghome}
-        cmd(['gpg2', '--batch', '--generate-key', batch], env=env)
-        lines = cmd(['gpg2', '--list-secret-keys', '--with-colons'], env=env)
+        cmd(['gpg', '--batch', '--generate-key', batch], env=env)
+        lines = cmd(['gpg', '--list-secret-keys', '--with-colons'], env=env)
         for line in lines.splitlines():
             c = line.split(':')
             if c[0] == 'fpr':

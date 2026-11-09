@@ -45,7 +45,7 @@ def gpg_sign(config: Config, filename: str) -> None:
 
     xz = ['xz', '-dc', '--', filename]
     gpg = [
-        'gpg2',
+        'gpg',
         '--homedir', get_gnupghome(config),
         '--local-user', '{}!'.format(config['GPG_KEY_ID']),
         '--quiet', '--armor', '--detach-sign',

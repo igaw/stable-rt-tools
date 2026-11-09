@@ -121,10 +121,9 @@ defconfig:
 """
 
 gnupg_config = """
-Key-Type: DSA
-Key-Length: 1024
-Subkey-Type: ELG-E
-Subkey-Length: 1024
+Key-Type: eddsa
+Key-Curve: ed25519
+Key-Usage: sign
 Name-Real: Mighty Eagle
 Name-Email: me@incredible.com
 Expire-Date: 0
@@ -202,9 +201,9 @@ class TestSrtBase(unittest.TestCase):
         with open(cfg_file, 'w') as f:
             f.write(gnupg_config)
 
-        cmd(['gpg2', '--batch', '--generate-key', cfg_file],
+        cmd(['gpg', '--batch', '--generate-key', cfg_file],
             env={'GNUPGHOME': self.gnupghome})
-        lines = cmd(['gpg2', '--list-secret-keys', '--with-colons'],
+        lines = cmd(['gpg', '--list-secret-keys', '--with-colons'],
                     env={'GNUPGHOME': self.gnupghome})
 
         key = ''
