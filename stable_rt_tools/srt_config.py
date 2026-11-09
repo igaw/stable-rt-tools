@@ -40,6 +40,9 @@ from configparser import ConfigParser
 from stable_rt_tools.srt_util import config_dirs
 
 BRANCH_SUFFIXES = ('-patches', '-rebase', '-next')
+
+# your settings for all the series you work on
+PERSONAL = ('GPG_KEY_ID', 'GNUPGHOME', 'SENDER', 'NAME')
 DEFAULT = 'DEFAULT'
 
 
@@ -107,6 +110,20 @@ def convert(parser: ConfigParser) -> list[str]:
                            'default')
 
     # only for a file in the 1.x format, srt doesn't rewrite 2.0 files
+    for key in PERSONAL if changes else ():
+        values = {g: v for g in _groups(parser)
+                  if (v := _get(parser, g, key)) is not None}
+        if len(set(values.values())) != 1 or (
+                defaults and _get(parser, DEFAULT, key) is not None):
+            continue
+        if not parser.has_section(DEFAULT):
+            parser.add_section(DEFAULT)
+            defaults = True
+        parser.set(DEFAULT, key, next(iter(values.values())))
+        for g in values:
+            _remove(parser, g, key)
+        changes.append(f'{key}: used for all series, moved to [DEFAULT]')
+
     groups = _groups(parser)
     if changes and len(groups) > 1:
         first = dict(parser.items(groups[0]))

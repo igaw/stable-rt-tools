@@ -172,6 +172,24 @@ class TestConvert(unittest.TestCase):
         self.assertEqual(self.convert(), ([], ''))
         self.assertIn('# my comment', self.read())
 
+    def test_personal_settings_go_to_default(self):
+        with open(self.path, 'w') as f:
+            f.write('[linux/stable-rt/v6.12-rt]\nquilt_workflow = true\n'
+                    'GPG_KEY_ID = ABCD\nPRJ_DIR = /x\n')
+        changes, _ = self.convert()
+        self.assertIn('GPG_KEY_ID: used for all series, moved to [DEFAULT]',
+                      changes)
+        self.assertEqual(self.read(), '[DEFAULT]\nGPG_KEY_ID = ABCD\n\n'
+                         '[linux/stable-rt/v6.12-rt]\nPRJ_DIR = /x\n'
+                         'WORKFLOW = quilt\n\n')
+
+    def test_different_keys_stay(self):
+        with open(self.path, 'w') as f:
+            f.write('[a/b/v6.1-rt]\nquilt_workflow = true\nGPG_KEY_ID = A\n'
+                    '[a/b/v6.2-rt]\nGPG_KEY_ID = B\n')
+        self.convert()
+        self.assertNotIn('[DEFAULT]', self.read())
+
     def test_different_branch_group_kept(self):
         with open(self.path, 'w') as f:
             f.write('[a/b/v6.1-rt]\nPRJ_DIR = /x\n'
