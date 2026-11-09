@@ -152,6 +152,8 @@ step works on the right worktree itself, so all commands are run from
   $ srt quilt merge
   $ srt quilt release
 
+  [test the release, see below]
+
   $ srt create
   $ srt sign
   $ srt upload
@@ -202,6 +204,42 @@ order ``-patches``, ``-rebase``, release.
     ``srt quilt release``.
 
 Every step can be rerun: finished work is detected and skipped.
+
+Test the release
+~~~~~~~~~~~~~~~~
+
+Test the release after ``srt quilt release`` and before ``srt create``,
+``srt sign``, ``srt upload`` and ``srt push``. At this point ``v6.12-rt``
+holds exactly what gets released, and nothing has left the machine yet:
+the tags are local, the tarballs are not created and nothing is pushed.
+
+Build and boot ``v6.12-rt`` with your test setup and run the RT tests on
+the target boards, e.g. with `srt-build <https://github.com/igaw/srt-build>`_
+and LAVA, from within the ``v6.12-rt`` worktree. srt itself doesn't run
+tests.
+
+If a test fails, fix the patch queue and redo the release. As long as
+nothing is pushed, delete the release tags, drop the release commits on
+``v6.12-rt`` and undo the queue commit, keeping the refreshed patches:
+
+.. code-block:: console
+
+  $ git tag -d v6.12.116-rt22 v6.12.116-rt22-rebase v6.12.116-rt22-patches
+  $ git reset --hard @{u}
+  $ git -C ../v6.12-rt-patches reset --soft HEAD~1
+
+  [fix or add the patch in ../v6.12-rt-patches/patches]
+
+  $ srt quilt refresh
+  $ srt quilt queue
+  $ srt quilt rebase
+  $ srt quilt merge
+  $ srt quilt release
+
+  [test again]
+
+``srt quilt rebase`` resets ``v6.12-rt-rebase`` itself, it needs no
+cleanup.
 
 Add or drop patches
 ~~~~~~~~~~~~~~~~~~~
