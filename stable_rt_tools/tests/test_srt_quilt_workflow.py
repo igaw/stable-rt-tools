@@ -263,6 +263,11 @@ class TestQuiltBase(unittest.TestCase):
         srt_quilt.COMMANDS[step](srt_quilt.Release())
         return stdout_text()
 
+    def run_setup(self, config, group=None, parent=None):
+        stub_stdouts(self)
+        srt_setup.setup(group or self.group, config, parent or self.rt)
+        return stdout_text()
+
     def add_new_patch(self):
         """Add new-fix.patch to the series, as done by hand."""
         tmp = self.tdir + '/new-fix'
@@ -391,11 +396,6 @@ class TestQuiltReleaseOtherSuffix(TestQuiltRelease):
 
 
 class TestSetup(TestQuiltBase):
-    def run_setup(self, config, group=None, parent=None):
-        stub_stdouts(self)
-        srt_setup.setup(group or self.group, config, parent or self.rt)
-        return stdout_text()
-
     def test_rerun_checks(self):
         out = self.run_setup(self.setup_config())
         self.assertNotIn('add ', out)
@@ -430,6 +430,77 @@ class TestSetup(TestQuiltBase):
             git(f'{parent}/{self.series}', 'rev-parse', '--abbrev-ref',
                 '--symbolic-full-name', '@{u}'),
             f'stable-rt/{self.series}')
+
+
+class TestTakeover(TestQuiltBase):
+    """Take over linux-6.2.y-rt, published by another maintainer, as
+    v6.2-rt next to the existing v6.1-rt work area."""
+
+    def setUp(self):
+        super().setUp()
+        git(self.stable_repo, 'branch', 'linux-6.2.y', 'v6.1.1')
+        for b in ('', '-patches', '-rebase'):
+            git(self.rt_repo, 'branch', f'linux-6.2.y-rt{b}',
+                f'{self.series}{b}')
+        # a release of the other maintainer, to be published along
+        git(self.rt_repo, 'tag', '-a', '-m', 'v6.2.0-rt1', 'v6.2.0-rt1',
+            'linux-6.2.y-rt')
+        self.config_v62 = dict(self.setup_config(),
+                               UPSTREAM_BRANCH='linux-6.2.y',
+                               TAKEOVER_BRANCH='linux-6.2.y-rt')
+        self.series_v62 = 'v6.2-rt'
+
+    def publish(self, out):
+        for line in out.splitlines():
+            if line.startswith('  git -C '):
+                cmd(line.split())
+
+    def test_takeover_on_the_same_remote(self):
+        out = self.run_setup(self.config_v62,
+                             group='linux/stable-rt/v6.2-rt')
+        for b in ('', '-patches', '-rebase'):
+            path = f'{self.rt}/v6.2-rt{b}'
+            self.assertIn(f'take  {path} (v6.2-rt{b} from '
+                          f'stable-rt/linux-6.2.y-rt{b})', out)
+            self.assertEqual(git(path, 'rev-parse', 'HEAD'),
+                             git(self.rt_repo, 'rev-parse',
+                                 f'linux-6.2.y-rt{b}'))
+        self.assertIn(f'ok    {self.rt}/linux ', out)
+        self.assertIn(f'add   worktree {self.rt}/v6.2 (linux-6.2.y', out)
+        self.assertIn('srt setup pushes nothing', out)
+        self.assertNotIn('v6.2-rt', git(self.rt_repo, 'branch'))
+
+        # rerun before publishing
+        out = self.run_setup(self.config_v62,
+                             group='linux/stable-rt/v6.2-rt')
+        self.assertIn(f'ok    {self.rt}/v6.2-rt-patches (v6.2-rt-patches, '
+                      'not published yet)', out)
+
+        # publish as told, then the series is set up like any other
+        self.publish(out)
+        out = self.run_setup(self.config_v62,
+                             group='linux/stable-rt/v6.2-rt')
+        self.assertIn(f'ok    {self.rt}/v6.2-rt (v6.2-rt tracking '
+                      'stable-rt/v6.2-rt)', out)
+        self.assertNotIn('publish', out)
+        self.assertIn('v6.2.0-rt1', git(self.rt_repo, 'tag'))
+        # the existing series is untouched
+        self.assertIn(f'ok    {self.rt_dir} ', self.run_setup(
+            self.setup_config()))
+
+    def test_takeover_from_another_remote(self):
+        config = dict(self.config_v62, TAKEOVER_REMOTE='rt-devel',
+                      TAKEOVER_GIT_URL=self.rt_repo)
+        out = self.run_setup(config, group='linux/stable-rt/v6.2-rt')
+        self.assertIn(f'add   remote rt-devel {self.rt_repo}', out)
+        self.assertIn('from rt-devel/linux-6.2.y-rt-rebase)', out)
+
+    def test_missing_series_without_takeover(self):
+        config = dict(self.config_v62)
+        del config['TAKEOVER_BRANCH']
+        with self.assertRaises(srt_setup.SetupError) as e:
+            self.run_setup(config, group='linux/stable-rt/v6.2-rt')
+        self.assertIn('set TAKEOVER_BRANCH', str(e.exception))
 
 
 class TestQuiltChecks(TestQuiltBase):

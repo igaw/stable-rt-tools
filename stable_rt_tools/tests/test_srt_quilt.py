@@ -104,6 +104,14 @@ class TestHelpers(unittest.TestCase):
         finally:
             rmtree(d)
 
+    def test_worktree_dirs_rt_devel_names(self):
+        # a series taken over in the shared tree with its branch names
+        self.assertEqual(worktree_dirs('/w/linux-6.18.y-rt'), {
+            'rt_dir': '/w/linux-6.18.y-rt',
+            'stable_dir': '/w/linux-6.18.y',
+            'patches_dir': '/w/linux-6.18.y-rt-patches',
+            'rebase_dir': '/w/linux-6.18.y-rt-rebase'})
+
     def test_worktree_dirs_other_suffix(self):
         self.assertEqual(worktree_dirs('/w/v6.1-foo', 'foo'), {
             'rt_dir': '/w/v6.1-foo',

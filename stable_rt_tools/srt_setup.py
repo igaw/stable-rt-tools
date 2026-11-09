@@ -34,8 +34,17 @@ The srt.conf group [<repo>/<remote>/<series>] describes it:
   UPSTREAM_REMOTE   the name of its remote (default: upstream)
   ORIGIN_GIT_URL    what <repo> is cloned from (default: UPSTREAM_GIT_URL)
 
+To take over a series which exists under another name, e.g. from
+another maintainer:
+
+  TAKEOVER_BRANCH   the branch of the series to take over, its -patches,
+                    -rebase and -next branches are taken over as well
+  TAKEOVER_REMOTE   its remote (default: <remote>)
+  TAKEOVER_GIT_URL  its URL, if srt setup has to add the remote
+
 The repository <repo> and the worktrees are created next to each other
-in the setup directory; existing ones are checked.
+in the setup directory; existing ones are checked, so a series can be
+added to the work area of another one.
 """
 
 import argparse
@@ -154,6 +163,41 @@ def setup_worktree(repo: str, path: str, branch: str, upstream: str) -> None:
              upstream)
 
 
+def _has_remote_branch(repo: str, remote: str, branch: str) -> bool:
+    return _query(repo, 'rev-parse', '--verify', '--quiet',
+                  f'refs/remotes/{remote}/{branch}') is not None
+
+
+def setup_series_worktree(repo: str, path: str, branch: str, remote: str,
+                          source: str | None) -> bool:
+    """A worktree for a branch of the series, taken over from source if
+    the branch is not on remote yet. Return True if it still needs to be
+    published."""
+    upstream = f'{remote}/{branch}'
+    if _has_remote_branch(repo, remote, branch):
+        setup_worktree(repo, path, branch, upstream)
+        return False
+    if os.path.isdir(path):
+        head = _query(path, 'rev-parse', '--abbrev-ref', 'HEAD')
+        if head != branch:
+            raise SetupError(f'{path} is on {head}, expected {branch}')
+        print(f'ok    {path} ({branch}, not published yet)')
+        return True
+    if source is None:
+        raise SetupError(f'{upstream} does not exist; set TAKEOVER_BRANCH '
+                         'to take the series over from another branch')
+    if _query(repo, 'rev-parse', '--verify', '--quiet', source) is None:
+        raise SetupError(f'{upstream} does not exist and neither does the '
+                         f'branch {source} to take it over from')
+    if _query(repo, 'rev-parse', '--verify', '--quiet',
+              f'refs/heads/{branch}') is not None:
+        raise SetupError(f'the branch {branch} exists already, but not on '
+                         f'{remote}; publish or delete it')
+    print(f'take  {path} ({branch} from {source})')
+    _git(repo, 'worktree', 'add', '--no-track', '-b', branch, path, source)
+    return True
+
+
 def setup(group: str, config: Mapping[str, str], parent: str) -> None:
     try:
         repo_name, remote, series = group.split('/', 2)
@@ -176,9 +220,30 @@ def setup(group: str, config: Mapping[str, str], parent: str) -> None:
         setup_remote(repo, upstream_remote, upstream_url)
     setup_remote(repo, remote, _require(config, 'PRJ_GIT_URL'),
                  config.get('PRJ_GIT_TREE'))
+    takeover = config.get('TAKEOVER_BRANCH')
+    takeover_remote = config.get('TAKEOVER_REMOTE', remote)
+    if takeover and takeover_remote != remote:
+        if config.get('TAKEOVER_GIT_URL'):
+            setup_remote(repo, takeover_remote, config['TAKEOVER_GIT_URL'])
+        elif _query(repo, 'config', '--get',
+                    f'remote.{takeover_remote}.url') is None:
+            raise SetupError(f'remote {takeover_remote} does not exist, set '
+                             'TAKEOVER_GIT_URL')
     print('fetch')
-    for name in dict.fromkeys(('origin', upstream_remote, remote)):
+    for name in dict.fromkeys(('origin', upstream_remote, remote,
+                               takeover_remote if takeover else remote)):
         _git(repo, 'fetch', '--tags', name)
+
+    def source(branch: str) -> str | None:
+        if not takeover:
+            return None
+        return f'{takeover_remote}/{takeover}{branch.removeprefix(series)}'
+
+    def exists(branch: str) -> bool:
+        src = source(branch)
+        return _has_remote_branch(repo, remote, branch) or (
+            src is not None and _query(repo, 'rev-parse', '--verify',
+                                       '--quiet', src) is not None)
 
     if is_quilt_workflow(config):
         dirs = worktree_dirs(os.path.join(parent, series),
@@ -190,12 +255,16 @@ def setup(group: str, config: Mapping[str, str], parent: str) -> None:
         # the git workflow: the series and its -rebase and -next
         # branches, as far as they exist
         branches = [b for b in (series, series + '-rebase', series + '-next')
-                    if b == series or _query(
-                        repo, 'rev-parse', '--verify', '--quiet',
-                        f'refs/remotes/{remote}/{b}') is not None]
-    for branch in branches:
-        setup_worktree(repo, os.path.join(parent, branch), branch,
-                       f'{remote}/{branch}')
+                    if b == series or exists(b)
+                    or os.path.isdir(os.path.join(parent, b))]
+    unpublished = [branch for branch in branches
+                   if setup_series_worktree(repo, os.path.join(parent, branch),
+                                            branch, remote, source(branch))]
+    if unpublished:
+        print(f'publish the series on {remote} (srt setup pushes nothing):')
+        for branch in unpublished:
+            path = os.path.join(parent, branch)
+            print(f'  git -C {path} push -u --follow-tags {remote} {branch}')
     print(f'next: cd {os.path.join(parent, series)} && srt prep')
 
 
