@@ -29,11 +29,11 @@ All steps read the release prepared by 'srt prep' (OLD_TAG, NEW_TAG and
 the worktree paths) and work on the sibling worktrees, so they can be
 run from any of them:
 
-  refresh  refresh the RT series on top of the new stable release
+  refresh  refresh the patch series on top of the new upstream release
   queue    commit and tag the patch queue with the announcement (-patches)
-  rebase   import the queue on top of the stable release (-rebase)
-  merge    merge the stable release and apply added patches (-rt)
-  release  commit and tag the release on -rt, its tree must match -rebase
+  rebase   import the queue on top of the upstream release (-rebase)
+  merge    merge the upstream release and apply added patches (series)
+  release  commit and tag the release, its tree must match -rebase
   undo     undo the steps above as long as nothing is pushed
 
 This follows the linux-6.18.y-rt releases: the tags are created in the
@@ -195,10 +195,10 @@ class Release:
     def __init__(self, state: SrtState | None = None) -> None:
         state = state if state is not None else read_srt_state()
         if not state or not state.get('new_tag'):
-            sys.exit('No release prepared: run "srt prep" in the -rt '
-                     'worktree first')
+            sys.exit('No release prepared: run "srt prep" in the worktree '
+                     'of the series first')
         if not state.get('quilt_workflow'):
-            sys.exit('srt quilt: quilt_workflow is not enabled for {}'
+            sys.exit('srt quilt: WORKFLOW is not quilt for {}'
                      .format(state.get('workflow_branch')))
         self.state = state
         if 'rt_dir' in state:
@@ -631,16 +631,17 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('quilt', help='quilt workflow release steps')
     sub = prs.add_subparsers(dest='quilt_cmd', metavar='STEP')
     sub.add_parser('refresh',
-                   help='refresh the RT series on the new stable release '
-                   '(default)')
+                   help='refresh the patch series on the new upstream '
+                   'release (default)')
     sub.add_parser('queue',
                    help='commit and tag the patch queue with the '
                    'announcement')
     sub.add_parser('rebase',
-                   help='import the queue on top of stable in -rebase')
+                   help='import the queue on top of upstream in -rebase')
     sub.add_parser('merge',
-                   help='merge stable and apply added patches in -rt')
-    sub.add_parser('release', help='commit and tag the release in -rt')
+                   help='merge upstream and apply added patches in the '
+                   'series')
+    sub.add_parser('release', help='commit and tag the release in the series')
     sub.add_parser('undo',
                    help='undo queue..release as long as nothing is pushed, '
                    'keep the refreshed patches')

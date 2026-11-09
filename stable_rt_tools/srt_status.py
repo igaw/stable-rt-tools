@@ -33,7 +33,7 @@ def status() -> None:
     state = read_srt_state()
     if not state or not state.get('new_tag'):
         print('No release prepared.')
-        print('next: srt prep (in the -rt worktree)')
+        print('next: srt prep (in the worktree of the series)')
         return
     if state.get('quilt_workflow'):
         srt_quilt.status(srt_quilt.Release(state))

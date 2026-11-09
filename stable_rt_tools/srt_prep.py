@@ -142,7 +142,7 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs.add_argument('--clear', action='store_true',
                      help='Clear saved srt prep state')
     prs.add_argument('--no-pull', action='store_true',
-                     help='Do not update the stable worktree (quilt '
+                     help='Do not update the upstream worktree (quilt '
                      'workflow)')
     return prs
 

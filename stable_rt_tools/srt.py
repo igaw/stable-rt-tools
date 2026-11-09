@@ -57,7 +57,9 @@ sub_cmd = {
 
 
 def srt_get_argparser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description='srt - stable -rt tool')
+    parser = argparse.ArgumentParser(
+        description='srt - maintain out-of-tree patch series on top of '
+        'upstream releases')
     parser.add_argument('-d', '--debug',
                         action='store_true',
                         help='Enable debug logging')
