@@ -10,7 +10,7 @@ I'm pleased to announce the {new_version} stable release.
 
 You can get this release via the git tree at:
 
-  git://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
+  https://git.kernel.org/pub/scm/linux/kernel/git/rt/linux-stable-rt.git
 
   branch: {branch_name}
   Head SHA1: {branch_head}
@@ -30,7 +30,7 @@ Signing key fingerprint:
 All keys used for the above files and repositories can be found on the
 following git repository:
 
-   git://git.kernel.org/pub/scm/docs/kernel/pgpkeys.git
+   https://git.kernel.org/pub/scm/docs/kernel/pgpkeys.git
 
 Enjoy!
 {name}
