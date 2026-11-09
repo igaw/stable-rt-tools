@@ -95,10 +95,15 @@ def pipe(producer: Sequence[str], consumer: Sequence[str],
             p1.stdout.close()
             p2.wait()
         p1.wait()
-    for p, args in ((p1, producer), (p2, consumer)):
-        if p.returncode:
+    # The consumer first: when it fails, the producer often dies of
+    # SIGPIPE writing to it, which is only a consequence.
+    for p, args in ((p2, consumer), (p1, producer)):
+        if p.returncode > 0:
             sys.exit(f'{" ".join(args)} failed with exit code '
                      f'{p.returncode}')
+        if p.returncode < 0:
+            sys.exit(f'{" ".join(args)} was killed by signal '
+                     f'{-p.returncode}')
 
 
 def get_remote_repo_name() -> str:

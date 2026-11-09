@@ -224,12 +224,16 @@ class TestUtil(TestCase):
             srt_util.pipe(['printf', 'abc'], ['tr', 'a-z', 'A-Z'], stdout=f)
             f.seek(0)
             self.assertEqual(f.read(), b'ABC')
-        for producer, consumer in ((['false'], ['cat']),
-                                   (['printf', 'x'], ['false'])):
+        for producer, consumer, culprit in (
+                (['false'], ['cat'], 'false'),
+                # the producer may die of SIGPIPE, the consumer is the cause
+                (['yes'], ['false'], 'false'),
+                (['printf', 'x'], ['false'], 'false')):
             with tempfile.TemporaryFile() as f, \
                     self.assertRaises(SystemExit) as e:
                 srt_util.pipe(producer, consumer, stdout=f)
-            self.assertIn('failed with exit code 1', str(e.exception))
+            self.assertEqual(str(e.exception),
+                             f'{culprit} failed with exit code 1')
 
     def test_check_context_exits_on_missing_tag(self):
         import argparse
