@@ -24,24 +24,15 @@
 
 
 import os
-from logging import debug
-from subprocess import PIPE, Popen
 
-from stable_rt_tools.srt_util import check_context, cmd, get_config
+from stable_rt_tools.srt_util import check_context, cmd, get_config, pipe
 from stable_rt_tools.srt_util_context import SrtContext
 
 
 def create_patch_file(old_tag, new_tag, filename):
-    with open(filename, 'w') as file:
-        c1 = ['git', 'diff', str(old_tag), str(new_tag)]
-        c2 = ['xz', '-9']
-
-        debug('run: ' + ' '.join(c1) + ' | ' + ' '.join(c2))
-
-        p1 = Popen(c1, stdout=PIPE)
-        p2 = Popen(c2, stdin=p1.stdout, stdout=file)
-        p1.stdout.close()
-        p2.wait()
+    with open(filename, 'wb') as file:
+        pipe(['git', 'diff', str(old_tag), str(new_tag)], ['xz', '-9'],
+             stdout=file)
 
 
 def create_series(old_tag, new_tag, dirname):

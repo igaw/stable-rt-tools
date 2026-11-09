@@ -31,8 +31,8 @@ from configparser import ConfigParser
 from datetime import UTC, datetime
 from importlib.resources import files
 from logging import debug, error
-from subprocess import DEVNULL, PIPE, CalledProcessError, run
-from typing import TYPE_CHECKING, Any, TypedDict
+from subprocess import DEVNULL, PIPE, CalledProcessError, Popen, run
+from typing import IO, TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     from stable_rt_tools.srt_util_context import SrtContext
@@ -69,6 +69,23 @@ def cmd(args: Sequence[str], verbose: bool = False,
     r = p.stdout.decode('utf-8').strip()
     debug('     ' + r)
     return r
+
+
+def pipe(producer: Sequence[str], consumer: Sequence[str],
+         stdout: IO[bytes] | None = None) -> None:
+    """Run producer | consumer, exit if one of them fails."""
+    debug('run: ' + ' '.join(producer) + ' | ' + ' '.join(consumer))
+    with Popen(producer, stdout=PIPE) as p1:
+        with Popen(consumer, stdin=p1.stdout, stdout=stdout) as p2:
+            # let the producer get SIGPIPE if the consumer exits early
+            assert p1.stdout is not None
+            p1.stdout.close()
+            p2.wait()
+        p1.wait()
+    for p, args in ((p1, producer), (p2, consumer)):
+        if p.returncode:
+            sys.exit(f'{" ".join(args)} failed with exit code '
+                     f'{p.returncode}')
 
 
 def get_remote_repo_name() -> str:

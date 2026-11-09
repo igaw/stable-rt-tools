@@ -228,3 +228,17 @@ class TestUtil(TestCase):
         with mock.patch('sys.stdin', io.StringIO('maybe\ny\n')), \
                 mock.patch('sys.stdout', io.StringIO()):
             self.assertTrue(srt_util.confirm('OK?'))
+
+    def test_pipe(self):
+        import stable_rt_tools.srt_util as srt_util
+
+        with tempfile.TemporaryFile() as f:
+            srt_util.pipe(['printf', 'abc'], ['tr', 'a-z', 'A-Z'], stdout=f)
+            f.seek(0)
+            self.assertEqual(f.read(), b'ABC')
+        for producer, consumer in ((['false'], ['cat']),
+                                   (['printf', 'x'], ['false'])):
+            with tempfile.TemporaryFile() as f, \
+                    self.assertRaises(SystemExit) as e:
+                srt_util.pipe(producer, consumer, stdout=f)
+            self.assertIn('failed with exit code 1', str(e.exception))

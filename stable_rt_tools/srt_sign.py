@@ -25,10 +25,14 @@
 
 import os
 import sys
-from logging import debug, error
-from subprocess import PIPE, Popen
+from logging import error
 
-from stable_rt_tools.srt_util import check_context, get_config, get_gnupghome
+from stable_rt_tools.srt_util import (
+    check_context,
+    get_config,
+    get_gnupghome,
+    pipe,
+)
 from stable_rt_tools.srt_util_context import SrtContext
 
 
@@ -36,8 +40,8 @@ def gpg_sign(config, filename):
     f = os.path.splitext(filename)[0]
     basename = os.path.splitext(os.path.basename(filename))[0]
 
-    c1 = ['xz', '-dc', '--', filename]
-    c2 = [
+    xz = ['xz', '-dc', '--', filename]
+    gpg = [
         'gpg2',
         '--homedir', get_gnupghome(config),
         '--local-user', '{}!'.format(config['GPG_KEY_ID']),
@@ -45,13 +49,7 @@ def gpg_sign(config, filename):
         '-o', f'{f}.sign',
         '--set-filename', basename, '-'
     ]
-
-    debug('run: ' + ' '.join(c1) + ' | ' + ' '.join(c2))
-
-    p1 = Popen(c1, stdout=PIPE)
-    p2 = Popen(c2, stdin=p1.stdout)
-    p1.stdout.close()
-    p2.wait()
+    pipe(xz, gpg)
 
 
 def sign(config, ctx):
