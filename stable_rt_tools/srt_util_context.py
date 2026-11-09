@@ -23,11 +23,13 @@
 # SOFTWARE
 
 
+import argparse
 import os
 import sys
 from logging import debug
 
 from stable_rt_tools.srt_util import (
+    SrtState,
     get_last_tag,
     get_old_tag,
     get_remote_branch_name,
@@ -37,7 +39,7 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_tag import Tag
 
 
-def _read_and_validate_state(path):
+def _read_and_validate_state(path: str) -> SrtState | None:
     state = read_srt_state(path)
     if not state:
         return None
@@ -51,77 +53,78 @@ def _read_and_validate_state(path):
 
 
 class SrtContext:
-    def __init__(self, args, path=None):
-        self.is_rc = False
+    """OLD_TAG and NEW_TAG of a release and the files made for them.
+
+    The tags come from the command line, the environment, the state of
+    srt prep or the git history, in this order.
+    """
+
+    old_tag: Tag
+    old_short_tag: str
+    old_dir_patches: str
+    old_dir_series: str
+    old_dir_mails: str
+    old_fln_patch: str
+    old_fln_tar: str
+    new_tag: Tag
+    new_short_tag: str
+    new_dir_patches: str
+    new_dir_series: str
+    new_dir_mails: str
+    new_fln_patch: str
+    new_fln_tar: str
+
+    def __init__(self, args: argparse.Namespace | None,
+                 path: str | None = None) -> None:
         self.path = path if path is not None else os.getcwd()
 
-        old_tag = None
-        new_tag = None
-
-        state = None
-        if args and getattr(args, "OLD_TAG", None):
+        state: SrtState | None = None
+        if args and getattr(args, 'OLD_TAG', None):
             old_tag = args.OLD_TAG
-        elif os.environ.get("OLD_TAG"):
-            old_tag = os.environ["OLD_TAG"]
+        elif os.environ.get('OLD_TAG'):
+            old_tag = os.environ['OLD_TAG']
         else:
             state = _read_and_validate_state(self.path)
             if state:
-                old_tag = state.get('old_tag')
+                old_tag = state['old_tag']
             else:
                 old_tag = get_old_tag()
 
-        if args and getattr(args, "NEW_TAG", None):
+        if args and getattr(args, 'NEW_TAG', None):
             new_tag = args.NEW_TAG
-        elif os.environ.get("NEW_TAG"):
-            new_tag = os.environ["NEW_TAG"]
+        elif os.environ.get('NEW_TAG'):
+            new_tag = os.environ['NEW_TAG']
         else:
             if state is None:
                 state = _read_and_validate_state(self.path)
             if state:
-                new_tag = state.get('new_tag')
+                new_tag = state['new_tag']
             else:
                 new_tag = get_last_tag(get_remote_branch_name())
 
         self._add_tag('old', old_tag)
         self._add_tag('new', new_tag)
-        self._update_tags()
+        self.is_rc = self.new_tag.is_rc
         debug(self._dump())
 
-    def _add_tag(self, prefix, tag):
-        t = Tag(tag)
+    def _add_tag(self, prefix: str, tag: str) -> None:
         dir_patches = f'{self.path}/patches/{tag}'
-        dir_series = f'{self.path}/patches/{tag}/patches'
-        dir_mails = f'{self.path}/patches/{tag}/mails'
-        fln_patch = f'{dir_patches}/patch-{tag[1:]}.patch.xz'
-        fln_tar = f'{dir_patches}/patches-{tag[1:]}.tar.xz'
-
-        setattr(self, prefix + '_tag', t)
+        setattr(self, prefix + '_tag', Tag(tag))
         setattr(self, prefix + '_short_tag', tag[1:])
         setattr(self, prefix + '_dir_patches', dir_patches)
-        setattr(self, prefix + '_dir_series', dir_series)
-        setattr(self, prefix + '_dir_mails', dir_mails)
-        setattr(self, prefix + '_fln_patch', fln_patch)
-        setattr(self, prefix + '_fln_tar', fln_tar)
+        setattr(self, prefix + '_dir_series', f'{dir_patches}/patches')
+        setattr(self, prefix + '_dir_mails', f'{dir_patches}/mails')
+        setattr(self, prefix + '_fln_patch',
+                f'{dir_patches}/patch-{tag[1:]}.patch.xz')
+        setattr(self, prefix + '_fln_tar',
+                f'{dir_patches}/patches-{tag[1:]}.tar.xz')
 
-    def _update_tags(self):
-        self.is_rc = self.new_tag.is_rc
-
-    def __getattr__(self, name):
-        """Returns the attribute matching passed name."""
-        value = self.__dict__.get(name)
-        if not value:
-            raise AttributeError(f'No such attribute {name}')
-        return value
-
-    def get_files(self):
+    def get_files(self) -> list[str]:
         return [self.new_fln_patch, self.new_fln_tar]
 
-    def get_old_files(self):
+    def get_old_files(self) -> list[str]:
         return [self.old_fln_patch, self.old_fln_tar]
 
-    def _dump(self):
-        out = '\n'
-        for key, val in self.__dict__.items():
-            out = out + f'\t{key}: {val}\n'
-        out = out[:-1]
-        return out
+    def _dump(self) -> str:
+        return '\n' + '\n'.join(f'\t{key}: {val}'
+                                for key, val in self.__dict__.items())

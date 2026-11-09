@@ -39,7 +39,13 @@ class TagBaseError(Exception):
 
 
 class Tag:
-    def __init__(self, _tag):
+    """A release tag like v6.12.116-rt22 or v6.12.116-rt22-rc1.
+
+    Every suffix becomes an attribute: tag.rt == 22, tag.rc == 1, a suffix
+    without number like -rebase is True.
+    """
+
+    def __init__(self, _tag: str) -> None:
         parts = _tag.split('-')
         m = re.match(r'^v([0-9]+)\.([0-9]+)\.([0-9]+)$', parts[0])
         if not m:
@@ -48,7 +54,7 @@ class Tag:
         self.minor = int(m.group(2))
         self.patch = int(m.group(3))
 
-        self._order = []
+        self._order: list[str] = []
         for p in parts[1:]:
             m = re.match(r'^([a-z]+)([0-9]+)$', p)
             if m:
@@ -61,14 +67,14 @@ class Tag:
             else:
                 raise TagParseError(f'Failed to parse {p}')
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> int | bool:
         """Returns the attribute matching passed name."""
-        value = self.__dict__.get(name)
+        value: int | bool | None = self.__dict__.get(name)
         if value is None:
             raise TagAttrError(f'No such attribute {name}')
         return value
 
-    def _build(self, fix):
+    def _build(self, fix: str | None) -> str:
         tag = f'v{self.major}.{self.minor}.{self.patch}'
         for o in self._order:
             if fix == o:
@@ -80,27 +86,27 @@ class Tag:
                 tag = f'{tag}-{o}{val}'
         return tag
 
-    def prev(self, cur):
+    def prev(self, cur: str) -> str | None:
         try:
             i = self._order.index(cur) - 1
-            if i == -1:
-                return None
-            return self._order[i]
         except ValueError:
-            pass
+            return None
+        if i == -1:
+            return None
+        return self._order[i]
 
     @property
-    def is_rc(self):
+    def is_rc(self) -> bool:
         return 'rc' in self._order
 
     @property
-    def last(self):
+    def last(self) -> str | None:
         if not self._order:
             return None
         return self._order[-1]
 
     @property
-    def base(self):
+    def base(self) -> str:
         """Return the tag up to -rt without trailing postfixes like -rc,
         -patches."""
         if 'rt' not in self._order:
@@ -110,8 +116,8 @@ class Tag:
         return self._build('rt')
 
     @property
-    def rebase(self):
+    def rebase(self) -> str:
         return self._build(None) + '-rebase'
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._build(None)

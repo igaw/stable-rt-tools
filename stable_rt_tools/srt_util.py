@@ -26,14 +26,41 @@ import json
 import os
 import re
 import sys
+from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from datetime import UTC, datetime
 from importlib.resources import files
 from logging import debug, error
 from subprocess import DEVNULL, PIPE, CalledProcessError, run
+from typing import TYPE_CHECKING, Any, TypedDict
+
+if TYPE_CHECKING:
+    from stable_rt_tools.srt_util_context import SrtContext
+
+# An srt.conf group: a configparser section or, in tests, a dict.
+type Config = Mapping[str, str]
 
 
-def cmd(args, verbose=False, env=None, cwd=None):
+class SrtState(TypedDict, total=False):
+    """The release prepared by srt prep, stored in the git common dir."""
+
+    old_tag: str
+    new_tag: str
+    branch: str
+    workflow_branch: str
+    quilt_workflow: bool
+    quilt_patches: str
+    rt_dir: str
+    stable_dir: str
+    patches_dir: str
+    rebase_dir: str
+    refreshed: str | None
+    updated_at: str
+
+
+def cmd(args: Sequence[str], verbose: bool = False,
+        env: Mapping[str, str] | None = None,
+        cwd: str | None = None) -> str:
     if verbose:
         print(' '.join(args))
     debug('run: ' + ' '.join(args) + (f' (in {cwd})' if cwd else ''))
@@ -44,17 +71,17 @@ def cmd(args, verbose=False, env=None, cwd=None):
     return r
 
 
-def get_remote_repo_name():
+def get_remote_repo_name() -> str:
     line = cmd(['git', 'config', '--get', 'remote.origin.url'])
     name = os.path.splitext(os.path.basename(line))[0]
     return name
 
 
-def get_local_branch_name():
+def get_local_branch_name() -> str:
     return cmd(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
 
 
-def get_remote_branch_name(short=True):
+def get_remote_branch_name(short: bool = True) -> str:
     name = cmd(['git', 'rev-parse', '--abbrev-ref',
                 '--symbolic-full-name', '@{u}'])
     if short:
@@ -62,14 +89,14 @@ def get_remote_branch_name(short=True):
     return name
 
 
-def get_workflow_branch(branch_name):
+def get_workflow_branch(branch_name: str) -> str:
     for suffix in ('-patches', '-rebase', '-next'):
         if branch_name.endswith(suffix):
             return branch_name[:-len(suffix)]
     return branch_name
 
 
-def tag_exists(tag):
+def tag_exists(tag: object) -> bool:
     try:
         run(['git', 'rev-parse', '--verify',
              '--quiet', f'{tag}^{{tag}}'],
@@ -79,7 +106,7 @@ def tag_exists(tag):
     return True
 
 
-def get_last_tag(branch_name, postfix=None):
+def get_last_tag(branch_name: str, postfix: str | None = None) -> str:
     if postfix:
         base_branch = branch_name[:-len(postfix)]
     else:
@@ -88,7 +115,7 @@ def get_last_tag(branch_name, postfix=None):
     return last_tag
 
 
-def get_last_rt_tag(branch_name, postfix=None):
+def get_last_rt_tag(branch_name: str, postfix: str | None = None) -> str:
     last_tag = get_last_tag(branch_name, postfix)
     m = re.search(r'(-rt[0-9]+)$', last_tag)
     if not m:
@@ -98,7 +125,7 @@ def get_last_rt_tag(branch_name, postfix=None):
     return m.group(1)
 
 
-def get_old_tag():
+def get_old_tag() -> str:
     last_tag = get_last_tag(get_remote_branch_name())
 
     import logging
@@ -128,7 +155,7 @@ def get_old_tag():
 
     last_patch = 0
     last_rt = 0
-    last_rc = None
+    last_rc: int | None = None
 
     for groups in matches:
         tag_str = groups[0]  # full tag string
@@ -154,7 +181,7 @@ def get_old_tag():
     return tag
 
 
-def get_git_common_dir(path=None):
+def get_git_common_dir(path: str | None = None) -> str:
     base = path if path else os.getcwd()
     common_dir = cmd(['git', '-C', base, 'rev-parse', '--git-common-dir'])
     if os.path.isabs(common_dir):
@@ -162,42 +189,43 @@ def get_git_common_dir(path=None):
     return os.path.abspath(os.path.join(base, common_dir))
 
 
-def get_srt_state_path(path=None):
+def get_srt_state_path(path: str | None = None) -> str:
     return os.path.join(get_git_common_dir(path), 'srt', 'state.json')
 
 
-def read_srt_state(path=None):
+def read_srt_state(path: str | None = None) -> SrtState | None:
     state_path = get_srt_state_path(path)
     if not os.path.exists(state_path):
         return None
     with open(state_path) as f:
-        return json.load(f)
+        state: SrtState = json.load(f)
+    return state
 
 
-def write_srt_state(state, path=None):
+def write_srt_state(state: SrtState, path: str | None = None) -> None:
     state_path = get_srt_state_path(path)
     os.makedirs(os.path.dirname(state_path), exist_ok=True)
-    state = dict(state)
+    state = state.copy()
     state['updated_at'] = datetime.now(UTC).isoformat()
     with open(state_path, 'w') as f:
         json.dump(state, f, sort_keys=True)
 
 
-def update_srt_state(changes, path=None):
-    state = read_srt_state(path) or {}
+def update_srt_state(changes: SrtState, path: str | None = None) -> SrtState:
+    state = read_srt_state(path) or SrtState()
     state.update(changes)
     write_srt_state(state, path)
     return state
 
 
-def clear_srt_state(path=None):
+def clear_srt_state(path: str | None = None) -> None:
     state_path = get_srt_state_path(path)
     if os.path.exists(state_path):
         os.remove(state_path)
 
 
-def validate_srt_state(state, current_branch):
-    required = ['old_tag', 'new_tag', 'workflow_branch']
+def validate_srt_state(state: SrtState, current_branch: str) -> str | None:
+    required = ('old_tag', 'new_tag', 'workflow_branch')
     missing = [k for k in required if not state.get(k)]
     if missing:
         return ('srt state is invalid (missing: {}). '
@@ -214,26 +242,26 @@ def validate_srt_state(state, current_branch):
     return None
 
 
-def is_dirty():
+def is_dirty() -> bool:
     line = cmd(['git', 'status', '--short'])
     return line != ''
 
 
-def read_config():
+def read_config() -> ConfigParser:
     config = ConfigParser()
     dirs = [os.curdir,
             os.path.expanduser('~/.config/'),
             os.path.expanduser('~'),
             '/etc/srt']
     if 'SRT_CONF' in os.environ:
-        dirs.insert(0, os.environ.get('SRT_CONF'))
+        dirs.insert(0, os.environ['SRT_CONF'])
     # ConfigParser.read() lets later files override earlier ones, the
     # first directory in the list has to win
     config.read([d + '/srt.conf' for d in reversed(dirs)])
     return config
 
 
-def get_config():
+def get_config() -> Config:
     try:
         repo_name = get_remote_repo_name()
         branch_name = get_remote_branch_name(short=False)
@@ -254,11 +282,12 @@ def get_config():
     return config[config_name]
 
 
-def is_quilt_workflow(config):
+def is_quilt_workflow(config: Mapping[str, Any]) -> bool:
     """Return True if the quilt workflow is enabled in config, else False."""
-    if hasattr(config, 'getboolean'):
-        return config.getboolean('quilt_workflow', fallback=False)
-    # fallback for dict-like config
+    getboolean = getattr(config, 'getboolean', None)
+    if getboolean is not None:
+        # a configparser section
+        return bool(getboolean('quilt_workflow', fallback=False))
     val = config.get('quilt_workflow', False)
     if isinstance(val, bool):
         return val
@@ -267,21 +296,21 @@ def is_quilt_workflow(config):
     return False
 
 
-def get_template_path(config, key, name):
+def get_template_path(config: Config, key: str, name: str) -> str:
     """Return the template configured as key, else the one shipped."""
     if key in config:
         return config[key]
     return str(files('stable_rt_tools').joinpath(name))
 
 
-def get_gnupghome(config):
+def get_gnupghome(config: Config) -> str:
     gnupghome = os.getenv('GNUPGHOME', '~/.gnupg')
     if 'GNUPGHOME' in config:
         gnupghome = config['GNUPGHOME']
     return gnupghome
 
 
-def get_gpg_env(config):
+def get_gpg_env(config: Config) -> dict[str, str]:
     # Extend the environment, don't replace it: git needs HOME for
     # ~/.gitconfig (user identity) and gpg the agent/tty variables.
     env = os.environ.copy()
@@ -289,7 +318,7 @@ def get_gpg_env(config):
     return env
 
 
-def get_gpg_fingerprint(config):
+def get_gpg_fingerprint(config: Config) -> str:
     out = cmd(['gpg2',
                '--homedir', get_gnupghome(config),
                '--local-user', config['GPG_KEY_ID'],
@@ -300,7 +329,7 @@ def get_gpg_fingerprint(config):
     return lines[3].strip() if len(lines) > 3 else ''
 
 
-def confirm(text):
+def confirm(text: str) -> bool:
     try:
         while True:
             reply = str(input(text + ' (y/n): ')).lower().strip()
@@ -313,14 +342,14 @@ def confirm(text):
         return False
 
 
-def check_context(ctx):
+def check_context(ctx: 'SrtContext') -> 'SrtContext | None':
     if ctx.old_tag == ctx.new_tag:
         text = ('Something went wrong. '
                 'OLD_TAG and NEW_TAG are the same ({}).\n'
                 'Did you push your changes already? In this case you need to\n'
                 'provide the OLD_TAG and NEW_TAG')
         print(text.format(ctx.old_tag))
-        exit(1)
+        sys.exit(1)
 
     tags = [ctx.old_tag, ctx.new_tag, ctx.new_tag.base]
     if not ctx.new_tag.is_rc:
