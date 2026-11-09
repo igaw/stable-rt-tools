@@ -328,3 +328,46 @@ class TestUtil(TestCase):
                                       return_value='stable-rt/' + branch):
                 self.assertEqual(srt_util.get_config()['SUFFIX'], suffix,
                                  branch)
+
+    def test_config_defaults(self):
+        from configparser import ConfigParser
+        from unittest import mock
+
+        import stable_rt_tools.srt_util as srt_util
+
+        git_config = {'user.signingkey': 'ABCD', 'user.name': 'Ada Lovelace',
+                      'user.email': 'ada@example.com'}
+        config = ConfigParser()
+        config.read_string('[DEFAULT]\nMAIL_TO = list@example.com\n'
+                           '[a/b/v6.1-foo]\nSUFFIX = foo\n'
+                           '[a/b/v6.12-rt]\nNAME = Daniel\n')
+        with mock.patch.object(srt_util, '_git_config',
+                               side_effect=git_config.get):
+            foo = srt_util.with_defaults(config['a/b/v6.1-foo'])
+            rt = srt_util.with_defaults(config['a/b/v6.12-rt'])
+        self.assertEqual(foo['LOCALVERSION'], 'localversion-foo')
+        self.assertEqual(rt['LOCALVERSION'], 'localversion-rt')
+        self.assertEqual(foo['GPG_KEY_ID'], 'ABCD')
+        self.assertEqual(foo['SENDER'], 'Ada Lovelace <ada@example.com>')
+        self.assertEqual(foo['NAME'], 'Ada')
+        # the group wins, [DEFAULT] applies, keys are case-insensitive
+        self.assertEqual(rt['NAME'], 'Daniel')
+        self.assertEqual(rt['MAIL_TO'], 'list@example.com')
+        self.assertEqual(rt['mail_to'], 'list@example.com')
+        self.assertNotIn('ANNOUNCE', rt)
+
+    def test_workflow_setting(self):
+        from configparser import ConfigParser
+
+        import stable_rt_tools.srt_util as srt_util
+
+        config = ConfigParser()
+        config.read_string('[quilt]\nWORKFLOW = quilt\n[git]\nWORKFLOW = git\n'
+                           '[old]\nquilt_workflow = true\n[none]\n'
+                           '[bad]\nWORKFLOW = svn\n')
+        for name, quilt in (('quilt', True), ('git', False), ('old', True),
+                            ('none', False)):
+            self.assertEqual(srt_util.is_quilt_workflow(config[name]), quilt,
+                             name)
+        with self.assertRaises(SystemExit):
+            srt_util.is_quilt_workflow(config['bad'])

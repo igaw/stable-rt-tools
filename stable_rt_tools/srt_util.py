@@ -27,6 +27,7 @@ import json
 import os
 import re
 import sys
+from collections import ChainMap
 from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from datetime import UTC, datetime
@@ -307,6 +308,33 @@ def read_config() -> ConfigParser:
     return config
 
 
+def _git_config(key: str) -> str | None:
+    try:
+        return cmd(['git', 'config', '--get', key]) or None
+    except CalledProcessError:
+        return None
+
+
+def config_defaults(group: Mapping[str, str]) -> dict[str, str]:
+    """The values srt derives for settings a group leaves out."""
+    defaults = {'LOCALVERSION': f'localversion-{get_suffix(group)}'}
+    signingkey = _git_config('user.signingkey')
+    if signingkey:
+        defaults['GPG_KEY_ID'] = signingkey
+    name = _git_config('user.name')
+    email = _git_config('user.email')
+    if name:
+        defaults['NAME'] = name.split()[0]
+        if email:
+            defaults['SENDER'] = f'{name} <{email}>'
+    return defaults
+
+
+def with_defaults(group: Mapping[str, str]) -> Config:
+    """The group, falling back to the derived defaults."""
+    return ChainMap(group, config_defaults(group))  # type: ignore[arg-type]
+
+
 def get_config() -> Config:
     try:
         repo_name = get_remote_repo_name()
@@ -325,14 +353,23 @@ def get_config() -> Config:
     for config_name in names:
         if config.has_section(config_name):
             debug(f'Using configuration {config_name}')
-            return config[config_name]
+            return with_defaults(config[config_name])
     error('Could not retrieve configuration [{}] from srt.conf'.format(
         '] or ['.join(dict.fromkeys(names))))
     sys.exit(1)
 
 
 def is_quilt_workflow(config: Mapping[str, Any]) -> bool:
-    """Return True if the quilt workflow is enabled in config, else False."""
+    """Return True if the quilt workflow is enabled in config, else False.
+
+    WORKFLOW = quilt or git; quilt_workflow = true from before srt 2.0
+    still works.
+    """
+    workflow = config.get('WORKFLOW')
+    if workflow is not None:
+        if workflow not in ('quilt', 'git'):
+            sys.exit(f'WORKFLOW is {workflow}, not quilt or git')
+        return bool(workflow == 'quilt')
     getboolean = getattr(config, 'getboolean', None)
     if getboolean is not None:
         # a configparser section

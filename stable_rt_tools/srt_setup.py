@@ -51,6 +51,7 @@ from stable_rt_tools.srt_util import (
     get_suffix,
     is_quilt_workflow,
     read_config,
+    with_defaults,
 )
 
 
@@ -215,7 +216,7 @@ def execute(args: argparse.Namespace) -> None:
     if not config.has_section(args.group):
         sys.exit(f'no group [{args.group}] in srt.conf')
     try:
-        setup(args.group, config[args.group], args.dir)
+        setup(args.group, with_defaults(config[args.group]), args.dir)
     except SetupError as e:
         sys.exit(f'srt setup: {e}')
     except CalledProcessError as e:

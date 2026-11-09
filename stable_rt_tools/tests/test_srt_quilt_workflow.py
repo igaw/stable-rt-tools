@@ -228,7 +228,7 @@ class TestQuiltBase(unittest.TestCase):
         self.patches_dir = self.rt + '/' + self.series + '-patches'
         self.rebase_dir = self.rt + '/' + self.series + '-rebase'
         self.config = {
-            'quilt_workflow': 'true',
+            'WORKFLOW': 'quilt',
             'LOCALVERSION': self.localversion,
             'SUFFIX': self.suffix,
             'PRJ_GIT_TREE': self.rt_repo,
@@ -418,7 +418,7 @@ class TestSetup(TestQuiltBase):
 
     def test_git_workflow(self):
         config = self.setup_config()
-        del config['quilt_workflow']
+        config['WORKFLOW'] = 'git'
         parent = self.tdir + '/git-workflow'
         os.mkdir(parent)
         self.run_setup(config, parent=parent)
