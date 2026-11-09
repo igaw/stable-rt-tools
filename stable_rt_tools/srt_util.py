@@ -294,17 +294,22 @@ def is_dirty() -> bool:
     return line != ''
 
 
-def read_config() -> ConfigParser:
-    config = ConfigParser()
+def config_dirs() -> list[str]:
+    """The directories srt.conf is looked for, the first one wins."""
     dirs = [os.curdir,
             os.path.expanduser('~/.config/'),
             os.path.expanduser('~'),
             '/etc/srt']
     if 'SRT_CONF' in os.environ:
         dirs.insert(0, os.environ['SRT_CONF'])
+    return dirs
+
+
+def read_config() -> ConfigParser:
+    config = ConfigParser()
     # ConfigParser.read() lets later files override earlier ones, the
     # first directory in the list has to win
-    config.read([d + '/srt.conf' for d in reversed(dirs)])
+    config.read([d + '/srt.conf' for d in reversed(config_dirs())])
     return config
 
 

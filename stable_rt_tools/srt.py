@@ -40,6 +40,7 @@ from stable_rt_tools import (
     srt_tag,
     srt_upload,
 )
+from stable_rt_tools.srt_config import convert_config_files
 
 sub_cmd = {
     'setup': srt_setup,
@@ -90,6 +91,7 @@ def main() -> None:
     if args.cmd not in sub_cmd:
         parser.print_help(sys.stderr)
         sys.exit(2)
+    convert_config_files()
     sub_cmd[args.cmd].execute(args)
 
 
