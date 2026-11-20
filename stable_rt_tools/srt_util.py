@@ -428,7 +428,19 @@ def get_gpg_fingerprint(config: Config) -> str:
     sys.exit(f'no fingerprint for key {config["GPG_KEY_ID"]}')
 
 
+# srt --yes: confirm() answers yes without asking
+_assume_yes = False
+
+
+def set_assume_yes(yes: bool) -> None:
+    global _assume_yes
+    _assume_yes = yes
+
+
 def confirm(text: str) -> bool:
+    if _assume_yes:
+        print(text + ' (y/n): y (--yes)')
+        return True
     try:
         while True:
             reply = str(input(text + ' (y/n): ')).lower().strip()

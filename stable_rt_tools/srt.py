@@ -41,6 +41,7 @@ from stable_rt_tools import (
     srt_upload,
 )
 from stable_rt_tools.srt_config import convert_config_files
+from stable_rt_tools.srt_util import set_assume_yes
 
 sub_cmd = {
     'setup': srt_setup,
@@ -73,7 +74,23 @@ def srt_get_argparser() -> argparse.ArgumentParser:
     for _, cmd in sub_cmd.items():
         cmd.add_argparser(subparser)
 
+    add_yes_option(parser)
     return parser
+
+
+def add_yes_option(parser: argparse.ArgumentParser) -> None:
+    """Add -y/--yes to parser and all its sub commands, so it can be
+    given before or after them (srt -y push, srt push -y)."""
+    # SUPPRESS: the default of a sub command must not reset a -y given
+    # before it
+    parser.add_argument('-y', '--yes', action='store_true',
+                        default=argparse.SUPPRESS,
+                        help='answer yes to all questions, e.g. for '
+                        'scripts')
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for sub in action.choices.values():
+                add_yes_option(sub)
 
 
 def main() -> None:
@@ -87,6 +104,8 @@ def main() -> None:
         logging.getLogger().setLevel(logging.DEBUG)
     else:
         logging.getLogger().setLevel(logging.INFO)
+
+    set_assume_yes(getattr(args, 'yes', False))
 
     if args.cmd not in sub_cmd:
         parser.print_help(sys.stderr)

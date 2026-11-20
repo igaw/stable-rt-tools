@@ -4,6 +4,12 @@ Changes
 2.2
 ---
 
+New
+~~~
+
+- ``-y``/``--yes`` answers all questions with yes, before or after the
+  command (``srt -y push``, ``srt quilt undo --yes``), for scripts.
+
 Fixed
 ~~~~~
 
