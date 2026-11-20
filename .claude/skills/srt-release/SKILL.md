@@ -25,6 +25,17 @@ describe the steps in detail.
   announcement, the tarball, tag order -patches, -rebase, release.
 - Several series can share a work area; each has its own prepared release.
   Work on the series the maintainer named.
+- Never sign with a key other than the one of the last release.
+  `queue`, `rebase` and `release` create signed tags, `sign` signs the
+  release files. Before the first of them, compare the key srt signs with
+  (`GPG_KEY_ID` of the configuration srt runs with: for the MCP server,
+  `SRT_CONF`/`GNUPGHOME` in `claude mcp get srt`) with the one of the last
+  release (`git verify-tag --raw <old tag>`). If they differ, or you can't
+  tell, stop and tell the maintainer. A key named "sandbox" or similar is a
+  test key: a release signed with it is undone, never published.
+- In a sandbox (e.g. a Litterbox container) the maintainer's GPG key isn't
+  there and isn't forwarded: the maintainer runs the signing steps on the
+  host, see "Agent in a sandbox" below.
 - Keep the wording of the previous announcement (`git log -1 --format=%B
   <old tag>-patches`), don't propose new wording. A release which is only
   an upstream update lists `- none` as changes, as srt generates it: use
@@ -94,6 +105,28 @@ srt announce > ../announce    # the maintainer sends it
 ```
 
 Release candidates don't exist in the quilt workflow.
+
+### Agent in a sandbox
+
+The maintainer's key is on the host and the work area is shared, so the
+release is split (docs/agents.rst, "Agent in a sandbox"):
+
+```
+[sandbox] srt prep, srt quilt refresh, srt check, queue_diff, queue_draft
+  [STOP: the maintainer, on the host:
+     srt quilt queue --no-edit (or -F FILE), srt -y quilt rebase,
+     srt quilt merge, srt -y quilt release]
+[sandbox] srt check           # trees; tags signed with the key of the last release
+  [STOP: the maintainer tests, then on the host: srt create, srt sign]
+[sandbox] srt check, srt upload --dry-run, srt push --dry-run
+  [STOP: the maintainer uploads and pushes on the host]
+[sandbox] srt announce        # the maintainer sends it
+```
+
+Give the maintainer the exact commands for the host, with the announcement
+in a file of the work area if it isn't the generated one. If `srt check`
+reports the signatures as bad, the maintainer's public key may be missing
+from the keyring srt runs with: tell them, don't re-sign.
 
 Something wrong before the push: `srt -y quilt undo` deletes the local
 tags, resets the series and keeps the refreshed patches; fix the queue and

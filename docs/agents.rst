@@ -57,6 +57,95 @@ The server needs what srt needs: the configuration (``SRT_CONF`` or
 has the key unlocked, there is no terminal for a passphrase. Testing the
 release stays with the maintainer, the server has no tool for it.
 
+Signing keys
+------------
+
+``srt quilt queue``, ``rebase`` and ``release`` create signed tags, and
+``srt sign`` signs the release files, all with ``GPG_KEY_ID``. Which key
+that is depends on the configuration the srt process gets, and for
+``srt mcp`` that is the environment it was registered with, not your
+shell's:
+
+.. code-block:: console
+
+  $ claude mcp get srt
+  ...
+    Environment:
+      SRT_CONF=/home/user/.local/share/srt/test
+      GNUPGHOME=/home/user/.local/share/srt/test/gnupg
+
+A server registered like this signs with the key of that test
+configuration. Such a sandbox key is good for trying the steps; a release
+signed with it is not one to publish: undo it (``srt quilt undo``) before
+anything is pushed. The announcement names the fingerprint of
+``GPG_KEY_ID``, so it would announce the sandbox key as well.
+
+Before the first signing step of a release, compare the key with the one
+of the last release:
+
+.. code-block:: console
+
+  $ git -C v6.12-rt verify-tag --raw v6.12.117-rt23 2>&1 | grep -E 'SIG '
+  $ GNUPGHOME=... gpg --fingerprint <GPG_KEY_ID of the server's srt.conf>
+
+The release key changes only when you decide so (and then it's in
+pgpkeys.git), never because an agent ran with another configuration.
+
+Agent in a sandbox
+~~~~~~~~~~~~~~~~~~
+
+An agent often runs in a sandbox, e.g. a
+`Litterbox <https://github.com/Gerharddc/Litterbox>`_ container, which
+shares the work area with the host but not your keys. Litterbox passes
+SSH keys through its own agent, with a confirmation for each use, but no
+GPG keys. Forwarding the host's gpg-agent by hand would let anything
+running in the sandbox sign with your release key while the passphrase is
+cached, without asking; don't, until the sandbox can confirm each
+signature the way Litterbox does for SSH keys.
+
+Until then, split the release between the sandbox and the host, where
+your key is. The work area is the same directory on both, so each side
+sees what the other did; ``srt status`` and ``srt check`` tell where the
+release stands.
+
+1. In the sandbox the agent runs ``prep``, ``refresh``, ``check`` and
+   ``queue_diff`` to review the queue, and ``queue_draft`` for the
+   announcement. Then it stops.
+
+2. On the host you create the signed tags:
+
+   .. code-block:: console
+
+     $ cd v6.12-rt
+     $ srt quilt queue --no-edit     # or -F FILE with the completed one
+     $ srt -y quilt rebase
+     $ srt quilt merge
+     $ srt -y quilt release
+
+3. In the sandbox the agent runs ``check``: the trees, and that the tags
+   are signed with the key of the last release. Then you test the release.
+
+4. On the host you sign the release files:
+
+   .. code-block:: console
+
+     $ srt create
+     $ srt sign
+
+5. In the sandbox the agent runs ``check`` and the dry runs of ``upload``
+   and ``push``.
+
+6. On the host you upload and push (``srt upload``, ``srt push``); the
+   agent's ``announce`` returns the mail for you to send.
+
+The agent checks the signatures with the keyring of its configuration. If
+the server runs with a sandbox ``GNUPGHOME``, import your public key there
+(``gpg --export <key> | GNUPGHOME=... gpg --import``); a public key gives
+nothing away. Without it ``srt check`` reports the signatures as bad.
+
+Keep a sandbox key only in a test configuration with a short expiry, for
+trying the steps.
+
 Claude Code skill
 -----------------
 

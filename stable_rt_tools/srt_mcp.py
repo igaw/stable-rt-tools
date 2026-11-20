@@ -82,6 +82,14 @@ when the server allows them) and announce, which returns the mail for the
 maintainer to send. undo takes a release back as long as nothing is
 pushed.
 
+queue, rebase and release create signed tags, sign signs the files, all
+with the GPG_KEY_ID of the configuration this server runs with. Before the
+first of them, make sure it is the key of the last release (git verify-tag
+--raw <old tag>); a sandbox or test key, or one you can't tell, stops the
+release for the maintainer. In a sandbox without the maintainer's key, the
+maintainer runs queue, rebase, merge, release, create, sign, upload and
+push on the host; you prepare, review and check.
+
 Every step returns the output of srt and the status afterwards. A failed
 step returns srt's message: report it, don't work around it."""
 

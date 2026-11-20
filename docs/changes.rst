@@ -34,6 +34,11 @@ New
   upload and push as dry runs unless it runs with ``--allow-publish``. The
   repository has a Claude Code skill for making a release. The Agents
   page of the documentation describes both.
+- The Agents page and the skill describe which key an agent signs with
+  (the configuration ``srt mcp`` runs with), to compare it with the key of
+  the last release before the first signed tag, and how to split a release
+  between an agent in a sandbox without the release key and the host,
+  where the maintainer creates the tags and signatures.
 
 Fixed
 ~~~~~
