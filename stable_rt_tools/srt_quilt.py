@@ -50,6 +50,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from subprocess import CalledProcessError
 from time import gmtime, strftime
+from typing import cast
 
 from stable_rt_tools.srt_announce import cover_letter_replacements
 from stable_rt_tools.srt_commit import localversion_set
@@ -67,7 +68,7 @@ from stable_rt_tools.srt_util import (
     read_srt_state,
     update_srt_state,
 )
-from stable_rt_tools.srt_util_context import SrtContext
+from stable_rt_tools.srt_util_context import SrtContext, release_files
 from stable_rt_tools.srt_util_tag import Tag
 
 # The RT patch queue format. quilt must not pick it up from the user's
@@ -77,6 +78,10 @@ QUILT_REFRESH_ARGS = ['-p', 'ab', '--no-index', '--no-timestamps']
 QUILT_DIFF_OPTS = '-F ^[[:alpha:]$_].*[^:]$'
 
 STEPS = ['refresh', 'queue', 'rebase', 'merge', 'release']
+
+# a release like v6.12.116-rt22 and the upstream release it is made on
+RELEASE_TAG = re.compile(r'v\d+\.\d+\.\d+-[a-z]+\d+')
+UPSTREAM_TAG = re.compile(r'v\d+\.\d+\.\d+')
 
 # nothing has left the machine yet: the time to test the release
 RELEASE_NEXT = 'next: test the release, then srt create'
@@ -623,24 +628,84 @@ def undo(rel: Release) -> None:
 # status
 #
 
-def status(rel: Release) -> None:
-    print(f'{rel.old} -> {rel.new}')
+def _last_tag(path: str) -> str | None:
+    """The last tag on the upstream branch of the worktree."""
+    try:
+        return git(path, 'describe', '--tags', '--abbrev=0', '@{u}')
+    except CalledProcessError:
+        return None
+
+
+def published(path: str, tag: str) -> bool:
+    """True if the tag exists and its branch upstream contains it."""
+    ref = rev(path, 'refs/tags/' + tag)
+    return ref is not None and _pushed(path, ref)
+
+
+def stale_warnings(path: str, old: str, new: str) -> list[str]:
+    """Why the prepared release old -> new doesn't fit the upstream branch
+    of the worktree path (anymore)."""
+    if published(path, new):
+        return [f'{new} is published already, on {_upstream(path)}: run '
+                '"srt prep --clear" and "srt prep" for the next release']
+    last = _last_tag(path)
+    if last is not None and RELEASE_TAG.fullmatch(last) and \
+            last not in (old, new):
+        return [f'{_upstream(path)} is at {last}, the release was prepared '
+                f'on top of {old}: run "srt prep --clear" and "srt prep"']
+    return []
+
+
+def status_info(rel: Release) -> dict[str, object]:
+    """The prepared release, its steps and the next one."""
     dropped, added = rel.series_changes()
-    for p in dropped:
+    steps = [(f'srt quilt {step}', rel.done(step)) for step in STEPS]
+    patch, tar = release_files(rel.rt_dir, rel.release_tag)
+    steps += [('srt create', os.path.isfile(patch) and os.path.isfile(tar)),
+              ('srt sign', all(os.path.isfile(os.path.splitext(f)[0] +
+                                              '.sign') for f in (patch, tar)))]
+    warnings = stale_warnings(rel.rt_dir, str(rel.old), rel.release_tag)
+    last_stable = _last_tag(rel.stable_dir)
+    if not rel.done('refresh') and last_stable and \
+            UPSTREAM_TAG.fullmatch(last_stable) and last_stable != rel.base:
+        warnings.append(f'upstream is at {last_stable}, the release was '
+                        f'prepared for {rel.base}: run "srt prep" again')
+
+    nxt = next((name for name, done in steps if not done), None)
+    if warnings and warnings[0].startswith(rel.release_tag):
+        nxt = 'srt prep --clear, then srt prep'
+    elif nxt == 'srt create':
+        nxt = 'test the release, then srt create'
+    elif nxt is None:
+        nxt = 'srt upload, srt push, srt announce'
+    return {
+        'prepared': True,
+        'workflow': 'quilt',
+        'old_tag': str(rel.old),
+        'new_tag': rel.release_tag,
+        'dropped': dropped,
+        'added': added,
+        'steps': [{'step': name, 'done': done} for name, done in steps],
+        'warnings': warnings,
+        'next': nxt,
+    }
+
+
+def print_status(info: Mapping[str, object]) -> None:
+    print(f"{info['old_tag']} -> {info['new_tag']}")
+    for p in cast(list[str], info.get('dropped', [])):
         print(f'  dropped: {p}')
-    for p in added:
+    for p in cast(list[str], info.get('added', [])):
         print(f'  added:   {p}')
-    nxt = None
-    for step in STEPS:
-        done = rel.done(step)
-        if not done and nxt is None:
-            nxt = step
-        print('  [{}] srt quilt {}'.format('x' if done else ' ', step))
-    if nxt:
-        print(f'next: srt quilt {nxt}')
-    else:
-        print('next: srt create, srt sign, srt upload, srt push, '
-              'srt announce')
+    for step in cast(list[dict[str, object]], info['steps']):
+        print('  [{}] {}'.format('x' if step['done'] else ' ', step['step']))
+    for w in cast(list[str], info['warnings']):
+        print(f'warning: {w}')
+    print(f"next: {info['next']}")
+
+
+def status(rel: Release) -> None:
+    print_status(status_info(rel))
 
 
 COMMANDS = {

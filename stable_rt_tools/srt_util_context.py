@@ -108,16 +108,15 @@ class SrtContext:
         debug(self._dump())
 
     def _add_tag(self, prefix: str, tag: str) -> None:
-        dir_patches = f'{self.path}/patches/{tag}'
+        dir_patches = release_dir(self.path, tag)
         setattr(self, prefix + '_tag', Tag(tag))
         setattr(self, prefix + '_short_tag', tag[1:])
         setattr(self, prefix + '_dir_patches', dir_patches)
         setattr(self, prefix + '_dir_series', f'{dir_patches}/patches')
         setattr(self, prefix + '_dir_mails', f'{dir_patches}/mails')
-        setattr(self, prefix + '_fln_patch',
-                f'{dir_patches}/patch-{tag[1:]}.patch.xz')
-        setattr(self, prefix + '_fln_tar',
-                f'{dir_patches}/patches-{tag[1:]}.tar.xz')
+        patch, tar = release_files(self.path, tag)
+        setattr(self, prefix + '_fln_patch', patch)
+        setattr(self, prefix + '_fln_tar', tar)
 
     def get_files(self) -> list[str]:
         return [self.new_fln_patch, self.new_fln_tar]
@@ -128,3 +127,14 @@ class SrtContext:
     def _dump(self) -> str:
         return '\n' + '\n'.join(f'\t{key}: {val}'
                                 for key, val in self.__dict__.items())
+
+
+def release_dir(path: str, tag: str) -> str:
+    """Where srt create puts the files of the release tag."""
+    return f'{path}/patches/{tag}'
+
+
+def release_files(path: str, tag: str) -> tuple[str, str]:
+    """The patch and the tarball srt create makes for the release tag."""
+    d = release_dir(path, tag)
+    return (f'{d}/patch-{tag[1:]}.patch.xz', f'{d}/patches-{tag[1:]}.tar.xz')

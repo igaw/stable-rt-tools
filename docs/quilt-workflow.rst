@@ -268,4 +268,12 @@ worktrees. ``srt quilt``, ``srt status``, ``srt create``, ``srt sign``,
 not provided explicitly. ``srt push`` clears the state after a successful push.
 If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
 
+``srt status`` shows the steps done, ``srt create`` and ``srt sign``
+included, and the next step. It warns when the prepared release doesn't
+fit the fetched branches anymore: the release was published already, e.g.
+by another maintainer of the group, the series has a newer release than
+the one the release was prepared on, or upstream has a newer release
+before ``srt quilt refresh``. ``srt status --json`` prints the same for
+scripts.
+
 Release candidates are not supported by the quilt workflow.

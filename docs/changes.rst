@@ -18,6 +18,12 @@ New
   ``srt quilt`` steps, in the git workflow too. ``srt quilt release``
   reminds to test the release before ``srt create``. ``srt sign`` lists
   the signatures, ``srt prep --clear`` says whether it cleared a release.
+- ``srt status`` shows ``srt create`` and ``srt sign`` as steps, and
+  warns when the prepared release was published already (e.g. by another
+  maintainer), when the series has a newer release than the prepared one
+  starts from, or when upstream has a newer release than the prepared one.
+  It trusted the tags only, so a release published elsewhere looked half
+  done. ``srt status --json`` prints the status for scripts.
 
 Fixed
 ~~~~~

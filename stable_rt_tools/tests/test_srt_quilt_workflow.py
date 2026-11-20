@@ -40,6 +40,7 @@ and the localversion patch. The release v6.1.2-rt2 adds new-fix.patch.
 """
 
 import io
+import json
 import os
 import subprocess
 import sys
@@ -50,7 +51,7 @@ from shutil import rmtree
 from typing import cast
 from unittest import mock
 
-from stable_rt_tools import srt_quilt, srt_setup
+from stable_rt_tools import srt_quilt, srt_setup, srt_status
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
@@ -391,8 +392,11 @@ class TestQuiltRelease(TestQuiltBase):
         srt_quilt.status(srt_quilt.Release())
         out = stdout_text()
         self.assertIn(f'{self.old_tag} -> {self.new_tag}', out)
-        self.assertNotIn('[ ]', out)
-        self.assertIn('next: srt create', out)
+        for step in srt_quilt.STEPS:
+            self.assertIn(f'  [x] srt quilt {step}\n', out)
+        self.assertIn('  [ ] srt create\n  [ ] srt sign\n', out)
+        self.assertIn('next: test the release, then srt create', out)
+        self.assertNotIn('warning', out)
 
     def step8_create_sign(self):
         ctx = SrtContext(None, path=self.rt_dir)
@@ -402,6 +406,10 @@ class TestQuiltRelease(TestQuiltBase):
         out = stdout_text()
         self.assertIn('next: srt sign', out)
         self.assertIn('.tar.sign\nnext: srt upload', out)
+        info = srt_status.status_info()
+        steps = cast(list[dict[str, bool]], info['steps'])
+        self.assertEqual([s['done'] for s in steps], [True] * 7)
+        self.assertEqual(info['next'], 'srt upload, srt push, srt announce')
         d = self.rt_dir + '/patches/' + self.new_tag + '/'
         v = self.new_tag[1:]
         for f in (f'patch-{v}.patch.xz', f'patches-{v}.tar.xz',
@@ -692,6 +700,68 @@ class TestQuiltChecks(TestQuiltBase):
             srt_quilt.queue(srt_quilt.Release(), edit=False)
         self.assertIn('added new-fix.patch', git(
             self.patches_dir, 'log', '-1', '--format=%B'))
+
+    def status_json(self):
+        stub_stdouts(self)
+        srt_status.status(as_json=True)
+        return json.loads(stdout_text())
+
+    def fake_fetch(self, ref, tag, parent):
+        """Let the remote-tracking branch ref point to a new commit on
+        parent, tagged tag, as if it was fetched."""
+        linux = self.rt + '/linux'
+        tree = git(linux, 'rev-parse', parent + '^{tree}')
+        commit = git(linux, 'commit-tree', '-p', parent, '-m', tag, tree)
+        git(linux, 'tag', '-a', '-m', tag, tag, commit)
+        git(linux, 'update-ref', ref, commit)
+
+    def test_status_json(self):
+        self.prepare()
+        info = self.status_json()
+        self.assertEqual(info['old_tag'], self.old_tag)
+        self.assertEqual(info['new_tag'], self.new_tag)
+        self.assertEqual(info['workflow'], 'quilt')
+        self.assertEqual(info['steps'][0],
+                         {'step': 'srt quilt refresh', 'done': False})
+        self.assertEqual(info['next'], 'srt quilt refresh')
+        self.assertEqual(info['warnings'], [])
+
+    def test_status_without_release(self):
+        stub_stdouts(self)
+        srt_status.status(as_json=True)
+        self.assertFalse(json.loads(stdout_text())['prepared'])
+
+    def test_status_release_published_elsewhere(self):
+        self.release_until('release')
+        # e.g. another maintainer pushed the release, and it was fetched
+        git(self.rt + '/linux', 'update-ref',
+            f'refs/remotes/stable-rt/{self.series}', self.new_tag + '^{}')
+        info = self.status_json()
+        self.assertIn(f'{self.new_tag} is published already',
+                      info['warnings'][0])
+        self.assertEqual(info['next'], 'srt prep --clear, then srt prep')
+
+    def test_status_newer_release_upstream(self):
+        self.prepare()
+        self.fake_fetch(f'refs/remotes/stable-rt/{self.series}',
+                        f'v6.1.1-{self.suffix}5', self.old_tag + '^{}')
+        info = self.status_json()
+        self.assertIn(f'stable-rt/{self.series} is at '
+                      f'v6.1.1-{self.suffix}5', info['warnings'][0])
+        stub_stdouts(self)
+        srt_status.status()
+        self.assertIn('warning: stable-rt/', stdout_text())
+
+    def test_status_newer_upstream_release(self):
+        self.prepare()
+        self.fake_fetch('refs/remotes/stable/master', 'v6.1.3', 'v6.1.2^{}')
+        info = self.status_json()
+        self.assertEqual(info['warnings'],
+                         ['upstream is at v6.1.3, the release was prepared '
+                          'for v6.1.2: run "srt prep" again'])
+        # once the queue is refreshed, the release goes on as prepared
+        self.run_step('refresh')
+        self.assertEqual(self.status_json()['warnings'], [])
 
     def test_undo_and_redo(self):
         self.release_until('release')
