@@ -657,6 +657,37 @@ class TestQuiltChecks(TestQuiltBase):
             self.patches_dir, 'show',
             f'{self.new_tag}-patches:patches/series'))
 
+    def test_queue_draft_and_file(self):
+        self.release_until('refresh')
+        head = git(self.patches_dir, 'rev-parse', 'HEAD')
+        stub_stdouts(self)
+        srt_quilt.queue(srt_quilt.Release(), draft=True)
+        draft = stdout_text()
+        self.assertTrue(draft.startswith('[ANNOUNCE] ' + self.new_tag[1:]))
+        self.assertIn('added new-fix.patch', draft)
+        self.assertEqual(git(self.patches_dir, 'rev-parse', 'HEAD'), head)
+        # the completed announcement is committed as it is, no editor
+        msg = self.tdir + '/announce.txt'
+        write(msg, draft.replace('Changes since',
+                                 'A fix for line15.\n\nChanges since'))
+        stub_stdin(self, 'y\n')
+        stub_stdouts(self)
+        with mock.patch.dict(os.environ, {'GIT_EDITOR': 'false'}):
+            srt_quilt.queue(srt_quilt.Release(), message_file=msg)
+        body = git(self.patches_dir, 'log', '-1', '--format=%B')
+        self.assertTrue(body.startswith(read(msg).rstrip('\n')))
+        self.assertIn('A fix for line15.', body)
+        self.assertTrue(srt_quilt.Release().done('queue'))
+
+    def test_queue_no_edit(self):
+        self.release_until('refresh')
+        stub_stdin(self, 'y\n')
+        stub_stdouts(self)
+        with mock.patch.dict(os.environ, {'GIT_EDITOR': 'false'}):
+            srt_quilt.queue(srt_quilt.Release(), edit=False)
+        self.assertIn('added new-fix.patch', git(
+            self.patches_dir, 'log', '-1', '--format=%B'))
+
     def test_undo_and_redo(self):
         self.release_until('release')
         old_queue = git(self.patches_dir, 'rev-parse',

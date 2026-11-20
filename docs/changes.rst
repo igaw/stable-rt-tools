@@ -9,6 +9,9 @@ New
 
 - ``-y``/``--yes`` answers all questions with yes, before or after the
   command (``srt -y push``, ``srt quilt undo --yes``), for scripts.
+- ``srt quilt queue`` works without an editor: ``--draft`` prints the
+  generated announcement, ``-F FILE`` commits the announcement from a
+  file, ``--no-edit`` commits the generated announcement as it is.
 
 Fixed
 ~~~~~

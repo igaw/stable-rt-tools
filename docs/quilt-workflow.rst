@@ -158,6 +158,9 @@ order ``-patches``, ``-rebase``, release.
     patch files, with the announcement as commit message and tags it
     ``v6.12.116-rt22-patches``. The editor is opened to complete the
     announcement; the dropped and added patches are listed already.
+    Without an editor: ``--draft`` prints the generated announcement,
+    ``-F FILE`` commits the completed one from a file, ``--no-edit``
+    commits the generated one as it is.
     ``srt announce`` prints this announcement with the mail headers, the
     shortlog since the last release and the delta patch appended.
 

@@ -382,9 +382,38 @@ def refresh(rel: Release) -> None:
 # queue
 #
 
-def queue(rel: Release) -> None:
+def queue_message(rel: Release) -> str:
+    """The announcement of the release, from COMMIT_TMPL."""
+    cwd = os.getcwd()
+    os.chdir(rel.rt_dir)
+    try:
+        ctx = SrtContext(None, path=rel.rt_dir)
+    finally:
+        os.chdir(cwd)
+    r = cover_letter_replacements(rel.config, ctx)
+    r['date'] = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
+    r['branch_name'] = rel.workflow_branch
+    r['release_tag'] = rel.release_tag
+    dropped, added = rel.series_changes()
+    r['series_changes'] = ''.join(
+        [f'  - dropped {p}\n' for p in dropped] +
+        [f'  - added {p}\n' for p in added]) or '  - none\n'
+    with open(get_template_path(rel.config, 'COMMIT_TMPL',
+                                'commit-tmpl.txt')) as f:
+        return f.read().format(**r)
+
+
+def queue(rel: Release, edit: bool = True,
+          message_file: str | None = None, draft: bool = False) -> None:
+    """Commit and tag the queue. The message is the announcement from
+    COMMIT_TMPL, completed in the editor (edit), or message_file as it
+    is. draft only prints the announcement."""
+    if draft:
+        print(queue_message(rel), end='')
+        return
     if rel.done('queue'):
         print(f'{rel.queue_tag} already tagged')
+        print('next: srt quilt rebase')
         return
     if not rel.done('refresh'):
         sys.exit('run "srt quilt refresh" first')
@@ -399,28 +428,18 @@ def queue(rel: Release) -> None:
                  'quilt undo" (or the commit with "git reset --soft '
                  'HEAD~1") and rerun from "srt quilt refresh"')
     if not committed:
-        cwd = os.getcwd()
-        os.chdir(rel.rt_dir)
-        try:
-            ctx = SrtContext(None, path=rel.rt_dir)
-        finally:
-            os.chdir(cwd)
-        r = cover_letter_replacements(rel.config, ctx)
-        r['date'] = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
-        r['branch_name'] = rel.workflow_branch
-        r['release_tag'] = rel.release_tag
-        dropped, added = rel.series_changes()
-        r['series_changes'] = ''.join(
-            [f'  - dropped {p}\n' for p in dropped] +
-            [f'  - added {p}\n' for p in added]) or '  - none\n'
-        with open(get_template_path(rel.config, 'COMMIT_TMPL',
-                                    'commit-tmpl.txt')) as f:
-            text = f.read().format(**r)
+        if message_file is not None:
+            with open(message_file) as f:
+                text = f.read()
+            edit = False
+        else:
+            text = queue_message(rel)
         with tempfile.NamedTemporaryFile('w', delete=False) as msg:
             msg.write(text)
         try:
-            p = subprocess.run(['git', 'commit', '-s', '--edit', '-F',
-                                msg.name], cwd=rel.patches_dir)
+            p = subprocess.run(['git', 'commit', '-s',
+                                '--edit' if edit else '--no-edit',
+                                '-F', msg.name], cwd=rel.patches_dir)
         finally:
             os.remove(msg.name)
         if p.returncode:
@@ -635,9 +654,17 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     sub.add_parser('refresh',
                    help='refresh the patch series on the new upstream '
                    'release (default)')
-    sub.add_parser('queue',
-                   help='commit and tag the patch queue with the '
-                   'announcement')
+    prs_queue = sub.add_parser('queue',
+                               help='commit and tag the patch queue with '
+                               'the announcement')
+    prs_queue.add_argument('--no-edit', dest='edit', action='store_false',
+                           help='commit the generated announcement as it '
+                           'is, without opening the editor')
+    prs_queue.add_argument('-F', '--file', metavar='FILE',
+                           help='commit the announcement in FILE as it is')
+    prs_queue.add_argument('--draft', action='store_true',
+                           help='only print the generated announcement, '
+                           'e.g. to complete it for --file')
     sub.add_parser('rebase',
                    help='import the queue on top of upstream in -rebase')
     sub.add_parser('merge',
@@ -652,4 +679,8 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
 
 def execute(args: argparse.Namespace) -> None:
     step = getattr(args, 'quilt_cmd', None) or 'refresh'
+    if step == 'queue':
+        queue(Release(), edit=args.edit, message_file=args.file,
+              draft=args.draft)
+        return
     COMMANDS[step](Release())
