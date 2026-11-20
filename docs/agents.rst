@@ -37,7 +37,8 @@ return its output, the next step and the status afterwards:
 
 ``list_series``, ``status``, ``check``, ``queue_diff``, ``queue_draft``
     Read the state of a release, check its trees, review the refreshed
-    queue and get the generated announcement. They change nothing.
+    queue and get the generated announcement, with the one of the previous
+    release to keep its wording. They change nothing.
 ``prep``, ``refresh``, ``queue``, ``rebase``, ``merge``, ``release``, ``create``, ``sign``
     The local steps of the quilt workflow. ``refresh`` stops at a patch
     upstream contains already, unless ``drop_applied`` is given; ``queue``

@@ -71,11 +71,16 @@ the fetched branches. check runs the sanity checks between the trees.
 
 Quilt workflow: prep, refresh, check (review the queue with queue_diff),
 queue_draft (the maintainer completes the announcement), queue with the
-message, rebase, merge, release, check. Then STOP: the maintainer tests
-the release. Then create, sign, check, upload and push (dry runs; the real
-ones only with the maintainer's OK and when the server allows them) and
-announce, which returns the mail for the maintainer to send. undo takes a
-release back as long as nothing is pushed.
+message, rebase, merge, release, check. Keep the wording of the previous
+announcement, which queue_draft returns too: e.g. a release which is only
+an upstream update lists "- none" as changes, as srt generates it; then
+queue without message. Don't propose new wording.
+
+Then STOP: the maintainer tests the release. Then create, sign, check,
+upload and push (dry runs; the real ones only with the maintainer's OK and
+when the server allows them) and announce, which returns the mail for the
+maintainer to send. undo takes a release back as long as nothing is
+pushed.
 
 Every step returns the output of srt and the status afterwards. A failed
 step returns srt's message: report it, don't work around it."""
@@ -226,7 +231,8 @@ class Server:
                  self._refresh),
             Tool('queue_draft',
                  'The announcement srt generates for the queue commit, for '
-                 'the maintainer to complete.',
+                 'the maintainer to complete, and the announcement of the '
+                 'previous release, whose wording to keep.',
                  one, self._queue_draft, read_only=True),
             Tool('queue',
                  'Commit and tag the patch queue with the announcement as '
@@ -383,7 +389,17 @@ class Server:
     def _queue_draft(self, args: dict[str, Any]) -> dict[str, Any]:
         path = self._worktree(args)
         r = self._srt(path, ['quilt', 'queue', '--draft'])
-        return {'announcement': r.stdout}
+        out: dict[str, Any] = {'announcement': r.stdout}
+        info = self._status_of(path)
+        if info.get('prepared'):
+            tag = f"{info['old_tag']}-patches"
+            p = subprocess.run(['git', '-C', path, 'log', '-1',
+                                '--format=%B', tag + '^{commit}'],
+                               capture_output=True, encoding='utf-8',
+                               errors='replace')
+            if p.returncode == 0:
+                out['previous'] = {'tag': tag, 'announcement': p.stdout}
+        return out
 
     def _queue(self, args: dict[str, Any]) -> dict[str, Any]:
         message = args.get('message')

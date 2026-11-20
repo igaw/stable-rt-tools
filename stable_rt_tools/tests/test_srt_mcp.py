@@ -225,6 +225,14 @@ class TestMcpServer(unittest.TestCase):
         self.assertEqual(self.srt.commands(), [['-y', 'upload'],
                                                ['-y', 'push']])
 
+    def test_queue_draft(self) -> None:
+        self.srt.answers[('quilt', 'queue', '--draft')] = \
+            Result(0, '[ANNOUNCE] 6.12.118-rt24\n', '')
+        out = self.ok('queue_draft', series='v6.12-rt')
+        self.assertEqual(out['announcement'], '[ANNOUNCE] 6.12.118-rt24\n')
+        # the fake worktree has no git history: no previous announcement
+        self.assertNotIn('previous', out)
+
     def test_announce(self) -> None:
         self.srt.answers[('announce',)] = \
             Result(0, 'Subject: [ANNOUNCE] v6.12.118-rt24\n',

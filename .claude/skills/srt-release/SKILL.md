@@ -25,6 +25,10 @@ describe the steps in detail.
   announcement, the tarball, tag order -patches, -rebase, release.
 - Several series can share a work area; each has its own prepared release.
   Work on the series the maintainer named.
+- Keep the wording of the previous announcement (`git log -1 --format=%B
+  <old tag>-patches`), don't propose new wording. A release which is only
+  an upstream update lists `- none` as changes, as srt generates it: use
+  the generated announcement unchanged then.
 
 ## With the srt MCP server
 
