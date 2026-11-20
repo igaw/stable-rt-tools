@@ -32,6 +32,7 @@ from stable_rt_tools import (
     srt_check,
     srt_commit,
     srt_create,
+    srt_mcp,
     srt_prep,
     srt_push,
     srt_quilt,
@@ -57,6 +58,7 @@ sub_cmd = {
     'quilt': srt_quilt,
     'status': srt_status,
     'check': srt_check,
+    'mcp': srt_mcp,
 }
 
 

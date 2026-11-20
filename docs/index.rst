@@ -10,6 +10,7 @@ Contents:
    userguide
    git-workflow
    quilt-workflow
+   agents
    command-line
    devguide
    changes

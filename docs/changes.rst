@@ -30,6 +30,10 @@ New
   review them), ``-rebase`` against the queue, the stable merge message,
   the release against ``-rebase``, the delta of the release, the files of
   ``srt create`` against the tags and the signatures.
+- ``srt mcp`` serves the release steps to an agent as MCP server, with
+  upload and push as dry runs unless it runs with ``--allow-publish``. The
+  repository has a Claude Code skill for making a release. The Agents
+  page of the documentation describes both.
 
 Fixed
 ~~~~~
