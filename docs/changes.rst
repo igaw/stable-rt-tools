@@ -24,6 +24,12 @@ New
   starts from, or when upstream has a newer release than the prepared one.
   It trusted the tags only, so a release published elsewhere looked half
   done. ``srt status --json`` prints the status for scripts.
+- ``srt check`` runs the reviews of the documentation as sanity checks
+  between the trees: the refreshed queue against the last one (patches
+  added, dropped or changed beyond hunk offsets, with the ``git diff`` to
+  review them), ``-rebase`` against the queue, the stable merge message,
+  the release against ``-rebase``, the delta of the release, the files of
+  ``srt create`` against the tags and the signatures.
 
 Fixed
 ~~~~~

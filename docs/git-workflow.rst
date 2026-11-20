@@ -118,6 +118,7 @@ Release
   $ cd ../v4.19-rt
   $ srt create
   $ srt sign
+  $ srt check
   $ srt upload
   $ srt push
   $ srt announce > ../announce-rt

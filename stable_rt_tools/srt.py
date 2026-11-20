@@ -29,6 +29,7 @@ import sys
 from stable_rt_tools import (
     about,
     srt_announce,
+    srt_check,
     srt_commit,
     srt_create,
     srt_prep,
@@ -55,6 +56,7 @@ sub_cmd = {
     'announce': srt_announce,
     'quilt': srt_quilt,
     'status': srt_status,
+    'check': srt_check,
 }
 
 

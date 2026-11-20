@@ -118,6 +118,7 @@ step works on the right worktree itself, so all commands are run from
   [add or drop patches, see below]
 
   $ srt quilt refresh
+  $ srt check
   $ git -C ../v6.12-rt-patches diff
   $ srt quilt queue
   $ srt quilt rebase
@@ -128,6 +129,7 @@ step works on the right worktree itself, so all commands are run from
 
   $ srt create
   $ srt sign
+  $ srt check
   $ srt upload
   $ srt push
 
@@ -186,6 +188,17 @@ order ``-patches``, ``-rebase``, release.
     the release, and ``patches-6.12.116-rt22.tar.xz``, the ``patches/``
     directory of ``v6.12.116-rt22-patches`` as it is (series file,
     comments and patch names), to ``patches/v6.12.116-rt22``.
+
+``srt check``
+    Sanity checks between the trees, each once its step is done: the
+    refreshed queue against the one of ``v6.12.111-rt21-patches`` (patches
+    added, dropped, or changed beyond their hunk offsets, with the
+    ``git diff`` to review them), ``-rebase`` is ``v6.12.116`` with the
+    patches of the queue in order, the stable merge message, the release
+    has the tree of ``-rebase``, the delta of the release without the stable
+    update, the patch and the tarball match the tags, and the signatures.
+    It exits with 1 if a check fails; ``--json`` prints the checks for
+    scripts. Run it any time, at the latest before ``srt upload``.
 
 Every step can be rerun: finished work is detected and skipped.
 ``srt quilt undo`` undoes the steps as long as nothing is pushed.

@@ -51,7 +51,7 @@ from shutil import rmtree
 from typing import cast
 from unittest import mock
 
-from stable_rt_tools import srt_quilt, srt_setup, srt_status
+from stable_rt_tools import srt_check, srt_quilt, srt_setup, srt_status
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
@@ -428,6 +428,19 @@ class TestQuiltRelease(TestQuiltBase):
                              f'{self.new_tag}-patches:patches/series')
                          + '\n')
 
+    def step8b_check(self):
+        checks = {c.name: c for c in srt_check.run_checks()}
+        self.assertEqual(
+            {n: c.result for n, c in checks.items()},
+            {'upstream': 'skip', 'queue': 'warn', 'rebase': 'ok',
+             'merge': 'ok', 'release': 'ok', 'delta': 'ok', 'files': 'ok',
+             'signatures': 'ok'})
+        # the patches added and dropped need a review, the refreshed ones
+        # only changed their hunk offsets
+        self.assertEqual(checks['queue'].details,
+                         ['dropped upstreamed.patch', 'added new-fix.patch'])
+        self.assertIn('0 changed beyond hunk offsets', checks['queue'].text)
+
     def step9_announce(self):
         ctx = SrtContext(None, path=self.rt_dir)
         stub_stdouts(self)
@@ -762,6 +775,61 @@ class TestQuiltChecks(TestQuiltBase):
         # once the queue is refreshed, the release goes on as prepared
         self.run_step('refresh')
         self.assertEqual(self.status_json()['warnings'], [])
+
+    def checks(self):
+        return {c.name: c for c in srt_check.run_checks()}
+
+    def test_check_before_refresh(self):
+        self.prepare()
+        checks = self.checks()
+        self.assertEqual(checks['upstream'].result, 'ok')
+        self.assertEqual(
+            [c.result for n, c in checks.items() if n != 'upstream'],
+            ['skip'] * 7)
+
+    def test_check_patch_changed(self):
+        self.release_until('refresh')
+        patch = self.patches_dir + '/patches/rt-feature.patch'
+        write(patch, read(patch).replace('+rt_feature();',
+                                         '+rt_feature(1);'))
+        queue = self.checks()['queue']
+        self.assertEqual(queue.result, 'warn')
+        self.assertIn('changed rt-feature.patch', queue.details)
+        self.assertIn(f'diff {self.old_tag}-patches -- '
+                      'patches/rt-feature.patch', queue.text)
+
+    def test_check_merge_message(self):
+        self.release_until('merge')
+        # the message as srt 2.1 committed it
+        msg = git(self.rt_dir, 'log', '-1', '--format=%B', 'HEAD^')
+        git(self.rt_dir, 'reset', '-q', '--hard', 'HEAD^')
+        git(self.rt_dir, 'commit', '-q', '--amend', '--cleanup=verbatim',
+            '-m', msg + '\n# -----BEGIN PGP SIGNATURE-----')
+        self.run_step('merge')
+        self.assertEqual(self.checks()['merge'].result, 'warn')
+
+    def test_check_files(self):
+        self.release_until('release')
+        ctx = SrtContext(None, path=self.rt_dir)
+        stub_stdouts(self)
+        create(self.config, ctx)
+        sign(self.config, ctx)
+        self.assertEqual(self.checks()['files'].result, 'ok')
+        # a file of another release
+        patch = self.rt_dir + f'/patches/{self.new_tag}/' \
+            f'patch-{self.new_tag[1:]}.patch.xz'
+        with open(patch, 'wb') as f:
+            subprocess.run(['xz'], input=b'other', stdout=f, check=True)
+        checks = self.checks()
+        self.assertEqual(checks['files'].result, 'fail')
+        self.assertEqual(checks['signatures'].result, 'fail')
+        stub_stdouts(self)
+        with self.assertRaises(SystemExit) as e:
+            srt_check.execute(Namespace(json=True))
+        self.assertEqual(e.exception.code, 1)
+        results = {c['name']: c['result']
+                   for c in json.loads(stdout_text())}
+        self.assertEqual(results['files'], 'fail')
 
     def test_undo_and_redo(self):
         self.release_until('release')

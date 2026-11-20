@@ -314,6 +314,17 @@ class TestRelease(TestSrtBase):
         for f in files:
             self.assertEqual(os.path.isfile(f), True)
 
+    def step6b_check(self):
+        from stable_rt_tools import srt_check
+
+        path = self.work_tree
+        self.assertEqual(srt_check.check_trees(
+            path, 'v4.4.14-rt4', 'v4.4.14-rt4-rebase').result, 'ok')
+        self.assertEqual(
+            srt_check.check_files(path, self.ctx, quilt=False).result, 'ok')
+        self.assertEqual(srt_check.check_signatures(
+            path, self.ctx, self.config).result, 'ok')
+
     def step7_upload(self):
         # XXX mocking kup server
 

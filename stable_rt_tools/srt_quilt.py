@@ -382,7 +382,7 @@ def refresh(rel: Release) -> None:
         print(f'dropped: {p}')
     for p in added:
         print(f'added:   {p}')
-    print(f'review: git -C {rel.patches_dir} diff')
+    print(f'review: srt check, git -C {rel.patches_dir} diff')
     print('next: srt quilt queue')
 
 

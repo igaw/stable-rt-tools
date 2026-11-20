@@ -65,3 +65,21 @@ class TestNextStep(unittest.TestCase):
                       tag_next_step('v4.19.291-rt127-rc1'))
         self.assertIn('srt create', tag_next_step('v4.19.291-rt127-rebase'))
         self.assertIn('-rebase worktree', tag_next_step('v4.19.291-rt127'))
+
+
+class TestWithoutOffsets(unittest.TestCase):
+
+    def test_offsets_and_git_lines(self):
+        from stable_rt_tools.srt_check import without_offsets
+
+        git = ('Subject: x\n---\n'
+               'diff --git a/k.c b/k.c\nindex 5d1b880..4e6fb9b 100644\n'
+               '--- a/k.c\n+++ b/k.c\n'
+               '@@ -1873,7 +1873,7 @@ void hrtimer_interrupt(struct clock)\n'
+               ' a\n-b\n+c\n')
+        quilt = ('Subject: x\n---\n--- a/k.c\n+++ b/k.c\n'
+                 '@@ -1880,7 +1880,7 @@ void hrtimer_interrupt(struct clo\n'
+                 ' a\n-b\n+c\n')
+        self.assertEqual(without_offsets(git), without_offsets(quilt))
+        self.assertNotEqual(without_offsets(quilt),
+                            without_offsets(quilt.replace('+c', '+d')))
