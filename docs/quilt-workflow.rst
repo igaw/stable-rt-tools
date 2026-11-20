@@ -166,9 +166,10 @@ order ``-patches``, ``-rebase``, release.
     queue with ``git quiltimport`` and tags it ``v6.12.116-rt22-rebase``.
 
 ``srt quilt merge``
-    Merges the ``v6.12.116`` tag into ``v6.12-rt`` and applies the added
-    patches with ``git am``. On a conflict resolve it, ``git commit`` (or
-    ``git am --continue``) and rerun ``srt quilt merge``.
+    Merges the ``v6.12.116`` tag into ``v6.12-rt`` with a sign-off and
+    applies the added patches with ``git am``. On a conflict resolve it,
+    ``git commit -s`` (or ``git am --continue``) and rerun
+    ``srt quilt merge``.
 
 ``srt quilt release``
     Sets ``localversion-rt``, checks that the tree is identical to

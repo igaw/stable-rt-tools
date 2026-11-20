@@ -212,7 +212,12 @@ class TestQuiltBase(unittest.TestCase):
                      'stable_line28')
         write(self.stable_repo + '/version', '6.1.2\n\n')
         git(self.stable_repo, 'commit', '-q', '-am', 'Linux 6.1.2')
-        git(self.stable_repo, 'tag', '-a', '-m', 'v6.1.2', 'v6.1.2')
+        # stable tags are signed: git merge puts the signature into the
+        # merge message as comment lines
+        cmd(['git', '-C', self.stable_repo, 'tag', '-s',
+             '-u', self.config['GPG_KEY_ID'],
+             '-m', 'This is the 6.1.2 stable release', 'v6.1.2'],
+            env=dict(os.environ, GNUPGHOME=self.gnupghome))
 
     # the release suffix: tags vX.Y.Z-<suffix>N, series v6.1-<suffix>
     suffix = 'rt'
@@ -359,6 +364,13 @@ class TestQuiltRelease(TestQuiltBase):
             'rt: Fix line15', f"Merge tag 'v6.1.2' into {self.series}"])
         body = git(self.rt_dir, 'log', '-1', '--format=%b')
         self.assertIn('Signed-off-by: Mighty Eagle', body)
+        # like linux-6.18.y-rt: the tag message and a sign-off, no
+        # signature lines of the stable tag
+        merge = git(self.rt_dir, 'log', '-1', '--format=%B', 'HEAD^')
+        self.assertEqual(merge.strip(),
+                         f"Merge tag 'v6.1.2' into {self.series}\n\n"
+                         'This is the 6.1.2 stable release\n\n'
+                         'Signed-off-by: Mighty Eagle <me@incredible.com>')
 
     def step6_release(self):
         self.run_step('release')

@@ -1,6 +1,18 @@
 Changes
 =======
 
+2.2
+---
+
+Fixed
+~~~~~
+
+- ``srt quilt merge`` kept the signature of the stable tag as comment
+  lines (``# -----BEGIN PGP SIGNATURE-----`` ... ``# gpg: ...``) in the
+  message of the stable merge, e.g. in v6.12.116-rt22 and v6.12.117-rt23.
+  The message is cleaned up and signed off now, like the merges of
+  linux-6.18.y-rt.
+
 2.1
 ---
 

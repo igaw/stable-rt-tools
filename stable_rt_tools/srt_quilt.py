@@ -471,11 +471,13 @@ def merge(rel: Release) -> None:
     if not is_ancestor(rel.rt_dir, rel.base):
         print(f'merge {rel.base}')
         try:
-            git(rel.rt_dir, 'merge', '--no-edit', rel.base,
-                env=get_gpg_env(rel.config))
+            # --no-edit keeps the signature of the stable tag as comment
+            # lines in the message, --cleanup=strip drops them
+            git(rel.rt_dir, 'merge', '--no-edit', '--cleanup=strip',
+                '--signoff', rel.base, env=get_gpg_env(rel.config))
         except CalledProcessError:
             sys.exit('merge conflict: resolve it (the result has to match '
-                     f'{rel.rebase_tag}), "git commit" and rerun '
+                     f'{rel.rebase_tag}), "git commit -s" and rerun '
                      '"srt quilt merge"')
     for name in rel.missing_patches():
         print(f'apply {name}')
