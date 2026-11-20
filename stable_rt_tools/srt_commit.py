@@ -40,6 +40,7 @@ from stable_rt_tools.srt_util import (
     get_remote_branch_name,
     get_suffix,
     is_dirty,
+    next_step,
 )
 
 
@@ -110,6 +111,7 @@ def commit(config: Config, rc: int | None) -> None:
         cmd(['git', 'add', config['LOCALVERSION']])
         cmd(['git', 'commit', '-s', '-m', msg],
             env=get_gpg_env(config))
+        next_step(f'srt tag -r {rc}' if rc else 'srt tag')
     else:
         cmd(['git', 'reset', '--hard', old_head])
 

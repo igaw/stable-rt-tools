@@ -118,9 +118,9 @@ Release
   $ cd ../v4.19-rt
   $ srt create
   $ srt sign
-  $ srt announce > ../announce-rt
   $ srt upload
   $ srt push
+  $ srt announce > ../announce-rt
 
   $ cat ../announce-rt | msmtp -t --
   or

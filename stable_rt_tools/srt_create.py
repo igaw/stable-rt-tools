@@ -34,6 +34,7 @@ from stable_rt_tools.srt_util import (
     cmd,
     get_config,
     is_quilt_workflow,
+    next_step,
     pipe,
 )
 from stable_rt_tools.srt_util_context import SrtContext
@@ -94,6 +95,7 @@ def create(config: Config, ctx: SrtContext) -> None:
     for f in ctx.get_files():
         print(f'\t{f}')
     print('Review them')
+    next_step('srt sign')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

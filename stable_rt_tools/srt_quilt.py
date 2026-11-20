@@ -78,6 +78,9 @@ QUILT_DIFF_OPTS = '-F ^[[:alpha:]$_].*[^:]$'
 
 STEPS = ['refresh', 'queue', 'rebase', 'merge', 'release']
 
+# nothing has left the machine yet: the time to test the release
+RELEASE_NEXT = 'next: test the release, then srt create'
+
 
 #
 # helpers without git/quilt access
@@ -457,6 +460,7 @@ def queue(rel: Release, edit: bool = True,
 def rebase(rel: Release) -> None:
     if rel.done('rebase'):
         print(f'{rel.rebase_tag} already tagged')
+        print('next: srt quilt merge')
         return
     queue_head = rev(rel.patches_dir, 'refs/tags/' + rel.queue_tag)
     if not queue_head:
@@ -517,6 +521,7 @@ def merge(rel: Release) -> None:
 def release(rel: Release) -> None:
     if rel.done('release'):
         print(f'{rel.release_tag} already tagged')
+        print(RELEASE_NEXT)
         return
     if not rel.done('merge'):
         sys.exit('run "srt quilt merge" first')
@@ -543,7 +548,7 @@ def release(rel: Release) -> None:
         git(rel.rt_dir, 'commit', '-s', '-m', rel.release_tag,
             env=get_gpg_env(rel.config))
     rel.tag(rel.rt_dir, rel.release_tag, rel.release_tag)
-    print('next: srt create')
+    print(RELEASE_NEXT)
 
 
 #

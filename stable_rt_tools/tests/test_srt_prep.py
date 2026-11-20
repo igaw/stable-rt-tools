@@ -23,6 +23,7 @@
 # SOFTWARE
 
 import argparse
+import io
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -68,9 +69,26 @@ class TestPrepState(TestCase):
 
     def test_clear_state(self):
         args = argparse.Namespace(clear=True, no_pull=False)
-        with patch('stable_rt_tools.srt_prep.clear_srt_state') as clear_state:
+        with patch('stable_rt_tools.srt_prep.read_srt_state',
+                   return_value={'new_tag': 'v6.12.118-rt24'}), \
+                patch('stable_rt_tools.srt_prep.clear_srt_state') \
+                as clear_state, \
+                patch('sys.stdout', new_callable=io.StringIO) as out:
             execute(args)
             clear_state.assert_called_once()
+        self.assertEqual(out.getvalue(),
+                         'cleared the prepared release\nnext: srt prep\n')
+
+    def test_clear_without_state(self):
+        args = argparse.Namespace(clear=True, no_pull=False)
+        with patch('stable_rt_tools.srt_prep.read_srt_state',
+                   return_value=None), \
+                patch('stable_rt_tools.srt_prep.clear_srt_state') \
+                as clear_state, \
+                patch('sys.stdout', new_callable=io.StringIO) as out:
+            execute(args)
+            clear_state.assert_not_called()
+        self.assertIn('no release prepared', out.getvalue())
 
     def test_prep_requires_worktrees(self):
         config = {'quilt_workflow': 'true'}

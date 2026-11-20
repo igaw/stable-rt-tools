@@ -43,6 +43,7 @@ from stable_rt_tools.srt_util import (
     get_remote_branch_name,
     get_suffix,
     get_template_path,
+    next_step,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -253,6 +254,7 @@ def send_rc_patches(config: Config, ctx: SrtContext,
     print(cmd(gmdd, verbose=True))
     if confirm('OK to send patches?'):
         cmd(gmd)
+        next_step('srt push')
 
 
 def announce_rc(config: Config, ctx: SrtContext,
@@ -345,6 +347,7 @@ def announce(config: Config, ctx: SrtContext,
         print()
         print('---')
         print_changes(ctx)
+        announce_next_step()
         return
 
     stable_rt_text = ''
@@ -359,6 +362,13 @@ def announce(config: Config, ctx: SrtContext,
 
     print(stable_rt_text.format(**r))
     print_changes(ctx)
+    announce_next_step()
+
+
+def announce_next_step() -> None:
+    # stdout is the mail
+    next_step('send the announcement, e.g. srt announce > ../announce and '
+              'mutt -H ../announce', file=sys.stderr)
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

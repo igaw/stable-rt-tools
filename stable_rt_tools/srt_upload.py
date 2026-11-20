@@ -36,6 +36,7 @@ from stable_rt_tools.srt_util import (
     cmd,
     confirm,
     get_config,
+    next_step,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -78,6 +79,7 @@ def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
             print(f'kup failed with error code {e.returncode}',
                   file=sys.stderr)
             sys.exit(e.returncode)
+        next_step('srt push')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

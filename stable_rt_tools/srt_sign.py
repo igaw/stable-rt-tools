@@ -34,6 +34,7 @@ from stable_rt_tools.srt_util import (
     check_context,
     get_config,
     get_gnupghome,
+    next_step,
     pipe,
 )
 from stable_rt_tools.srt_util_context import SrtContext
@@ -61,6 +62,8 @@ def sign(config: Config, ctx: SrtContext) -> None:
             error(f'Unable to read {f}, did you remember to create?')
             sys.exit(1)
         gpg_sign(config, f)
+        print(f'signed {os.path.splitext(f)[0]}.sign')
+    next_step('srt upload')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

@@ -34,6 +34,7 @@ from stable_rt_tools.srt_util import (
     get_config,
     get_remote_branch_name,
     is_quilt_workflow,
+    next_step,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -71,6 +72,9 @@ def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     if confirm('OK to push?'):
         cmd(gcp + args)
         clear_srt_state()
+        if not ctx.is_rc:
+            next_step('srt announce > ../announce, then send it, e.g. with '
+                      'mutt -H ../announce')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

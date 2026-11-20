@@ -14,6 +14,10 @@ New
   file, ``--no-edit`` commits the generated announcement as it is.
 - ``srt upload --dry-run`` shows the kup command, ``srt push --dry-run``
   runs ``git push -n``; neither asks or changes anything.
+- All commands tell the next step (``next: srt sign``), like the
+  ``srt quilt`` steps, in the git workflow too. ``srt quilt release``
+  reminds to test the release before ``srt create``. ``srt sign`` lists
+  the signatures, ``srt prep --clear`` says whether it cleared a release.
 
 Fixed
 ~~~~~

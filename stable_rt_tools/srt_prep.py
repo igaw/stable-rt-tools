@@ -43,6 +43,8 @@ from stable_rt_tools.srt_util import (
     get_suffix,
     get_workflow_branch,
     is_quilt_workflow,
+    next_step,
+    read_srt_state,
     write_srt_state,
 )
 
@@ -134,7 +136,9 @@ def prep(config: Config, pull: bool = True) -> None:
     print(f"OLD_TAG={old_tag}")
     print(f"NEW_TAG={new_tag}")
     if quilt_workflow:
-        print('next: srt quilt refresh')
+        next_step('srt quilt refresh')
+    else:
+        next_step(f'git merge {next_stable}, then srt commit')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
@@ -149,6 +153,11 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
 
 def execute(args: argparse.Namespace) -> None:
     if getattr(args, 'clear', False):
-        clear_srt_state()
+        if read_srt_state():
+            clear_srt_state()
+            print('cleared the prepared release')
+        else:
+            print('no release prepared')
+        next_step('srt prep')
         return
     prep(get_config(), pull=not getattr(args, 'no_pull', False))

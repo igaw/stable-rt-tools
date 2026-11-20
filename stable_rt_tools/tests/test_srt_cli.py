@@ -28,6 +28,7 @@ from unittest import mock
 
 from stable_rt_tools import srt_util
 from stable_rt_tools.srt import srt_get_argparser
+from stable_rt_tools.srt_tag import tag_next_step
 
 
 def parse(*argv):
@@ -55,3 +56,12 @@ class TestYes(unittest.TestCase):
                 mock.patch('sys.stdout', out):
             self.assertTrue(srt_util.confirm('OK to push?'))
         self.assertEqual(out.getvalue(), 'OK to push? (y/n): y (--yes)\n')
+
+
+class TestNextStep(unittest.TestCase):
+
+    def test_git_workflow_tags(self):
+        self.assertIn('srt announce',
+                      tag_next_step('v4.19.291-rt127-rc1'))
+        self.assertIn('srt create', tag_next_step('v4.19.291-rt127-rebase'))
+        self.assertIn('-rebase worktree', tag_next_step('v4.19.291-rt127'))

@@ -428,6 +428,11 @@ def get_gpg_fingerprint(config: Config) -> str:
     sys.exit(f'no fingerprint for key {config["GPG_KEY_ID"]}')
 
 
+def next_step(text: str, file: IO[str] | None = None) -> None:
+    """Tell the user what to do next, e.g. 'next: srt sign'."""
+    print(f'next: {text}', file=file)
+
+
 # srt --yes: confirm() answers yes without asking
 _assume_yes = False
 

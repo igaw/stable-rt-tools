@@ -373,7 +373,8 @@ class TestQuiltRelease(TestQuiltBase):
                          'Signed-off-by: Mighty Eagle <me@incredible.com>')
 
     def step6_release(self):
-        self.run_step('release')
+        out = self.run_step('release')
+        self.assertIn('next: test the release, then srt create', out)
         self.assertEqual(git(self.rt_dir, 'log', '-1', '--format=%s'),
                          self.new_tag)
         self.assertEqual(read(f'{self.rt_dir}/{self.localversion}'),
@@ -395,8 +396,12 @@ class TestQuiltRelease(TestQuiltBase):
 
     def step8_create_sign(self):
         ctx = SrtContext(None, path=self.rt_dir)
+        stub_stdouts(self)
         create(self.config, ctx)
         sign(self.config, ctx)
+        out = stdout_text()
+        self.assertIn('next: srt sign', out)
+        self.assertIn('.tar.sign\nnext: srt upload', out)
         d = self.rt_dir + '/patches/' + self.new_tag + '/'
         v = self.new_tag[1:]
         for f in (f'patch-{v}.patch.xz', f'patches-{v}.tar.xz',

@@ -33,7 +33,18 @@ from stable_rt_tools.srt_util import (
     confirm,
     get_config,
     get_gpg_env,
+    next_step,
 )
+
+
+def tag_next_step(tag: str) -> str:
+    """What follows the tag in the git workflow."""
+    if re.search(r'-rc\d+$', tag):
+        return 'test it, then srt announce (the review mails) and srt push'
+    if tag.endswith('-rebase'):
+        return 'srt create, in the worktree of the series'
+    return ('in the -rebase worktree: git rebase the upstream release, '
+            'srt commit and srt tag')
 
 
 def tag(config: Config, rc: int | None) -> None:
@@ -52,6 +63,7 @@ def tag(config: Config, rc: int | None) -> None:
             cmd(['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
                  '-m', msg, tag],
                 env=get_gpg_env(config))
+            next_step(tag_next_step(tag))
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
