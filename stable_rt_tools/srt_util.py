@@ -236,12 +236,43 @@ def get_git_common_dir(path: str | None = None) -> str:
     return os.path.abspath(os.path.join(base, common_dir))
 
 
+def get_series(path: str | None = None) -> str | None:
+    """The series the worktree at path belongs to: its branch without
+    -patches, -rebase or -next, e.g. v6.12-rt for v6.12-rt-patches. None
+    for a detached HEAD."""
+    branch = cmd(['git', '-C', path or os.getcwd(), 'rev-parse',
+                  '--abbrev-ref', 'HEAD'])
+    return None if branch == 'HEAD' else get_workflow_branch(branch)
+
+
 def get_srt_state_path(path: str | None = None) -> str:
-    return os.path.join(get_git_common_dir(path), 'srt', 'state.json')
+    """The release state of the series of the worktree at path. The
+    worktrees share the git common dir, one file per series."""
+    series = get_series(path)
+    name = f'{series}.json' if series else LEGACY_STATE
+    return os.path.join(get_git_common_dir(path), 'srt', name)
+
+
+# The state of srt 2.1 and older, one for all series of a work area
+LEGACY_STATE = 'state.json'
+
+
+def _migrate_legacy_state(state_path: str) -> None:
+    """Move the state of srt 2.1 and older to the file of its series."""
+    legacy = os.path.join(os.path.dirname(state_path), LEGACY_STATE)
+    if legacy == state_path or not os.path.exists(legacy) or \
+            os.path.exists(state_path):
+        return
+    with open(legacy) as f:
+        state = json.load(f)
+    series = os.path.basename(state_path)[:-len('.json')]
+    if state.get('workflow_branch') == series:
+        os.replace(legacy, state_path)
 
 
 def read_srt_state(path: str | None = None) -> SrtState | None:
     state_path = get_srt_state_path(path)
+    _migrate_legacy_state(state_path)
     if not os.path.exists(state_path):
         return None
     with open(state_path) as f:

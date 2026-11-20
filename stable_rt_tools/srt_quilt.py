@@ -375,7 +375,7 @@ def refresh(rel: Release) -> None:
                      rt_localversion(rel.new))
     _refresh(rel, env)
     _quilt(rel, ['pop', '-a'], env)
-    update_srt_state({'refreshed': rel.release_tag})
+    update_srt_state({'refreshed': rel.release_tag}, rel.rt_dir)
 
     dropped, added = rel.series_changes()
     for p in dropped:
@@ -620,7 +620,7 @@ def undo(rel: Release) -> None:
         git(rel.rt_dir, 'reset', '-q', '--hard', rt_upstream)
     if queue_commit:
         git(rel.patches_dir, 'reset', '-q', '--soft', 'HEAD~1')
-    update_srt_state({'refreshed': None})
+    update_srt_state({'refreshed': None}, rel.rt_dir)
     print('next: fix the patch queue, then srt quilt refresh')
 
 

@@ -392,3 +392,60 @@ class TestUtil(TestCase):
                              name)
         with self.assertRaises(SystemExit):
             srt_util.is_quilt_workflow(config['bad'])
+
+
+class TestStatePerSeries(TestCase):
+    """Two series in one work area: the worktrees share the git common
+    dir, each series has its own prepared release."""
+
+    def setUp(self):
+        self.tdir = tempfile.mkdtemp()
+        self.addCleanup(rmtree, self.tdir)
+        self.linux = self.tdir + '/linux'
+        cmd(['git', 'init', '-q', '-b', 'master', self.linux])
+        cmd(['git', '-C', self.linux, '-c', 'user.name=T',
+             '-c', 'user.email=t@x', 'commit', '-q', '--allow-empty',
+             '-m', 'init'])
+        for b in ('v6.12-rt', 'v6.12-rt-patches', 'v6.18-rt'):
+            cmd(['git', '-C', self.linux, 'worktree', 'add', '-q', '-b', b,
+                 f'{self.tdir}/{b}'])
+
+    def state(self, series):
+        return {'old_tag': f'{series}-a', 'new_tag': f'{series}-b',
+                'workflow_branch': series}
+
+    def test_one_state_per_series(self):
+        from stable_rt_tools import srt_util
+
+        v612, v618 = self.tdir + '/v6.12-rt', self.tdir + '/v6.18-rt'
+        srt_util.write_srt_state(self.state('v6.12-rt'), v612)
+        self.assertIsNone(srt_util.read_srt_state(v618))
+        srt_util.write_srt_state(self.state('v6.18-rt'), v618)
+        # all worktrees of a series share its state
+        for path, series in ((v612, 'v6.12-rt'),
+                             (self.tdir + '/v6.12-rt-patches', 'v6.12-rt'),
+                             (v618, 'v6.18-rt')):
+            state = srt_util.read_srt_state(path)
+            assert state is not None
+            self.assertEqual(state['new_tag'], f'{series}-b')
+        srt_util.clear_srt_state(v618)
+        self.assertIsNone(srt_util.read_srt_state(v618))
+        self.assertIsNotNone(srt_util.read_srt_state(v612))
+
+    def test_state_of_srt_2_1_moves_to_its_series(self):
+        import json
+
+        from stable_rt_tools import srt_util
+
+        legacy = self.linux + '/.git/srt/state.json'
+        os.makedirs(os.path.dirname(legacy))
+        with open(legacy, 'w') as f:
+            json.dump(self.state('v6.12-rt'), f)
+        # another series doesn't take it
+        self.assertIsNone(srt_util.read_srt_state(self.tdir + '/v6.18-rt'))
+        self.assertTrue(os.path.exists(legacy))
+        state = srt_util.read_srt_state(self.tdir + '/v6.12-rt-patches')
+        assert state is not None
+        self.assertEqual(state['new_tag'], 'v6.12-rt-b')
+        self.assertFalse(os.path.exists(legacy))
+        self.assertTrue(os.path.exists(self.linux + '/.git/srt/v6.12-rt.json'))

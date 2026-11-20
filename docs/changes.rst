@@ -38,6 +38,12 @@ Fixed
   (``0001-...`` to ``0041-...``), without the sections and comments of the
   series. It contains the quilt queue of the ``-patches`` tag now, like
   the tarballs of linux-6.18.y-rt.
+- The release state of ``srt prep`` was one for the whole work area, while
+  ``srt setup`` puts several series into one. ``srt prep`` in v6.18-rt
+  replaced a release prepared in v6.12-rt, ``srt status`` in v6.18-rt
+  showed the v6.12-rt release, and the other commands asked to clear it.
+  Each series has its own release state now; the state of srt 2.1 moves to
+  its series when the series reads it.
 
 2.1
 ---
