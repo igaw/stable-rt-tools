@@ -12,6 +12,8 @@ New
 - ``srt quilt queue`` works without an editor: ``--draft`` prints the
   generated announcement, ``-F FILE`` commits the announcement from a
   file, ``--no-edit`` commits the generated announcement as it is.
+- ``srt upload --dry-run`` shows the kup command, ``srt push --dry-run``
+  runs ``git push -n``; neither asks or changes anything.
 
 Fixed
 ~~~~~

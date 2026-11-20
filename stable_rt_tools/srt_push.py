@@ -38,7 +38,7 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_context import SrtContext
 
 
-def push(config: Config, ctx: SrtContext) -> None:
+def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     branch = get_remote_branch_name()
 
     args = None
@@ -65,6 +65,8 @@ def push(config: Config, ctx: SrtContext) -> None:
 
     print('Dry run')
     cmd(gcp + ['-n'] + args, verbose=True)
+    if dry_run:
+        return
 
     if confirm('OK to push?'):
         cmd(gcp + args)
@@ -75,6 +77,8 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('push')
     prs.add_argument('OLD_TAG', nargs='?')
     prs.add_argument('NEW_TAG', nargs='?')
+    prs.add_argument('-n', '--dry-run', action='store_true',
+                     help='only show what would be pushed (git push -n)')
     return prs
 
 
@@ -82,4 +86,4 @@ def execute(args: argparse.Namespace) -> None:
     ctx = SrtContext(args)
     check_context(ctx)
 
-    push(get_config(), ctx)
+    push(get_config(), ctx, dry_run=args.dry_run)

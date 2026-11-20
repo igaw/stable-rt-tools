@@ -99,5 +99,26 @@ def test_push_does_not_clear_state_when_cancelled():
                     clear_state.assert_not_called()
 
 
+def test_push_dry_run():
+    config = DummyConfig({'PRJ_GIT_TREE': 'origin'})
+    ctx: Any = DummyCtx('v6.12.39-rt11', is_rc=False)
+    calls = []
+
+    def fake_cmd(args, verbose=False):
+        calls.append(args)
+
+    with patch('stable_rt_tools.srt_push.get_remote_branch_name',
+               return_value='v6.12-rt'), \
+            patch('stable_rt_tools.srt_push.confirm') as confirm, \
+            patch('stable_rt_tools.srt_push.cmd', side_effect=fake_cmd), \
+            patch('stable_rt_tools.srt_push.clear_srt_state') as clear_state:
+        push(config, ctx, dry_run=True)
+        confirm.assert_not_called()
+        clear_state.assert_not_called()
+    # only git push -n
+    assert len(calls) == 1
+    assert calls[0][:3] == ['git', 'push', '-n']
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -296,6 +296,27 @@ class TestUtil(TestCase):
             srt_upload.upload({'PRJ_DIR': '/pub/rt/6.12'}, ctx)
         self.assertEqual(e.exception.code, 3)
 
+    def test_upload_dry_run(self):
+        import argparse
+        import io
+        from unittest import mock
+
+        from stable_rt_tools import srt_upload
+        from stable_rt_tools.srt_util_context import SrtContext
+
+        ctx = SrtContext(argparse.Namespace(OLD_TAG='v6.12.111-rt21',
+                                            NEW_TAG='v6.12.116-rt22'),
+                         path=self.tdir)
+        with mock.patch('os.path.isfile', return_value=True), \
+                mock.patch.object(srt_upload, 'confirm') as confirm, \
+                mock.patch.object(srt_upload, 'cmd') as kup, \
+                mock.patch('sys.stdout', new_callable=io.StringIO) as out:
+            srt_upload.upload({'PRJ_DIR': '/pub/rt/6.12'}, ctx, dry_run=True)
+        confirm.assert_not_called()
+        kup.assert_not_called()
+        self.assertIn("'put'", out.getvalue())
+        self.assertIn('/pub/rt/6.12/older/', out.getvalue())
+
     def test_srt_without_command_shows_usage(self):
         import io
         from unittest import mock

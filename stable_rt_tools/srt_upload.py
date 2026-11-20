@@ -40,7 +40,7 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_context import SrtContext
 
 
-def upload(config: Config, ctx: SrtContext) -> None:
+def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     for f in ctx.get_files():
         if not os.path.isfile(f):
             print(f'Unable to read {f}, did you remember to create?')
@@ -68,6 +68,8 @@ def upload(config: Config, ctx: SrtContext) -> None:
     kup.extend(['ls', path])
 
     print(pformat(kup))
+    if dry_run:
+        return
     if confirm('OK to commit?'):
         try:
             cmd(kup)
@@ -82,6 +84,8 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('upload')
     prs.add_argument('OLD_TAG', nargs='?')
     prs.add_argument('NEW_TAG', nargs='?')
+    prs.add_argument('-n', '--dry-run', action='store_true',
+                     help='only show the kup command, upload nothing')
     return prs
 
 
@@ -89,4 +93,4 @@ def execute(args: argparse.Namespace) -> None:
     ctx = SrtContext(args)
     check_context(ctx)
 
-    upload(get_config(), ctx)
+    upload(get_config(), ctx, dry_run=args.dry_run)
