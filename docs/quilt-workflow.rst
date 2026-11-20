@@ -178,6 +178,12 @@ order ``-patches``, ``-rebase``, release.
     form, srt shows the difference; commit a fixup in ``v6.12-rt`` and rerun
     ``srt quilt release``.
 
+``srt create``
+    Writes ``patch-6.12.116-rt22.patch.xz``, the diff from ``v6.12.116`` to
+    the release, and ``patches-6.12.116-rt22.tar.xz``, the ``patches/``
+    directory of ``v6.12.116-rt22-patches`` as it is (series file,
+    comments and patch names), to ``patches/v6.12.116-rt22``.
+
 Every step can be rerun: finished work is detected and skipped.
 ``srt quilt undo`` undoes the steps as long as nothing is pushed.
 

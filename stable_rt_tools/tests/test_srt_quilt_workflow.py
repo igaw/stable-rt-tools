@@ -402,6 +402,18 @@ class TestQuiltRelease(TestQuiltBase):
         for f in (f'patch-{v}.patch.xz', f'patches-{v}.tar.xz',
                   f'patch-{v}.patch.sign', f'patches-{v}.tar.sign'):
             self.assertTrue(os.path.isfile(d + f), f)
+        # like linux-6.18.y-rt: the tarball is the queue of the -patches
+        # tag, with its series file and patch names
+        tar = cmd(['tar', '-tJf', d + f'patches-{v}.tar.xz'])
+        queue = git(self.rt_dir, 'ls-tree', '-r', '--name-only',
+                    f'{self.new_tag}-patches', 'patches')
+        self.assertEqual(sorted(n for n in tar.splitlines()
+                                if not n.endswith('/')),
+                         sorted(queue.splitlines()))
+        self.assertEqual(read(d + 'patches/series'),
+                         git(self.rt_dir, 'show',
+                             f'{self.new_tag}-patches:patches/series')
+                         + '\n')
 
     def step9_announce(self):
         ctx = SrtContext(None, path=self.rt_dir)

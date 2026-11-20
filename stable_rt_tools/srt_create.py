@@ -25,6 +25,7 @@
 
 import argparse
 import os
+import shutil
 
 from stable_rt_tools.srt_util import (
     Config,
@@ -32,6 +33,7 @@ from stable_rt_tools.srt_util import (
     check_context,
     cmd,
     get_config,
+    is_quilt_workflow,
     pipe,
 )
 from stable_rt_tools.srt_util_context import SrtContext
@@ -54,6 +56,15 @@ def create_series(old_tag: object, new_tag: object, dirname: str) -> None:
             file.write(f'{p}\n')
 
 
+def export_queue(tag: str, dirname: str) -> None:
+    """Write the patches/ directory of the queue tag to dirname."""
+    # nothing of an earlier run may stay in the tarball
+    shutil.rmtree(dirname, ignore_errors=True)
+    os.makedirs(dirname)
+    pipe(['git', 'archive', tag, 'patches'],
+         ['tar', '-x', '-C', os.path.dirname(dirname)])
+
+
 def create_tar_file(dirname: str, filename: str) -> None:
     cmd(['tar', '-C', dirname, '-cJf', filename, 'patches/'])
 
@@ -70,7 +81,12 @@ def create(config: Config, ctx: SrtContext) -> None:
     else:
         create_patch_file(ctx.new_tag.base, str(
             ctx.new_tag), ctx.new_fln_patch)
-        create_series(ctx.new_tag.base, ctx.new_tag.rebase, ctx.new_dir_series)
+        if is_quilt_workflow(config):
+            # the quilt series as released, like linux-6.18.y-rt
+            export_queue(f'{ctx.new_tag}-patches', ctx.new_dir_series)
+        else:
+            create_series(ctx.new_tag.base, ctx.new_tag.rebase,
+                          ctx.new_dir_series)
 
     create_tar_file(ctx.new_dir_patches, ctx.new_fln_tar)
 

@@ -12,6 +12,11 @@ Fixed
   message of the stable merge, e.g. in v6.12.116-rt22 and v6.12.117-rt23.
   The message is cleaned up and signed off now, like the merges of
   linux-6.18.y-rt.
+- ``srt create`` put the patches of the release in the tarball as
+  renumbered ``git format-patch`` mails in the quilt workflow too
+  (``0001-...`` to ``0041-...``), without the sections and comments of the
+  series. It contains the quilt queue of the ``-patches`` tag now, like
+  the tarballs of linux-6.18.y-rt.
 
 2.1
 ---
