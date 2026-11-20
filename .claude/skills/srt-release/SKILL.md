@@ -8,8 +8,8 @@ description: Make or check a release of an out-of-tree patch series (e.g. PREEMP
 srt makes the releases of a patch series on top of upstream releases, e.g.
 v6.12.118-rt24 on v6.12.118. The maintainer owns the release: you run the
 local steps and the checks, they decide on everything which leaves the
-machine. docs/quilt-workflow.rst and docs/git-workflow.rst describe the
-steps in detail.
+machine. docs/quilt-workflow.rst, docs/git-workflow.rst and docs/agents.rst
+describe the steps in detail.
 
 ## Rules
 
@@ -23,21 +23,31 @@ steps in detail.
 - The linux-6.18.y-rt branches (Sebastian Andrzej Siewior) are the
   reference for how a release looks: merge messages, the queue commit as
   announcement, the tarball, tag order -patches, -rebase, release.
-- Run srt from the worktree of the series (e.g. `rt/v6.12-rt`). Several
-  series can share a work area; each has its own prepared release.
+- Several series can share a work area; each has its own prepared release.
+  Work on the series the maintainer named.
 
-## Running srt without a terminal
+## With the srt MCP server
 
-srt asks before every step which changes something. Without a terminal a
-question counts as no and the step stops.
+If the `srt` MCP tools are there (`srt mcp`), use them: `list_series`,
+`status`, `check`, `queue_diff`, `queue_draft`, then the steps `prep`,
+`refresh`, `queue`, `rebase`, `merge`, `release`, `create`, `sign`,
+`announce`, and `undo`. Every step returns srt's output, the next step and
+the status. `upload` and `push` are dry runs; the real ones need
+`dry_run: false`, the maintainer's OK and a server started with
+`--allow-publish`. If the server refuses, the maintainer runs them.
+
+## With the srt command
+
+Run srt from the worktree of the series (e.g. `rt/v6.12-rt`). srt asks
+before every step which changes something; without a terminal a question
+counts as no and the step stops.
 
 - `-y`/`--yes` answers yes. Use it only for a step the maintainer asked
   for; never with `srt upload` or `srt push` without their OK.
-- `srt quilt queue` opens an editor: use `--draft` to get the generated
-  announcement, let the maintainer complete it, commit it with `-F FILE`
-  (or `--no-edit` for the generated one).
-- `srt upload --dry-run` and `srt push --dry-run` show what would happen
-  and change nothing.
+- `srt quilt queue` opens an editor: `--draft` prints the generated
+  announcement, `-F FILE` commits the completed one, `--no-edit` the
+  generated one.
+- `srt upload --dry-run` and `srt push --dry-run` change nothing.
 - Set `GIT_EDITOR=true` so a git command never waits for an editor.
 - Every command ends with `next: ...`; `srt status --json` and
   `srt check --json` give the state as JSON.
@@ -88,12 +98,14 @@ commit in the next release.
 
 ## Git workflow
 
-Release candidate in `<series>-next`: merge the upstream release, `srt
-commit`, `srt tag -r N`, maintainer tests, `srt announce` (sends the review
-mails: ask first), `srt push`. Release: `git merge --ff-only <series>-next`
-and `srt tag` in the series, `git
-rebase` + `srt commit` + `srt tag` in `-rebase`, then `srt create`, `srt
-sign`, `srt check`, upload, push and announce as above.
+Release candidate, in `<series>-next`: merge the upstream release,
+`srt commit`, `srt tag -r N`, the maintainer tests, `srt announce` (sends
+the review mails: ask first), `srt push`.
+
+Release: in the series `git merge --ff-only <series>-next` and `srt tag`;
+in `-rebase` `git rebase` onto the upstream release, `srt commit` and
+`srt tag`; then in the series `srt create`, `srt sign`, `srt check`, and
+upload, push and announce as above.
 
 ## Reporting
 
