@@ -54,6 +54,11 @@ Fixed
   showed the v6.12-rt release, and the other commands asked to clear it.
   Each series has its own release state now; the state of srt 2.1 moves to
   its series when the series reads it.
+- ``srt quilt undo`` left the files of ``srt create`` and ``srt sign``
+  of the undone release behind; it removes them now. Files of a
+  release which isn't tagged (e.g. left over by the ``srt quilt undo`` of
+  srt 2.1) make ``srt status`` warn and ``srt check`` fail, and don't
+  count as ``srt create`` and ``srt sign`` done.
 
 2.1
 ---

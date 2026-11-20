@@ -51,7 +51,11 @@ from stable_rt_tools.srt_util import (
     is_quilt_workflow,
     read_srt_state,
 )
-from stable_rt_tools.srt_util_context import SrtContext, release_files
+from stable_rt_tools.srt_util_context import (
+    SrtContext,
+    release_dir,
+    release_files,
+)
 
 OK, WARN, FAIL, SKIP = 'ok', 'warn', 'fail', 'skip'
 
@@ -237,8 +241,16 @@ def check_files(path: str, ctx: SrtContext, quilt: bool) -> Check:
     """The patch and the tarball of srt create match the tags."""
     new = str(ctx.new_tag)
     patch, tar = release_files(path, new)
-    if not (os.path.isfile(patch) and os.path.isfile(tar)):
+    if not (os.path.isfile(patch) or os.path.isfile(tar)):
         return Check('files', SKIP, 'srt create has not run yet')
+    if srt_quilt.rev(path, 'refs/tags/' + new) is None:
+        # e.g. of a release made and undone: nothing to upload
+        return Check('files', FAIL, f'{release_dir(path, new)} holds files '
+                     f'but {new} is not tagged: remove them, srt create '
+                     'makes them after the release')
+    if not (os.path.isfile(patch) and os.path.isfile(tar)):
+        return Check('files', FAIL, 'srt create made only some files: '
+                     'rerun srt create')
     errors = []
     diff = subprocess.run(['git', '-C', path, 'diff', ctx.new_tag.base, new],
                           check=True, stdout=subprocess.PIPE).stdout
@@ -267,6 +279,8 @@ def check_signatures(path: str, ctx: SrtContext, config: Config) -> Check:
     sigs = [os.path.splitext(f)[0] + '.sign' for f in files]
     if not all(os.path.isfile(s) for s in sigs):
         return Check('signatures', SKIP, 'srt sign has not run yet')
+    if srt_quilt.rev(path, 'refs/tags/' + new) is None:
+        return Check('signatures', SKIP, f'{new} is not tagged')
     env = dict(os.environ, GNUPGHOME=get_gnupghome(config))
     bad = []
     for f, sig in zip(files, sigs, strict=True):

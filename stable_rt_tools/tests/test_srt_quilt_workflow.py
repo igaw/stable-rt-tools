@@ -831,6 +831,38 @@ class TestQuiltChecks(TestQuiltBase):
                    for c in json.loads(stdout_text())}
         self.assertEqual(results['files'], 'fail')
 
+    def test_undo_removes_the_files(self):
+        self.release_until('release')
+        ctx = SrtContext(None, path=self.rt_dir)
+        stub_stdouts(self)
+        create(self.config, ctx)
+        sign(self.config, ctx)
+        d = f'{self.rt_dir}/patches/{self.new_tag}'
+        out = self.run_step('undo')
+        self.assertIn(f'remove {d}', out)
+        self.assertFalse(os.path.exists(d))
+
+    def test_leftover_files(self):
+        """Files of a release made and undone by srt 2.1, which kept them."""
+        self.prepare()
+        d = f'{self.rt_dir}/patches/{self.new_tag}'
+        os.makedirs(d)
+        v = self.new_tag[1:]
+        for f in (f'patch-{v}.patch.xz', f'patches-{v}.tar.xz',
+                  f'patch-{v}.patch.sign', f'patches-{v}.tar.sign'):
+            write(f'{d}/{f}', 'old')
+        info = self.status_json()
+        self.assertEqual([s['done'] for s in info['steps']][-2:],
+                         [False, False])
+        self.assertIn(f'{d} holds files but {self.new_tag} is not tagged',
+                      info['warnings'][0])
+        checks = self.checks()
+        self.assertEqual(checks['files'].result, 'fail')
+        self.assertEqual(checks['signatures'].result, 'skip')
+        # undo cleans them up as well
+        self.assertIn(f'remove {d}', self.run_step('undo'))
+        self.assertFalse(os.path.exists(d))
+
     def test_undo_and_redo(self):
         self.release_until('release')
         old_queue = git(self.patches_dir, 'rev-parse',

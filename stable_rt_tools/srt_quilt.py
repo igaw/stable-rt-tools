@@ -44,6 +44,7 @@ order -patches, -rebase, release, and the -rt tree is identical to the
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -68,7 +69,11 @@ from stable_rt_tools.srt_util import (
     read_srt_state,
     update_srt_state,
 )
-from stable_rt_tools.srt_util_context import SrtContext, release_files
+from stable_rt_tools.srt_util_context import (
+    SrtContext,
+    release_dir,
+    release_files,
+)
 from stable_rt_tools.srt_util_tag import Tag
 
 # The RT patch queue format. quilt must not pick it up from the user's
@@ -598,7 +603,11 @@ def undo(rel: Release) -> None:
     existing = [tag for path, tag in tags
                 if rev(path, 'refs/tags/' + tag)]
 
-    if not existing and not dropped and not queue_commit:
+    files = release_dir(rel.rt_dir, rel.release_tag)
+    if not os.path.isdir(files):
+        files = ''
+
+    if not existing and not dropped and not queue_commit and not files:
         print('nothing to undo')
         return
     print(f'undo the {rel.new} release:')
@@ -611,6 +620,8 @@ def undo(rel: Release) -> None:
     if queue_commit:
         print(f'  undo the queue commit in {rel.patches_dir}, '
               'keeping the patches')
+    if files:
+        print(f'  remove {files} (srt create, srt sign)')
     if not confirm('OK to undo?'):
         sys.exit('aborted')
 
@@ -620,6 +631,8 @@ def undo(rel: Release) -> None:
         git(rel.rt_dir, 'reset', '-q', '--hard', rt_upstream)
     if queue_commit:
         git(rel.patches_dir, 'reset', '-q', '--soft', 'HEAD~1')
+    if files:
+        shutil.rmtree(files)
     update_srt_state({'refreshed': None}, rel.rt_dir)
     print('next: fix the patch queue, then srt quilt refresh')
 
@@ -656,15 +669,35 @@ def stale_warnings(path: str, old: str, new: str) -> list[str]:
     return []
 
 
+def file_steps(path: str, tag: str,
+               tagged: bool) -> list[tuple[str, bool]]:
+    """srt create and srt sign, done when the release is tagged and
+    their files are there."""
+    files = release_files(path, tag)
+    created = tagged and all(os.path.isfile(f) for f in files)
+    signed = created and all(os.path.isfile(os.path.splitext(f)[0] +
+                                            '.sign') for f in files)
+    return [('srt create', created), ('srt sign', signed)]
+
+
+def leftover_warnings(path: str, tag: str, tagged: bool) -> list[str]:
+    """Files of the release before it is tagged, e.g. of a release made
+    and undone with srt 2.1: they must not be uploaded."""
+    d = release_dir(path, tag)
+    if tagged or not os.path.isdir(d) or not os.listdir(d):
+        return []
+    return [f'{d} holds files but {tag} is not tagged: remove them, srt '
+            'create makes them after the release']
+
+
 def status_info(rel: Release) -> dict[str, object]:
     """The prepared release, its steps and the next one."""
     dropped, added = rel.series_changes()
     steps = [(f'srt quilt {step}', rel.done(step)) for step in STEPS]
-    patch, tar = release_files(rel.rt_dir, rel.release_tag)
-    steps += [('srt create', os.path.isfile(patch) and os.path.isfile(tar)),
-              ('srt sign', all(os.path.isfile(os.path.splitext(f)[0] +
-                                              '.sign') for f in (patch, tar)))]
+    steps += file_steps(rel.rt_dir, rel.release_tag, rel.done('release'))
     warnings = stale_warnings(rel.rt_dir, str(rel.old), rel.release_tag)
+    warnings += leftover_warnings(rel.rt_dir, rel.release_tag,
+                                  rel.done('release'))
     last_stable = _last_tag(rel.stable_dir)
     if not rel.done('refresh') and last_stable and \
             UPSTREAM_TAG.fullmatch(last_stable) and last_stable != rel.base:

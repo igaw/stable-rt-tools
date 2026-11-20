@@ -304,8 +304,9 @@ class Server:
         try:
             return json.loads(r.stdout)
         except json.JSONDecodeError as err:
-            raise ToolError(f'srt {" ".join(args)}: no JSON: {err}') \
-                from err
+            raise ToolError(f'srt {" ".join(args)} failed with exit code '
+                            f'{r.exit_code} and no JSON ({err}):\n'
+                            f'{_clip(r.stdout)}{_clip(r.stderr)}') from err
 
     def _status_of(self, path: str) -> dict[str, Any]:
         info: dict[str, Any] = self._json(path, ['status', '--json'])

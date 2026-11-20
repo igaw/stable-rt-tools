@@ -170,6 +170,13 @@ class TestMcpServer(unittest.TestCase):
         out = self.ok('check', series='v6.12-rt')
         self.assertEqual(out['failed'], ['files'])
 
+    def test_json_failure_shows_srt_error(self) -> None:
+        self.srt.answers[('check', '--json')] = \
+            Result(1, '', 'Traceback ...\nCalledProcessError: git diff\n')
+        text = self.error('check', series='v6.12-rt')
+        self.assertIn('exit code 1 and no JSON', text)
+        self.assertIn('CalledProcessError: git diff', text)
+
     def test_step(self) -> None:
         out = self.ok('rebase', series='v6.12-rt')
         self.assertEqual(self.srt.commands(), [['-y', 'quilt', 'rebase']])

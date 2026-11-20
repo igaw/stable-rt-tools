@@ -29,19 +29,15 @@ import os
 
 from stable_rt_tools import srt_quilt
 from stable_rt_tools.srt_util import SubParsers, read_srt_state
-from stable_rt_tools.srt_util_context import release_files
 
 
 def git_status_info(old: str, new: str) -> dict[str, object]:
     """The release of the git workflow, prepared in the current worktree."""
     path = os.getcwd()
-    patch, tar = release_files(path, new)
     tagged = srt_quilt.rev(path, 'refs/tags/' + new) is not None
-    steps = [('srt tag', tagged),
-             ('srt create', os.path.isfile(patch) and os.path.isfile(tar)),
-             ('srt sign', all(os.path.isfile(os.path.splitext(f)[0] + '.sign')
-                              for f in (patch, tar)))]
+    steps = [('srt tag', tagged)] + srt_quilt.file_steps(path, new, tagged)
     warnings = srt_quilt.stale_warnings(path, old, new)
+    warnings += srt_quilt.leftover_warnings(path, new, tagged)
     nxt = next((name for name, done in steps if not done), None)
     if warnings and warnings[0].startswith(new):
         nxt = 'srt prep --clear, then srt prep'
