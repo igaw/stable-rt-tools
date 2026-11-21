@@ -309,13 +309,19 @@ def changes(ctx: SrtContext) -> str:
     """The shortlog, diffstat and delta of the release."""
     new = str(ctx.new_tag)
     base = delta_base(ctx)
+
+    def git(*args: str) -> str:
+        # not cmd(): it strips the indentation of the first line too,
+        # e.g. of the diffstat
+        return run(['git', '--no-pager', *args], check=True, stdout=PIPE,
+                   encoding='utf-8').stdout.rstrip('\n')
+
     return '\n'.join([
-        cmd(['git', '--no-pager', 'shortlog', '--first-parent',
-             f'{ctx.old_tag}..{new}']),
+        git('shortlog', '--first-parent', f'{ctx.old_tag}..{new}'),
         '---',
-        cmd(['git', '--no-pager', 'diff', '--stat', base, new]),
+        git('diff', '--stat', base, new),
         '---',
-        cmd(['git', '--no-pager', 'diff', base, new])])
+        git('diff', base, new)])
 
 
 def quilt_announcement(ctx: SrtContext) -> str:
