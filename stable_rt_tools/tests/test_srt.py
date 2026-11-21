@@ -64,6 +64,12 @@ from stable_rt_tools.tests.inbox import add_mail
 pytestmark = pytest.mark.e2e
 
 
+# what kup ls prints at the end of srt upload, kup-server's format
+KUP_LISTING = ('+++ /pub/linux/kernel/projects/rt/4.4/\n'
+               '-rw-rw-r--   1 gitolite3 gitolite3  18176 2026-11-21 '
+               '12:57:02 patch-4.4.14-rt4.patch.xz')
+
+
 class TestSrtBase(unittest.TestCase):
     # the release of the steps after the tag, set by a step
     ctx: SrtContext
@@ -164,12 +170,13 @@ class TestSrtBase(unittest.TestCase):
     def upload(self, kup):
         """srt upload: shows the kup command and runs it once confirmed,
         kup itself is mocked."""
-        msg = f'{pformat(kup)}\nOK to commit? (y/n): '
+        msg = f'{pformat(kup)}\nOK to upload? (y/n): '
         self.maxDiff = None
 
         stub_stdin(self, 'n')
         stub_stdouts(self)
-        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup, \
+                self.assertRaisesRegex(SystemExit, 'not uploaded'):
             upload(self.config, self.ctx)
         run_kup.assert_not_called()
         self.assertEqual(stdout_text(), msg)
@@ -178,10 +185,13 @@ class TestSrtBase(unittest.TestCase):
 
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+        with mock.patch('stable_rt_tools.srt_upload.cmd',
+                        return_value=KUP_LISTING) as run_kup:
             upload(self.config, self.ctx)
         run_kup.assert_called_once_with(kup)
-        self.assertEqual(stdout_text(), msg + 'next: srt push\n')
+        # the listing of kup ls, then the next step
+        self.assertEqual(stdout_text(),
+                         msg + KUP_LISTING + '\nnext: srt push\n')
         event = read_log(self.work_tree)[-1]
         self.assertEqual(event['step'], 'upload')
         self.assertEqual(event['release'], str(self.ctx.new_tag))
@@ -518,7 +528,8 @@ class TestReleaseCandidate(TestSrtBase):
 
         stub_stdin(self, 'n')
         stub_stdouts(self)
-        announce(self.config, self.ctx, args)
+        with self.assertRaisesRegex(SystemExit, 'not sent'):
+            announce(self.config, self.ctx, args)
         msg = ('git send-email --dry-run --confirm=never '
                '--to=Foo Bar <foo@bar.barf> --to=<example@example.com> '
                f'{self.work_tree}/patches/v4.4.14-rt5-rc1/mails\n')
@@ -768,7 +779,8 @@ class TestReleaseCandidateNewProcess(TestSrtBase):
 
         stub_stdin(self, 'n')
         stub_stdouts(self)
-        announce(self.config, self.ctx, args)
+        with self.assertRaisesRegex(SystemExit, 'not sent'):
+            announce(self.config, self.ctx, args)
 
         patches = ['0000-cover-letter.patch',
                    '0001-Linux-4.4.14-rt4.patch']
@@ -829,7 +841,8 @@ class TestReleaseCandidateMergeConflict(TestSrtBase):
         args = argparse.Namespace(suppress_cc=False)
         stub_stdin(self, 'n')
         stub_stdouts(self)
-        announce(self.config, self.ctx, args)
+        with self.assertRaisesRegex(SystemExit, 'not sent'):
+            announce(self.config, self.ctx, args)
 
         mails = self.ctx.new.mails_dir
         # everything added since the last release, in commit order: the

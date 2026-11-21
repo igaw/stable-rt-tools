@@ -23,6 +23,7 @@
 # SOFTWARE
 
 import argparse
+import sys
 
 from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
@@ -73,13 +74,14 @@ def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     if dry_run:
         return
 
-    if confirm('OK to push?'):
-        cmd(gcp + args)
-        log_step('push', ctx=ctx, remote=args[0], refs=args[1:],
-                 force=ctx.is_rc or None)
-        clear_srt_state()
-        if not ctx.is_rc:
-            offer_announcement(config, ctx)
+    if not confirm('OK to push?'):
+        sys.exit('not pushed')
+    cmd(gcp + args)
+    log_step('push', ctx=ctx, remote=args[0], refs=args[1:],
+             force=ctx.is_rc or None)
+    clear_srt_state()
+    if not ctx.is_rc:
+        offer_announcement(config, ctx)
 
 
 def offer_announcement(config: Config, ctx: SrtContext) -> None:

@@ -107,8 +107,9 @@ announce`` and ``srt check`` work on one release, ``OLD_TAG`` ->
 ``NEW_TAG``, e.g. ``v6.12.117-rt23`` -> ``v6.12.118-rt24``. They take
 each tag from the first of:
 
-1. the arguments, ``srt create OLD_TAG NEW_TAG``. Give both or none: a
-   single tag is ``OLD_TAG``.
+1. the arguments, ``srt create OLD_TAG NEW_TAG``. A single tag is
+   ``NEW_TAG``: ``srt create v6.12.118-rt24`` takes the release before
+   it as ``OLD_TAG``.
 2. the environment variables ``OLD_TAG`` and ``NEW_TAG``.
 3. the state of ``srt prep``, the release prepared for the series of the
    current worktree.
@@ -158,11 +159,12 @@ with the answer, e.g. ``OK to tag? (y/n): y (--yes)``. It can be given
 before or after the command: ``srt -y quilt release``, ``srt quilt
 release --yes``.
 
-A no stops the step. ``srt commit`` resets the localversion file,
-``srt tag``, ``srt upload``, ``srt push`` and the review mails of
-``srt announce`` leave without a change. The
-``srt quilt`` steps exit with 1 (``aborted``, ``not tagged, rerun to
-tag``); rerun them to continue.
+A no stops the command with exit status 1 and a message on stderr
+(``not committed``, ``not tagged``, ``not uploaded``, ``not pushed``,
+``not sent``, ``aborted``), so a script can tell. Nothing is changed:
+``srt commit`` resets the localversion file. Rerun the command to
+continue. The one question that is not a step, ``srt push`` offering to
+open the announcement in the mail client, ends without an error on no.
 
 Without a terminal, e.g. in a script or for an agent (see
 :doc:`agents`), use ``--yes`` or the dry runs. ``srt push`` offers to
@@ -474,7 +476,7 @@ localversion files:
   commit at ``HEAD``.
 
 The worktree must be clean. srt prints the commit and asks ``OK to
-commit? (y/n):``; no resets the localversion file.
+commit? (y/n):``; no resets the localversion file and exits with 1.
 
 .. code-block:: console
 
@@ -612,9 +614,10 @@ publishes the files.
 srt upload runs one kup command: it puts the patch, the tarball and their
 signatures into ``PRJ_DIR/older``, links them into ``PRJ_DIR``, removes
 the files of ``OLD_TAG`` from ``PRJ_DIR`` (they stay in ``older``) and
-lists ``PRJ_DIR``. It prints the command and asks ``OK to commit?
-(y/n):``. If kup fails, srt exits with its exit status (kup 0.4 or newer
-reports a failed upload, see :doc:`userguide`).
+lists ``PRJ_DIR``. It prints the command and asks ``OK to upload?
+(y/n):``, then prints the listing of ``PRJ_DIR`` kup ends with. If kup
+fails, srt exits with its exit status (kup 0.4 or newer reports a failed
+upload, see :doc:`userguide`).
 
 ``--dry-run`` (``-n``) prints the kup command and stops: it asks nothing
 and uploads nothing.
@@ -636,8 +639,8 @@ and uploads nothing.
    'ls',
    '/pub/linux/kernel/projects/rt/6.12']
 
-Without ``--dry-run`` the same follows ``OK to commit? (y/n):`` and, after
-the upload, ``next: srt push``.
+Without ``--dry-run`` the same follows ``OK to upload? (y/n):`` and,
+after the upload, the listing of ``PRJ_DIR`` and ``next: srt push``.
 
 .. _cmd-push:
 

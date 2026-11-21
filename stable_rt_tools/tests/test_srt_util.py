@@ -683,3 +683,13 @@ class TestReleaseTags(TestCase):
         self.assertEqual(str(ctx.old_tag), 'v6.1.2-rt2')
         self.assertEqual(str(ctx.new_tag), 'v6.1.3-rt3')
         self.assertEqual(os.getcwd(), self.tdir)
+
+
+def test_gnupghome_expands_the_home(monkeypatch):
+    from stable_rt_tools.srt_util import get_gnupghome
+    monkeypatch.setenv('HOME', '/home/someone')
+    monkeypatch.delenv('GNUPGHOME', raising=False)
+    assert get_gnupghome({}) == '/home/someone/.gnupg'
+    assert get_gnupghome({'GNUPGHOME': '~/keys'}) == '/home/someone/keys'
+    monkeypatch.setenv('GNUPGHOME', '~/other')
+    assert get_gnupghome({}) == '/home/someone/other'

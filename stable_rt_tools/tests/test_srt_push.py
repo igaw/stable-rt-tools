@@ -26,6 +26,8 @@ import unittest
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 from stable_rt_tools.srt_push import push
 
 
@@ -95,7 +97,8 @@ def test_push_does_not_clear_state_when_cancelled():
                 with patch(
                     'stable_rt_tools.srt_push.clear_srt_state'
                 ) as clear_state:
-                    push(config, ctx)
+                    with pytest.raises(SystemExit, match='not pushed'):
+                        push(config, ctx)
                     clear_state.assert_not_called()
 
 

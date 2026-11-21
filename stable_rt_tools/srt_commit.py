@@ -140,15 +140,15 @@ def commit(config: Config, rc: int | None) -> None:
         msg = msg + ' REBASE'
 
     print(f'git commit -m {msg}')
-    if confirm('OK to commit?'):
-        cmd(['git', 'add', localversion])
-        cmd(['git', 'commit', '-s', '-m', msg],
-            env=get_gpg_env(config))
-        log_step('commit', f'v{version}', branch=branch_name,
-                 commit=cmd(['git', 'rev-parse', 'HEAD']), subject=msg)
-        next_step(f'srt tag -r {rc}' if rc else 'srt tag')
-    else:
+    if not confirm('OK to commit?'):
         cmd(['git', 'reset', '--hard', old_head])
+        sys.exit('not committed')
+    cmd(['git', 'add', localversion])
+    cmd(['git', 'commit', '-s', '-m', msg],
+        env=get_gpg_env(config))
+    log_step('commit', f'v{version}', branch=branch_name,
+             commit=cmd(['git', 'rev-parse', 'HEAD']), subject=msg)
+    next_step(f'srt tag -r {rc}' if rc else 'srt tag')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

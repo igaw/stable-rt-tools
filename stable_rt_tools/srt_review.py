@@ -28,6 +28,7 @@
 import argparse
 import os
 import re
+import sys
 from datetime import date, timedelta
 
 from stable_rt_tools.srt_log import log_step
@@ -226,19 +227,20 @@ def send_rc_patches(config: Config, ctx: SrtContext,
     gmdd = gmd.copy()
     gmdd.insert(2, '--dry-run')
     print(cmd(gmdd, verbose=True))
-    if confirm('OK to send patches?'):
-        out = cmd(gmd)
-        mails = sorted(f for f in os.listdir(ctx.new.mails_dir)
-                       if f.endswith('.patch'))
-        # git send-email logs the headers of each mail it sent, the
-        # cover letter first
-        sent = re.search(r'^Message-ID: *(<[^>]+>)', out,
-                         flags=re.MULTILINE | re.IGNORECASE)
-        log_step('announce', ctx=ctx, result='review mails sent',
-                 mails=len(mails),
-                 to=require(config, 'MAIL_TO'),
-                 message_id=sent.group(1) if sent else None)
-        next_step('srt push')
+    if not confirm('OK to send patches?'):
+        sys.exit('not sent')
+    out = cmd(gmd)
+    mails = sorted(f for f in os.listdir(ctx.new.mails_dir)
+                   if f.endswith('.patch'))
+    # git send-email logs the headers of each mail it sent, the
+    # cover letter first
+    sent = re.search(r'^Message-ID: *(<[^>]+>)', out,
+                     flags=re.MULTILINE | re.IGNORECASE)
+    log_step('announce', ctx=ctx, result='review mails sent',
+             mails=len(mails),
+             to=require(config, 'MAIL_TO'),
+             message_id=sent.group(1) if sent else None)
+    next_step('srt push')
 
 
 def announce_rc(config: Config, ctx: SrtContext,

@@ -134,6 +134,18 @@ class TestSrtContext(TestCase):
             previous.assert_not_called()
             self.assertEqual(str(ctx.old_tag), 'v6.12.118-rt24')
 
+    def test_single_tag_is_new_tag(self):
+        # srt create v6.12.118-rt24: argparse puts it into OLD_TAG
+        m = 'stable_rt_tools.srt_util_context.'
+        with patch.dict('os.environ', {}, clear=True), \
+                patch(m + 'read_srt_state', return_value=None), \
+                patch(m + 'get_previous_release',
+                      return_value='v6.12.117-rt23') as previous:
+            ctx = SrtContext(make_args('v6.12.118-rt24'), '/tmp')
+            previous.assert_called_once_with('v6.12.118-rt24', '/tmp')
+            self.assertEqual(str(ctx.new_tag), 'v6.12.118-rt24')
+            self.assertEqual(str(ctx.old_tag), 'v6.12.117-rt23')
+
     def test_cli_and_env_precedence_over_state(self):
         state = {
             'old_tag': 'v4.4.115-rt38',

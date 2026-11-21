@@ -164,8 +164,8 @@ def add_tag_args(prs: argparse.ArgumentParser) -> None:
     prs.add_argument('NEW_TAG', nargs='?',
                      help='the release, e.g. v6.12.118-rt24 (default: '
                      '$NEW_TAG, the release prepared with srt prep, else '
-                     'the last release or release candidate on HEAD); give '
-                     'both tags or none')
+                     'the last release or release candidate on HEAD); a '
+                     'single tag is NEW_TAG')
 
 
 def tag_exists(tag: object, path: str | None = None) -> bool:
@@ -500,10 +500,12 @@ def get_template_path(config: Config, key: str, name: str) -> str:
 
 
 def get_gnupghome(config: Config) -> str:
+    """The GnuPG home: GNUPGHOME of srt.conf, $GNUPGHOME or ~/.gnupg,
+    with ~ expanded (gpg --homedir doesn't expand it)."""
     gnupghome = os.getenv('GNUPGHOME', '~/.gnupg')
     if 'GNUPGHOME' in config:
         gnupghome = config['GNUPGHOME']
-    return gnupghome
+    return os.path.expanduser(gnupghome)
 
 
 def get_gpg_env(config: Config) -> dict[str, str]:

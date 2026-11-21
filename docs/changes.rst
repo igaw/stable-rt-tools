@@ -84,6 +84,20 @@ New
 Fixed
 ~~~~~
 
+- A no to a question stops every command with exit status 1 and a
+  message (``not committed``, ``not tagged``, ``not uploaded``, ``not
+  pushed``, ``not sent``), like the ``srt quilt`` steps did already:
+  ``srt commit``, ``srt tag``, ``srt upload``, ``srt push`` and the review
+  mails ended with 0, a script couldn't tell.
+- ``srt upload`` asked ``OK to commit?``, it asks ``OK to upload?`` now,
+  and it shows the listing of ``PRJ_DIR`` kup ends with, which srt
+  swallowed.
+- A single tag on the command line was taken as ``OLD_TAG``: ``srt create
+  v6.12.118-rt24`` worked on the release after it. A single tag is
+  ``NEW_TAG`` now.
+- ``srt sign`` and ``srt check`` passed a GnuPG home with ``~``
+  (``GNUPGHOME = ~/.gnupg``, or the default) unexpanded to gpg, which
+  doesn't expand it. srt expands it now for all gpg calls.
 - The release announcement of the quilt workflow had the subject
   ``[ANNOUNCE] v6.12.118-rt24``, the other stable series and the git
   workflow announce ``[ANNOUNCE] 6.12.118-rt24``. Both workflows use the

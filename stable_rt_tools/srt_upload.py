@@ -73,18 +73,22 @@ def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     print(pformat(kup))
     if dry_run:
         return
-    if confirm('OK to commit?'):
-        try:
-            cmd(kup)
-        except CalledProcessError as e:
-            # kup reports a failed upload with its exit status since 0.4
-            print(f'kup failed with error code {e.returncode}',
-                  file=sys.stderr)
-            sys.exit(e.returncode)
-        log_step('upload', ctx=ctx, dir=path,
-                 files=[os.path.basename(f) for f in ctx.new.files],
-                 removed=[os.path.basename(f) for f in ctx.old.files])
-        next_step('srt push')
+    if not confirm('OK to upload?'):
+        sys.exit('not uploaded')
+    try:
+        # the listing of PRJ_DIR (kup ls) at the end
+        out = cmd(kup)
+    except CalledProcessError as e:
+        # kup reports a failed upload with its exit status since 0.4
+        print(f'kup failed with error code {e.returncode}',
+              file=sys.stderr)
+        sys.exit(e.returncode)
+    if out:
+        print(out)
+    log_step('upload', ctx=ctx, dir=path,
+             files=[os.path.basename(f) for f in ctx.new.files],
+             removed=[os.path.basename(f) for f in ctx.old.files])
+    next_step('srt push')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

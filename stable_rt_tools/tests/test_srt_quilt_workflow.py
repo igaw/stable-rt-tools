@@ -488,14 +488,15 @@ class TestQuiltRelease(TestQuiltBase):
                'rm', prj + f'/patch-{old}.patch.xz', '--',
                'rm', prj + f'/patches-{old}.tar.xz', '--',
                'ls', prj]
-        msg = f'{pformat(kup)}\nOK to commit? (y/n): '
+        msg = f'{pformat(kup)}\nOK to upload? (y/n): '
         self.maxDiff = None
         ctx = SrtContext(None, path=self.rt_dir)
 
         # declined: nothing runs
         stub_stdin(self, 'n')
         stub_stdouts(self)
-        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup, \
+                self.assertRaisesRegex(SystemExit, 'not uploaded'):
             upload(self.config, ctx)
         run_kup.assert_not_called()
         self.assertEqual(stdout_text(), msg)
@@ -504,7 +505,9 @@ class TestQuiltRelease(TestQuiltBase):
 
         stub_stdin(self, 'y')
         stub_stdouts(self)
-        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+        # kup prints nothing here: no listing, only the next step
+        with mock.patch('stable_rt_tools.srt_upload.cmd',
+                        return_value='') as run_kup:
             upload(self.config, ctx)
         run_kup.assert_called_once_with(kup)
         self.assertEqual(stdout_text(), msg + 'next: srt push\n')

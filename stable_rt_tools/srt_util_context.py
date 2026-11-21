@@ -122,6 +122,12 @@ class SrtContext:
                  path: str | None = None) -> None:
         self.path = path if path is not None else os.getcwd()
 
+        if args is not None and getattr(args, 'OLD_TAG', None) and \
+                not getattr(args, 'NEW_TAG', None):
+            # one tag on the command line is the release, argparse puts
+            # it into OLD_TAG: srt create v6.12.118-rt24
+            args = argparse.Namespace(**{**vars(args), 'OLD_TAG': None,
+                                         'NEW_TAG': args.OLD_TAG})
         old_tag = _given(args, 'OLD_TAG')
         new_tag = _given(args, 'NEW_TAG')
         if old_tag is None or new_tag is None:

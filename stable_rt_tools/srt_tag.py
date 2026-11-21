@@ -62,13 +62,14 @@ def tag(config: Config, rc: int | None) -> None:
     elif rc and release.rc != rc:
         sys.exit(f'HEAD is the release candidate {name}, not -rc{rc}')
     print(f'tagging as {name} with message \'{msg}\'')
-    if confirm('OK to tag?'):
-        cmd(['git', 'tag', '-s', '-u', require(config, 'GPG_KEY_ID'),
-             '-m', msg, name],
-            env=get_gpg_env(config))
-        log_step('tag', name.removesuffix('-rebase'), tag=name,
-                 commit=cmd(['git', 'rev-parse', 'HEAD']))
-        next_step(tag_next_step(name))
+    if not confirm('OK to tag?'):
+        sys.exit('not tagged')
+    cmd(['git', 'tag', '-s', '-u', require(config, 'GPG_KEY_ID'),
+         '-m', msg, name],
+        env=get_gpg_env(config))
+    log_step('tag', name.removesuffix('-rebase'), tag=name,
+             commit=cmd(['git', 'rev-parse', 'HEAD']))
+    next_step(tag_next_step(name))
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
