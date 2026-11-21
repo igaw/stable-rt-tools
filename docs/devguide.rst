@@ -102,3 +102,9 @@ Class reference documentation
 .. automodule:: stable_rt_tools.srt_announce
    :members:
 
+
+``stable_rt_tools.srt_review`` Module
+.....................................
+
+.. automodule:: stable_rt_tools.srt_review
+   :members:

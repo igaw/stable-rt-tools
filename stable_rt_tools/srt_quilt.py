@@ -52,7 +52,6 @@ from collections.abc import Mapping, Sequence
 from subprocess import CalledProcessError
 from time import gmtime, strftime
 
-from stable_rt_tools.srt_announce import cover_letter_replacements
 from stable_rt_tools.srt_commit import localversion_set
 from stable_rt_tools.srt_prep import worktree_dirs
 from stable_rt_tools.srt_util import (
@@ -74,6 +73,7 @@ from stable_rt_tools.srt_util_context import (
     SrtContext,
     release_dir,
 )
+from stable_rt_tools.srt_util_mail import cover_letter_replacements
 from stable_rt_tools.srt_util_tag import Tag
 
 # The RT patch queue format. quilt must not pick it up from the user's
