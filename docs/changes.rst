@@ -7,6 +7,13 @@ Changes
 New
 ~~~
 
+- Every command has a description in ``srt <command> --help`` and in the
+  documentation: what it does, when in the release, what it changes and
+  what it asks first, and every argument and option a help text, e.g.
+  where ``OLD_TAG`` and ``NEW_TAG`` come from without them. The new
+  Commands page describes each command with an example, the
+  documentation has an introduction and lists the environment variables
+  srt reads.
 - ``srt announce --mail`` writes the announcement to a temporary file
   and opens it in your mail client, the new
   ``MAILER`` setting (e.g. ``mutt -H {mail}`` or Thunderbird's

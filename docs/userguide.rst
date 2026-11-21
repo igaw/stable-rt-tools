@@ -9,7 +9,7 @@ stable-rt-tools (``srt``) supports two release workflows:
   ``-rt-patches`` and ``-rt-rebase`` branches (used for v6.12-rt).
 
 This page covers what both workflows have in common: installation,
-prerequisites and configuration.
+prerequisites and configuration. :doc:`commands` describes each command.
 
 Installation
 ------------

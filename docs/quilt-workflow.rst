@@ -202,6 +202,12 @@ order ``-patches``, ``-rebase``, release.
     scripts. Run it any time, at the latest before ``srt upload``.
 
 Every step can be rerun: finished work is detected and skipped.
+:doc:`commands` describes what each step reads, changes, asks and
+prints: :ref:`cmd-prep`, :ref:`cmd-quilt-refresh`, :ref:`cmd-quilt-queue`,
+:ref:`cmd-quilt-rebase`, :ref:`cmd-quilt-merge`,
+:ref:`cmd-quilt-release`, :ref:`cmd-create`, :ref:`cmd-sign`,
+:ref:`cmd-check`, :ref:`cmd-upload`, :ref:`cmd-push` and
+:ref:`cmd-announce`.
 ``srt quilt undo`` undoes the steps as long as nothing is pushed.
 
 Test the release
