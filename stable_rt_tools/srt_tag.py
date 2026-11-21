@@ -24,7 +24,7 @@
 
 
 import argparse
-import re
+import sys
 
 from stable_rt_tools.srt_util import (
     Config,
@@ -36,35 +36,36 @@ from stable_rt_tools.srt_util import (
     next_step,
     require,
 )
+from stable_rt_tools.srt_util_tag import Tag, release_in_message
 
 
 def tag_next_step(tag: str) -> str:
     """What follows the tag in the git workflow."""
-    if re.search(r'-rc\d+$', tag):
+    t = Tag(tag)
+    if t.is_rc:
         return 'test it, then srt announce (the review mails) and srt push'
-    if tag.endswith('-rebase'):
+    if t.has('rebase'):
         return 'srt create, in the worktree of the series'
     return ('in the -rebase worktree: git rebase the upstream release, '
             'srt commit and srt tag')
 
 
 def tag(config: Config, rc: int | None) -> None:
-    p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
-    lines = cmd(['git', 'log', '-1', '--pretty=%B'])
-    for msg in iter(lines.splitlines()):
-        m = p.match(msg)
-        if not m:
-            continue
-
-        tag = 'v' + m.group(1) + ('-rebase' if m.group(2) else '')
-        if rc:
-            tag = tag + f'-rc{rc}'
-        print(f'tagging as {tag} with message \'{msg}\'')
-        if confirm('OK to tag?'):
-            cmd(['git', 'tag', '-s', '-u', require(config, 'GPG_KEY_ID'),
-                 '-m', msg, tag],
-                env=get_gpg_env(config))
-            next_step(tag_next_step(tag))
+    found = release_in_message(cmd(['git', 'log', '-1', '--pretty=%B']))
+    if found is None:
+        sys.exit('HEAD is no release commit (Linux <release>): srt commit')
+    release, msg = found
+    name = str(release)
+    if rc and release.rc is None:
+        name = f'{name}-rc{rc}'
+    elif rc and release.rc != rc:
+        sys.exit(f'HEAD is the release candidate {name}, not -rc{rc}')
+    print(f'tagging as {name} with message \'{msg}\'')
+    if confirm('OK to tag?'):
+        cmd(['git', 'tag', '-s', '-u', require(config, 'GPG_KEY_ID'),
+             '-m', msg, name],
+            env=get_gpg_env(config))
+        next_step(tag_next_step(name))
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

@@ -35,7 +35,7 @@ from logging import debug
 from subprocess import PIPE, CalledProcessError, Popen, run
 from typing import IO, TYPE_CHECKING, Any, TypedDict
 
-from stable_rt_tools.srt_util_tag import Tag, TagBaseError, TagParseError
+from stable_rt_tools.srt_util_tag import Tag
 
 if TYPE_CHECKING:
     from stable_rt_tools.srt_util_context import SrtContext
@@ -194,9 +194,8 @@ def get_last_release(rev: str = 'HEAD', suffix: str | None = None,
         tag = cmd(args + [rev], cwd=path)
     except CalledProcessError:
         return None
-    try:
-        _ = Tag(tag).number
-    except (TagParseError, TagBaseError):
+    release = Tag.parse(tag)
+    if release is None or not release.is_release:
         # with any suffix the pattern also matches a mainline release
         # candidate deep in the history (v2.6.39-rc7), e.g. on a -rebase
         # branch which has no releases of its own on its first parents
@@ -225,10 +224,10 @@ def get_previous_release(tag: str, path: str | None = None) -> str:
     v6.12.118-rt24 or v6.12.118-rt24-rc1, following the first parents
     (not the merged stable tags, not -rebase, -patches or release
     candidates)."""
-    try:
-        suffix = Tag(tag).suffix
-    except (TagParseError, TagBaseError):
+    release = Tag.parse(tag)
+    if release is None or not release.is_release:
         sys.exit(f'{tag} is not a release tag')
+    suffix = release.suffix
     previous = get_last_release(f'{tag}^', suffix, path=path)
     if previous is None:
         sys.exit(f'no release before {tag} on its branch, give the tags: '

@@ -129,7 +129,7 @@ def patch_subject(text: str) -> str | None:
 
 def rt_localversion(tag: object) -> str:
     """'v6.12.116-rt22' -> '-rt22'"""
-    return '-' + str(tag).split('-', 1)[1]
+    return Tag(str(tag)).localversion
 
 
 def drop_from_series(patches_dir: str, name: str) -> None:

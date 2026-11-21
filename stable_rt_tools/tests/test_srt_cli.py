@@ -152,6 +152,48 @@ class TestNextStep(unittest.TestCase):
         self.assertIn('-rebase worktree', tag_next_step('v4.19.291-rt127'))
 
 
+class TestTag(unittest.TestCase):
+
+    def run_tag(self, msg, rc):
+        from stable_rt_tools import srt_tag
+
+        calls = []
+
+        def fake_cmd(args, env=None):
+            calls.append(args)
+            return msg if args[:2] == ['git', 'log'] else ''
+
+        with mock.patch.object(srt_tag, 'cmd', side_effect=fake_cmd), \
+                mock.patch.object(srt_tag, 'confirm', return_value=True), \
+                mock.patch.object(srt_tag, 'get_gpg_env', return_value={}), \
+                mock.patch('sys.stdout', io.StringIO()):
+            srt_tag.tag({'GPG_KEY_ID': 'KEY'}, rc)
+        return [c for c in calls if c[:2] == ['git', 'tag']]
+
+    def test_release(self):
+        tags = self.run_tag('Linux 4.19.291-rt127\n\nSigned-off-by: x', None)
+        self.assertEqual(tags, [['git', 'tag', '-s', '-u', 'KEY', '-m',
+                                 'Linux 4.19.291-rt127', 'v4.19.291-rt127']])
+
+    def test_rebase(self):
+        tags = self.run_tag('Linux 4.19.291-rt127 REBASE', None)
+        self.assertEqual(tags[0][-1], 'v4.19.291-rt127-rebase')
+
+    def test_release_candidate(self):
+        # srt commit and srt tag -r 1
+        tags = self.run_tag('Linux 4.19.291-rt127', 1)
+        self.assertEqual(tags[0][-1], 'v4.19.291-rt127-rc1')
+        # srt commit -r 1 and srt tag -r 1: no -rc1-rc1
+        tags = self.run_tag('Linux 4.19.291-rt127-rc1', 1)
+        self.assertEqual(tags[0][-1], 'v4.19.291-rt127-rc1')
+        with self.assertRaises(SystemExit):
+            self.run_tag('Linux 4.19.291-rt127-rc1', 2)
+
+    def test_no_release_commit(self):
+        with self.assertRaises(SystemExit):
+            self.run_tag('Linux 4.19.291', None)
+
+
 class TestWithoutOffsets(unittest.TestCase):
 
     def test_offsets_and_git_lines(self):

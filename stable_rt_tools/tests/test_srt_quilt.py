@@ -124,7 +124,9 @@ class TestHelpers(unittest.TestCase):
 
         d = tempfile.mkdtemp()
         try:
-            for old, new in (('-rt21\n', '-rt22\n'), ('-foo9\n', '-foo10\n')):
+            for old, new in (('-rt21\n', '-rt22\n'), ('-foo9\n', '-foo10\n'),
+                             ('-rt22-rc1\n', '-rt23\n'),
+                             ('-cip13-rt134\n', '-cip13-rt135\n')):
                 path = os.path.join(d, 'localversion')
                 with open(path, 'w') as f:
                     f.write(old)

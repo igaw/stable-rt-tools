@@ -24,7 +24,6 @@
 
 
 import argparse
-import re
 import shutil
 import sys
 import tempfile
@@ -43,6 +42,7 @@ from stable_rt_tools.srt_util import (
     next_step,
     require,
 )
+from stable_rt_tools.srt_util_tag import Tag, release_in_message
 
 
 def localversion_set(filename: str, version: str) -> None:
@@ -52,12 +52,16 @@ def localversion_set(filename: str, version: str) -> None:
 
 
 def localversion_inc(filename: str) -> None:
+    """-rt22 -> -rt23, the next release after a release candidate
+    (-rt22-rc1 -> -rt23) too."""
     with open(filename, 'r+') as f:
-        m = re.match(r'-([a-z]+)([0-9]+)', f.readline())
-        if not m:
+        # parsed as the localversion of a tag of any version
+        tag = Tag.parse('v0.0.0' + f.readline().strip())
+        if tag is None or not tag.is_release:
             sys.exit(f'{filename} does not hold a -<suffix><number> version')
         f.seek(0)
-        f.write(f'-{m.group(1)}{int(m.group(2)) + 1}\n')
+        base = tag.base[len(tag.version):]
+        f.write(f'{base}-{tag.suffix}{tag.number + 1}\n')
         f.truncate()
 
 
@@ -70,14 +74,8 @@ def get_kernel_version() -> str:
 
 
 def last_commit_was_release_commit() -> bool:
-    p = re.compile(r'^.*Linux ([0-9\.]+[-a-z0-9]+)( REBASE)*')
-    lines = cmd(['git', 'log', '-1', '--pretty=%B'])
-    for msg in iter(lines.splitlines()):
-        m = p.match(msg)
-        if not m:
-            continue
-        return True
-    return False
+    msg = cmd(['git', 'log', '-1', '--pretty=%B'])
+    return release_in_message(msg) is not None
 
 
 def commit(config: Config, rc: int | None) -> None:

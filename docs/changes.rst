@@ -106,6 +106,13 @@ Fixed
 - Errors all go to stderr now: ``srt upload`` printed a missing file of
   ``srt create`` on stdout, ``srt sign`` and a missing configuration
   group came as ``ERROR:root:`` log lines.
+- ``srt tag -r N`` after ``srt commit -r N`` tagged ``-rcN-rcN``: the
+  release candidate was in the commit already. It tags ``-rcN`` once
+  now and refuses another N than the one of the commit. ``srt tag`` on
+  a commit which is no release commit (``Linux 6.12.118-rt24``) says so
+  instead of doing nothing, and a stable release commit
+  (``Linux 6.12.118``) is no release commit for ``srt tag`` and
+  ``srt commit`` anymore.
 
 2.1
 ---
