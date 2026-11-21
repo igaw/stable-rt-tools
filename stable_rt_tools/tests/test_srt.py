@@ -60,6 +60,9 @@ from stable_rt_tools.tests.inbox import add_mail
 
 
 class TestSrtBase(unittest.TestCase):
+    # the release of the steps after the tag, set by a step
+    ctx: SrtContext
+
     def setup_stable_repo(self, version):
         os.mkdir(self.stable_repo)
         os.chdir(self.stable_repo)
@@ -153,6 +156,34 @@ class TestSrtBase(unittest.TestCase):
                            return_value=(names, 'kup is not installed')):
             return srt_status.status_info()
 
+    def upload(self, kup):
+        """srt upload: shows the kup command and runs it once confirmed,
+        kup itself is mocked."""
+        msg = f'{pformat(kup)}\nOK to commit? (y/n): '
+        self.maxDiff = None
+
+        stub_stdin(self, 'n')
+        stub_stdouts(self)
+        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+            upload(self.config, self.ctx)
+        run_kup.assert_not_called()
+        self.assertEqual(stdout_text(), msg)
+        self.assertNotIn('upload', [e['step'] for e in
+                                    read_log(self.work_tree)])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+            upload(self.config, self.ctx)
+        run_kup.assert_called_once_with(kup)
+        self.assertEqual(stdout_text(), msg + 'next: srt push\n')
+        event = read_log(self.work_tree)[-1]
+        self.assertEqual(event['step'], 'upload')
+        self.assertEqual(event['release'], str(self.ctx.new_tag))
+        self.assertEqual(event['old'], str(self.ctx.old_tag))
+        self.assertEqual(event['dir'], self.config['PRJ_DIR'])
+        return event
+
     def test_srt(self):
         for _s in self._steps():
             getattr(self, _s)()
@@ -238,12 +269,6 @@ class TestRelease(TestSrtBase):
             path, self.ctx, self.config).result, 'ok')
 
     def step7_upload(self):
-        # XXX mocking kup server
-
-        stub_stdin(self, 'n')
-        stub_stdouts(self)
-        upload(self.config, self.ctx)
-
         path = self.work_tree + '/patches/v4.4.14-rt4/'
         prj = self.config['PRJ_DIR']
         args = ['kup', 'put',
@@ -261,9 +286,11 @@ class TestRelease(TestSrtBase):
                 'rm', prj + '/patch-4.4.13-rt3.patch.xz', '--',
                 'rm', prj + '/patches-4.4.13-rt3.tar.xz', '--',
                 'ls', prj]
-        msg = f'{pformat(args)}\nOK to commit? (y/n): '
-        self.maxDiff = None
-        self.assertEqual(stdout_text(), msg)
+        event = self.upload(args)
+        self.assertEqual(event['files'], ['patch-4.4.14-rt4.patch.xz',
+                                          'patches-4.4.14-rt4.tar.xz'])
+        self.assertEqual(event['removed'], ['patch-4.4.13-rt3.patch.xz',
+                                            'patches-4.4.13-rt3.tar.xz'])
 
     def step8_push(self):
         os.chdir(self.work_tree)
@@ -299,11 +326,7 @@ class TestRelease(TestSrtBase):
                          'v4.4.14')
 
     def step9_announce(self):
-        ap = argparse.ArgumentParser()
-        ap.add_argument('--suppress-cc', '-s', action="store_true",
-                        default=False,
-                        help='Don''t auto-cc anyone (for testing)')
-        args = ap.parse_args("")
+        args = argparse.Namespace(suppress_cc=False)
 
         stub_stdin(self, '')
         stub_stdouts(self)
@@ -322,10 +345,10 @@ class TestRelease(TestSrtBase):
 
     def step10_log(self):
         events = read_log(self.work_tree)
-        # the upload was declined, the announcement only printed
+        # the announcement was only printed, srt status found it
         self.assertEqual([e['step'] for e in events], [
-            'commit', 'tag', 'commit', 'tag', 'create', 'sign', 'push',
-            'announced'])
+            'commit', 'tag', 'commit', 'tag', 'create', 'sign', 'upload',
+            'push', 'announced'])
         self.assertTrue(all(e['release'] == 'v4.4.14-rt4' and
                             e['series'] == 'v4.4-rt' for e in events))
         commit1, tag1, commit2, tag2 = events[:4]
@@ -349,7 +372,7 @@ class TestRelease(TestSrtBase):
         self.assertNotIn('force', push_)
 
 
-class TestReleaseCanditate(TestSrtBase):
+class TestReleaseCandidate(TestSrtBase):
     def setup_release(self):
         os.chdir(self.work_tree)
         cmd(['git', 'checkout', self.branch_rt])
@@ -455,12 +478,6 @@ class TestReleaseCanditate(TestSrtBase):
             self.assertEqual(os.path.isfile(f), True)
 
     def step5_upload(self):
-        # XXX mocking kup server
-
-        stub_stdin(self, 'n')
-        stub_stdouts(self)
-        upload(self.config, self.ctx)
-
         path = self.work_tree + '/patches/v4.4.14-rt5-rc1/'
         prj = self.config['PRJ_DIR'] + '/'
         args = ['kup', 'put',
@@ -480,9 +497,7 @@ class TestReleaseCanditate(TestSrtBase):
                 'rm', prj + 'patches-4.4.14-rt4.tar.xz', '--',
 
                 'ls', prj[:-1]]
-        msg = f'{pformat(args)}\nOK to commit? (y/n): '
-        self.maxDiff = None
-        self.assertEqual(stdout_text(), msg)
+        self.upload(args)
 
     def step6_push(self):
         os.chdir(self.work_tree)
@@ -494,11 +509,7 @@ class TestReleaseCanditate(TestSrtBase):
     def step7_announce(self):
         os.chdir(self.work_tree)
 
-        ap = argparse.ArgumentParser()
-        ap.add_argument('--suppress-cc', '-s', action="store_true",
-                        default=False,
-                        help='Don''t auto-cc anyone (for testing)')
-        args = ap.parse_args("")
+        args = argparse.Namespace(suppress_cc=False)
 
         stub_stdin(self, 'n')
         stub_stdouts(self)
@@ -534,10 +545,7 @@ class TestReleaseCanditate(TestSrtBase):
         self.assertNotIn('next-tmp', cmd(['git', 'branch']))
 
 
-class TestSrtContext(TestReleaseCanditate):
-    def setUp(self):
-        super().setUp()
-
+class TestSrtContext(TestReleaseCandidate):
     def step0_get_context(self):
         ap = argparse.ArgumentParser()
         sap = ap.add_subparsers(dest='cmd')
@@ -549,13 +557,13 @@ class TestSrtContext(TestReleaseCanditate):
                               'v4.4.13-rt3',
                               'v4.4.14-rt4'])
         ctx = SrtContext(args)
-        self.assertTrue(ctx)
-        print(ctx)
+        self.assertEqual((str(ctx.old_tag), str(ctx.new_tag)),
+                         ('v4.4.13-rt3', 'v4.4.14-rt4'))
 
 
-class TestNoTagsOneMergeCanditate(TestSrtBase):
+class TestNoTagsOneMergeCandidate(TestSrtBase):
     # Test if 'srt create' works if only one stable release
-    # has been merged. No intermedeated commits and tags
+    # has been merged. No intermediate commits and tags
 
     def step1_commit(self):
         stub_stdin(self, 'y')
@@ -608,7 +616,7 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
             self.assertEqual(os.path.isfile(f), True)
 
 
-class TestNoTagsManyMergesCanditate(TestSrtBase):
+class TestNoTagsManyMergesCandidate(TestSrtBase):
     # Test if 'srt create' works if more than one stable release
     # has been merged and some intermediates commits have been
     # done
@@ -710,10 +718,10 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdouts(self)
         push(self.config, self.ctx)
 
-        # XXX check if missing intermedeate tags are pushed as well
+        # XXX check if missing intermediate tags are pushed as well
 
 
-class TestReleaseCanditateNewProcess(TestSrtBase):
+class TestReleaseCandidateNewProcess(TestSrtBase):
     def setUp(self):
         super().setUp()
 
@@ -751,11 +759,7 @@ class TestReleaseCanditateNewProcess(TestSrtBase):
     def step5_announce(self):
         os.chdir(self.work_tree)
 
-        ap = argparse.ArgumentParser()
-        ap.add_argument('--suppress-cc', '-s', action="store_true",
-                        default=False,
-                        help='Don''t auto-cc anyone (for testing)')
-        args = ap.parse_args("")
+        args = argparse.Namespace(suppress_cc=False)
 
         stub_stdin(self, 'n')
         stub_stdouts(self)
@@ -770,10 +774,10 @@ class TestReleaseCanditateNewProcess(TestSrtBase):
         with open(filename) as f:
             letter = f.read()
             debug(letter)
-            self.assertTrue(letter.find('Linux ' + str(self.ctx.new_tag)))
+        self.assertIn('Linux ' + str(self.ctx.new_tag), letter)
 
 
-class TestReleaseCanditateMergeConflict(TestSrtBase):
+class TestReleaseCandidateMergeConflict(TestSrtBase):
     """The rc mails contain the resolution of a conflicting stable merge."""
 
     def setUp(self):
@@ -860,7 +864,7 @@ class TestReleaseCanditateMergeConflict(TestSrtBase):
         self.assertNotIn('file changed', cover)
 
 
-class TestReleaseMergeConflict(TestReleaseCanditateMergeConflict):
+class TestReleaseMergeConflict(TestReleaseCandidateMergeConflict):
     """The announcement of a release across a conflicting stable merge."""
 
     def step2_tag(self):
