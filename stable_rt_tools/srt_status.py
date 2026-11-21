@@ -42,7 +42,7 @@ from typing import cast
 
 from stable_rt_tools import srt_quilt
 from stable_rt_tools.srt_quilt import git, pushed, rev, upstream
-from stable_rt_tools.srt_util import SubParsers, read_srt_state
+from stable_rt_tools.srt_util import SubParsers, next_step, read_srt_state
 from stable_rt_tools.srt_util_context import release_dir, release_files
 
 # a release like v6.12.116-rt22 and the upstream release it is made on
@@ -178,7 +178,7 @@ def status(as_json: bool = False) -> None:
         print(json.dumps(info, indent=2))
     elif not info['prepared']:
         print('No release prepared.')
-        print(f"next: {info['next']}")
+        next_step(cast(str, info['next']))
     else:
         print_status(info)
 
@@ -193,7 +193,7 @@ def print_status(info: Mapping[str, object]) -> None:
         print('  [{}] {}'.format('x' if step['done'] else ' ', step['step']))
     for w in cast(list[str], info['warnings']):
         print(f'warning: {w}')
-    print(f"next: {info['next']}")
+    next_step(cast(str, info['next']))
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

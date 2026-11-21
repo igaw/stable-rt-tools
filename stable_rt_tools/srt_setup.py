@@ -58,6 +58,7 @@ from stable_rt_tools.srt_util import (
     cmd,
     get_suffix,
     is_quilt_workflow,
+    next_step,
     read_config,
     with_defaults,
 )
@@ -278,7 +279,7 @@ def setup(group: str, config: Mapping[str, str], parent: str,
         for branch in unpublished:
             path = os.path.join(parent, branch)
             print(f'  git -C {path} push -u --follow-tags {remote} {branch}')
-    print(f'next: cd {os.path.join(parent, series)} && srt prep')
+    next_step(f'cd {os.path.join(parent, series)} && srt prep')
 
 
 # options of srt setup and the settings they stand for

@@ -65,6 +65,7 @@ from stable_rt_tools.srt_util import (
     get_config,
     get_gpg_env,
     get_template_path,
+    next_step,
     read_srt_state,
     require,
     update_srt_state,
@@ -383,7 +384,7 @@ def refresh(rel: Release) -> None:
     for p in added:
         print(f'added:   {p}')
     print(f'review: srt check, git -C {rel.patches_dir} diff')
-    print('next: srt quilt queue')
+    next_step('srt quilt queue')
 
 
 #
@@ -421,7 +422,7 @@ def queue(rel: Release, edit: bool = True,
         return
     if rel.done('queue'):
         print(f'{rel.queue_tag} already tagged')
-        print('next: srt quilt rebase')
+        next_step('srt quilt rebase')
         return
     if not rel.done('refresh'):
         sys.exit('run "srt quilt refresh" first')
@@ -455,7 +456,7 @@ def queue(rel: Release, edit: bool = True,
 
     rel.tag(rel.patches_dir, rel.queue_tag,
             'Patch queue for ' + str(rel.new))
-    print('next: srt quilt rebase')
+    next_step('srt quilt rebase')
 
 
 #
@@ -465,7 +466,7 @@ def queue(rel: Release, edit: bool = True,
 def rebase(rel: Release) -> None:
     if rel.done('rebase'):
         print(f'{rel.rebase_tag} already tagged')
-        print('next: srt quilt merge')
+        next_step('srt quilt merge')
         return
     queue_head = rev(rel.patches_dir, 'refs/tags/' + rel.queue_tag)
     if not queue_head:
@@ -481,7 +482,7 @@ def rebase(rel: Release) -> None:
     git(rel.rebase_dir, 'reset', '--hard', rel.base)
     git(rel.rebase_dir, 'quiltimport', '--patches', rel.quilt_patches)
     rel.tag(rel.rebase_dir, rel.rebase_tag, rel.rebase_tag)
-    print('next: srt quilt merge')
+    next_step('srt quilt merge')
 
 
 #
@@ -516,7 +517,7 @@ def merge(rel: Release) -> None:
         except CalledProcessError:
             sys.exit(f'git am {name} failed: resolve it, "git am --continue" '
                      'and rerun "srt quilt merge"')
-    print('next: srt quilt release')
+    next_step('srt quilt release')
 
 
 #
@@ -526,7 +527,7 @@ def merge(rel: Release) -> None:
 def release(rel: Release) -> None:
     if rel.done('release'):
         print(f'{rel.release_tag} already tagged')
-        print('next: ' + RELEASE_NEXT)
+        next_step(RELEASE_NEXT)
         return
     if not rel.done('merge'):
         sys.exit('run "srt quilt merge" first')
@@ -553,7 +554,7 @@ def release(rel: Release) -> None:
         git(rel.rt_dir, 'commit', '-s', '-m', rel.release_tag,
             env=get_gpg_env(rel.config))
     rel.tag(rel.rt_dir, rel.release_tag, rel.release_tag)
-    print('next: ' + RELEASE_NEXT)
+    next_step(RELEASE_NEXT)
 
 
 #
@@ -629,7 +630,7 @@ def undo(rel: Release) -> None:
     if files:
         shutil.rmtree(files)
     update_srt_state({'refreshed': None}, rel.rt_dir)
-    print('next: fix the patch queue, then srt quilt refresh')
+    next_step('fix the patch queue, then srt quilt refresh')
 
 
 COMMANDS = {
