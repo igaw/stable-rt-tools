@@ -255,6 +255,10 @@ class TestMcpServer(unittest.TestCase):
         self.assertEqual(len(lines), 2)
 
 
+PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+
+
 class TestMcpProcess(unittest.TestCase):
 
     def test_srt_mcp(self) -> None:
@@ -271,7 +275,10 @@ class TestMcpProcess(unittest.TestCase):
                  '--dir', root],
                 input=''.join(json.dumps(m) + '\n' for m in msgs),
                 capture_output=True, encoding='utf-8', check=True,
-                env=dict(os.environ, SRT_CONF=root))
+                # the package also when it isn't installed (a checkout)
+                env=dict(os.environ, SRT_CONF=root,
+                         PYTHONPATH=os.pathsep.join(filter(None, [
+                             PACKAGE_ROOT, os.environ.get('PYTHONPATH')]))))
         out = [json.loads(line) for line in p.stdout.splitlines()]
         self.assertEqual([m['id'] for m in out], [1, 2, 3])
         self.assertEqual(out[0]['result']['serverInfo']['name'], 'srt')
