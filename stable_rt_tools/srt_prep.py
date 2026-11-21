@@ -25,7 +25,6 @@
 
 import argparse
 import os
-import re
 import sys
 from subprocess import CalledProcessError
 
@@ -47,7 +46,7 @@ from stable_rt_tools.srt_util import (
     read_srt_state,
     write_srt_state,
 )
-from stable_rt_tools.srt_util_tag import Tag
+from stable_rt_tools.srt_util_tag import Tag, is_upstream_release
 
 
 def get_next_stable_version(branch_name: str, tree_dir: str) -> str | None:
@@ -59,7 +58,7 @@ def get_next_stable_version(branch_name: str, tree_dir: str) -> str | None:
     ]).splitlines()
     for tag in tags:
         # a stable release, not a -rc, -rt or other suffixed tag
-        if re.fullmatch(r'v\d+\.\d+\.\d+', tag):
+        if is_upstream_release(tag):
             return tag
     return None
 

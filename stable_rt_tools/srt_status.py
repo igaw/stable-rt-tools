@@ -43,7 +43,6 @@ steps is done, else the last release itself.
 import argparse
 import json
 import os
-import re
 import subprocess
 from collections.abc import Mapping, Sequence
 from subprocess import CalledProcessError
@@ -66,11 +65,9 @@ from stable_rt_tools.srt_util import (
     read_srt_state,
 )
 from stable_rt_tools.srt_util_context import release_dir, release_files
-from stable_rt_tools.srt_util_tag import Tag
+from stable_rt_tools.srt_util_tag import Tag, is_upstream_release
 
 # a release like v6.12.116-rt22 and the upstream release it is made on
-RELEASE_TAG = re.compile(r'v\d+\.\d+\.\d+-[a-z]+\d+')
-UPSTREAM_TAG = re.compile(r'v\d+\.\d+\.\d+')
 
 # kup ls goes to kernel.org over ssh, don't let it hang srt status
 KUP_TIMEOUT = 30
@@ -112,9 +109,10 @@ def stale_warnings(path: str, old: str, new: str,
     if from_state and published(path, new):
         return [f'{new} is published already, on {upstream(path)}: run '
                 '"srt prep --clear" and "srt prep" for the next release']
-    last = last_tag(path)
-    if last is not None and RELEASE_TAG.fullmatch(last) and \
-            last not in (old, new):
+    # the last release on the upstream branch, as everywhere: its first
+    # parents, not -rebase, -patches or release candidates
+    last = get_last_release('@{u}', Tag(new).suffix, path=path)
+    if last is not None and last not in (old, new):
         return [f'{upstream(path)} is at {last}, the release was prepared '
                 f'on top of {old}: run "srt prep --clear" and "srt prep"']
     return []
@@ -378,7 +376,7 @@ def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
     warnings += leftover_warnings(rel.rt_dir, rel.release_tag, tagged)
     last_stable = last_tag(rel.stable_dir)
     if not rel.done('refresh') and last_stable and \
-            UPSTREAM_TAG.fullmatch(last_stable) and last_stable != rel.base:
+            is_upstream_release(last_stable) and last_stable != rel.base:
         warnings.append(f'upstream is at {last_stable}, the release was '
                         f'prepared for {rel.base}: run "srt prep" again')
     nxt = release_next(rel.release_tag, steps, warnings,
@@ -429,7 +427,7 @@ def stable_tags(path: str, last: Tag, ref: str | None = None) -> list[str]:
     if ref is not None:
         args += ['--merged', ref]
     out = git(path, *args, f'v{last.major}.{last.minor}.*')
-    return [t for t in out.splitlines() if UPSTREAM_TAG.fullmatch(t)]
+    return [t for t in out.splitlines() if is_upstream_release(t)]
 
 
 def newer_stable(path: str, last: Tag) -> str | None:

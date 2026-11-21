@@ -190,3 +190,16 @@ class TestReleaseInMessage(TestCase):
                     'Merge tag \'v6.12.118\' into v6.12-rt', ''):
             self.assertIsNone(release_in_message(msg), msg)
 
+
+
+class TestUpstreamRelease(TestCase):
+    def test_upstream(self):
+        from stable_rt_tools.srt_util_tag import is_upstream_release
+        for tag in ('v6.12.118', 'v4.4.144', 'v6.1.0'):
+            self.assertTrue(is_upstream_release(tag), tag)
+            self.assertTrue(Tag(tag).is_upstream, tag)
+        for tag in ('v6.12.118-rt24', 'v6.12.118-rt24-rebase',
+                    'v6.12.118-rt24-patches', 'v6.12.118-rt24-rc1',
+                    'v4.4.144-cip13', 'v6.13-rc1', 'v6.12', '6.12.118',
+                    'v6.12.118 ', ''):
+            self.assertFalse(is_upstream_release(tag), tag)

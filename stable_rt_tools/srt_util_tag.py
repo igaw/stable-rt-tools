@@ -117,6 +117,12 @@ class Tag:
         return str(self)[len(self.version):]
 
     @property
+    def is_upstream(self) -> bool:
+        """Whether the tag is an upstream release, e.g. v6.12.118: no
+        suffixes at all."""
+        return not self._suffixes
+
+    @property
     def is_release(self) -> bool:
         """Whether the tag has a release suffix (-rt22), a release
         candidate, -rebase or -patches tag of a release too."""
@@ -161,6 +167,13 @@ class Tag:
 
     def __hash__(self) -> int:
         return hash(str(self))
+
+
+def is_upstream_release(text: str) -> bool:
+    """Whether text is the tag of an upstream release, e.g. v6.12.118
+    (not v6.12.118-rt24, not a mainline release candidate v6.13-rc1)."""
+    tag = Tag.parse(text)
+    return tag is not None and tag.is_upstream
 
 
 def release_in_message(message: str) -> tuple[Tag, str] | None:
