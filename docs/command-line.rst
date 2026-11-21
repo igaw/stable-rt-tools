@@ -8,6 +8,63 @@ The options of all commands, as ``srt --help`` and ``srt <command>
     :module: stable_rt_tools.srt
     :func: srt_get_argparser
     :prog: srt
+    :nodefault:
+
+    setup : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-setup`.
+
+    prep : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-prep`.
+
+    commit : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-commit`.
+
+    tag : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-tag`.
+
+    create : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-create`.
+
+    sign : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-sign`.
+
+    upload : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-upload`.
+
+    push : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-push`.
+
+    announce : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-announce`.
+
+    quilt : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-quilt`.
+
+    status : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-status`.
+
+    log : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-log`.
+
+    check : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-check`.
+
+    mcp : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-mcp`.
 
 
 .. _environment-variables:
