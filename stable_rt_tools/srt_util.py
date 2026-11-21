@@ -169,6 +169,23 @@ def get_last_release_number(branch_name: str, suffix: str,
     return int(m.group(1))
 
 
+def get_previous_release(tag: str) -> str:
+    """The release before tag on its branch: v6.12.117-rt23 for
+    v6.12.118-rt24, following the first parents (not the merged stable
+    tags, not -rebase, -patches or release candidates)."""
+    m = re.match(r'^v[\d.]+-([a-z]+)\d+', tag)
+    if not m:
+        sys.exit(f'{tag} is not a release tag')
+    try:
+        return cmd(['git', 'describe', '--abbrev=0', '--tags',
+                    '--first-parent', '--match', f'v*-{m.group(1)}[0-9]*',
+                    '--exclude', '*-rebase', '--exclude', '*-patches',
+                    '--exclude', '*-rc*', f'{tag}^'])
+    except CalledProcessError:
+        sys.exit(f'no release before {tag} on its branch, give the tags: '
+                 'srt <command> OLD_TAG NEW_TAG')
+
+
 def get_old_tag() -> str:
     last_tag = get_last_tag(get_remote_branch_name())
 

@@ -48,6 +48,10 @@ New
 Fixed
 ~~~~~
 
+- ``srt announce`` after ``srt push`` mailed an empty shortlog, diffstat
+  and delta: without the state of the release (``srt push`` clears it)
+  the old release was the last published one, the new one itself. It is
+  the release before the new one now.
 - ``srt quilt merge`` kept the signature of the stable tag as comment
   lines (``# -----BEGIN PGP SIGNATURE-----`` ... ``# gpg: ...``) in the
   message of the stable merge, e.g. in v6.12.116-rt22 and v6.12.117-rt23.
