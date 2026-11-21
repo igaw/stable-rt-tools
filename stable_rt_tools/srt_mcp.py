@@ -211,6 +211,16 @@ class Server:
                  'release tree, delta, files, signatures. ok, warn, fail '
                  'or skip.',
                  one, self._check, read_only=True),
+            Tool('log',
+                 'The history of the series: the steps srt did, oldest '
+                 'first, with their release, time, user and details (tags, '
+                 'commits, files, pushed refs, Message-IDs). Only for '
+                 'reading; status says where a release stands.',
+                 {'properties': {**series, 'count': {
+                     'type': 'integer', 'minimum': 1,
+                     'description': 'only the last count steps'}},
+                  'required': ['series']},
+                 self._log, read_only=True),
             Tool('queue_diff',
                  'The refreshed patch queue against the queue of the last '
                  'release (git diff of patches/), to review it.',
@@ -359,6 +369,17 @@ class Server:
         checks = self._json(path, ['check', '--json'], ok=(0, 1))
         return {'checks': checks,
                 'failed': [c['name'] for c in checks if c['result'] == 'fail']}
+
+    def _log(self, args: dict[str, Any]) -> dict[str, Any]:
+        path = self._worktree(args)
+        count = args.get('count')
+        srt_args = ['log', '--json']
+        if count is not None:
+            if not isinstance(count, int) or isinstance(count, bool) or \
+                    count < 1:
+                raise ToolError('count must be a positive integer')
+            srt_args += ['-n', str(count)]
+        return {'events': self._json(path, srt_args)}
 
     def _queue_diff(self, args: dict[str, Any]) -> dict[str, Any]:
         path = self._worktree(args)

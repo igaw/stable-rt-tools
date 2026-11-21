@@ -121,7 +121,7 @@ class TestMcpServer(unittest.TestCase):
         assert resp is not None
         tools = {t['name']: t for t in resp['result']['tools']}
         for name in ('list_series', 'status', 'check', 'queue_diff',
-                     'queue_draft'):
+                     'queue_draft', 'log'):
             self.assertTrue(tools[name]['annotations']['readOnlyHint'], name)
         for name in ('upload', 'push', 'undo', 'prep_clear'):
             self.assertTrue(tools[name]['annotations']['destructiveHint'],
@@ -176,6 +176,19 @@ class TestMcpServer(unittest.TestCase):
         text = self.error('check', series='v6.12-rt')
         self.assertIn('exit code 1 and no JSON', text)
         self.assertIn('CalledProcessError: git diff', text)
+
+    def test_log(self) -> None:
+        events = [{'time': '2026-11-21T10:00:00+00:00', 'step': 'prep'}]
+        for args in (('log', '--json'), ('log', '--json', '-n', '1')):
+            self.srt.answers[args] = Result(0, json.dumps(events), '')
+        self.assertEqual(self.ok('log', series='v6.12-rt'),
+                         {'events': events})
+        self.assertEqual(self.ok('log', series='v6.12-rt', count=1),
+                         {'events': events})
+        self.assertIn('count must be', self.error('log', series='v6.12-rt',
+                                                  count=0))
+        self.assertEqual(self.srt.commands(),
+                         [['log', '--json'], ['log', '--json', '-n', '1']])
 
     def test_step(self) -> None:
         out = self.ok('rebase', series='v6.12-rt')

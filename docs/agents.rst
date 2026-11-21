@@ -17,7 +17,8 @@ Every command works without a terminal:
 - ``srt upload --dry-run`` and ``srt push --dry-run`` show what would
   happen.
 - ``srt status --json`` and ``srt check --json`` print the state of the
-  release and the checks as JSON.
+  release and the checks as JSON, ``srt log --json`` the history of the
+  series (see :doc:`userguide`).
 - Every command ends with the next step, ``next: ...``.
 
 MCP server
@@ -39,6 +40,11 @@ return its output, the next step and the status afterwards:
     Read the state of a release, check its trees, review the refreshed
     queue and get the generated announcement, with the one of the previous
     release to keep its wording. They change nothing.
+``log``
+    The history of the series (``srt log --json``, the last ``count``
+    steps): what srt did when and by whom, e.g. to see what happened
+    since the agent last looked or what the maintainer did on the host.
+    Where a release stands is what ``status`` says, not the history.
 ``prep``, ``refresh``, ``queue``, ``rebase``, ``merge``, ``release``, ``create``, ``sign``
     The local steps of the quilt workflow. ``refresh`` stops at a patch
     upstream contains already, unless ``drop_applied`` is given; ``queue``
