@@ -33,39 +33,24 @@ from stable_rt_tools.srt_prep import execute, prep
 class TestPrepState(TestCase):
     def test_prep_writes_state(self):
         config = {'quilt_workflow': 'true'}
-        with patch('stable_rt_tools.srt_prep.os.getcwd',
-                   return_value='/tmp/v6.12-rt'):
-            with patch('stable_rt_tools.srt_prep.get_old_tag',
-                       return_value='v6.12.79-rt17'):
-                with patch('stable_rt_tools.srt_prep.get_remote_branch_name',
-                           return_value='v6.12-rt'):
-                    with patch(
-                            'stable_rt_tools.srt_prep.get_last_release_number',
-                            return_value=17):
-                        with patch(
-                            'stable_rt_tools.srt_prep.get_next_stable_version',
-                            return_value='v6.12.89'
-                        ):
-                            with patch(
-                                'stable_rt_tools.srt_prep.write_srt_state'
-                            ) as write_state:
-                                with patch('stable_rt_tools.srt_prep.'
-                                           'os.path.isdir',
-                                           return_value=True):
-                                    prep(config, pull=False)
-                                write_state.assert_called_once()
-                                state = write_state.call_args[0][0]
-                                self.assertEqual(
-                                    state['old_tag'], 'v6.12.79-rt17')
-                                self.assertEqual(
-                                    state['new_tag'], 'v6.12.89-rt18')
-                                self.assertEqual(
-                                    state['workflow_branch'], 'v6.12-rt')
-                                self.assertEqual(
-                                    state['stable_dir'], '/tmp/v6.12')
-                                self.assertEqual(
-                                    state['rebase_dir'],
-                                    '/tmp/v6.12-rt-rebase')
+        m = 'stable_rt_tools.srt_prep.'
+        with patch(m + 'os.getcwd', return_value='/tmp/v6.12-rt'), \
+                patch(m + 'get_last_release',
+                      return_value='v6.12.79-rt17') as last, \
+                patch(m + 'get_remote_branch_name', return_value='v6.12-rt'), \
+                patch(m + 'get_next_stable_version',
+                      return_value='v6.12.89'), \
+                patch(m + 'write_srt_state') as write_state, \
+                patch(m + 'os.path.isdir', return_value=True):
+            prep(config, pull=False)
+        last.assert_called_once_with('HEAD', 'rt')
+        write_state.assert_called_once()
+        state = write_state.call_args[0][0]
+        self.assertEqual(state['old_tag'], 'v6.12.79-rt17')
+        self.assertEqual(state['new_tag'], 'v6.12.89-rt18')
+        self.assertEqual(state['workflow_branch'], 'v6.12-rt')
+        self.assertEqual(state['stable_dir'], '/tmp/v6.12')
+        self.assertEqual(state['rebase_dir'], '/tmp/v6.12-rt-rebase')
 
     def test_clear_state(self):
         args = argparse.Namespace(clear=True, no_pull=False)

@@ -73,29 +73,50 @@ class TestSrtContext(TestCase):
                    return_value=state), patch(
             'stable_rt_tools.srt_util_context.get_remote_branch_name',
             return_value='v4.4-rt-patches'
-        ), patch('stable_rt_tools.srt_util_context.get_old_tag',
-                   return_value='v4.4.115-rt37'):
-            with patch('stable_rt_tools.srt_util_context.get_last_tag',
-                       return_value='v4.4.115-rt38'):
-                ctx = SrtContext(make_args(), '/tmp')
-                self.assertEqual(str(ctx.old_tag), 'v4.4.115-rt38')
-                self.assertEqual(str(ctx.new_tag), 'v4.4.115-rt39')
+        ), patch('stable_rt_tools.srt_util_context.get_last_release',
+                 return_value='v4.4.115-rt37') as last:
+            ctx = SrtContext(make_args(), '/tmp')
+            last.assert_not_called()
+            self.assertEqual(str(ctx.old_tag), 'v4.4.115-rt38')
+            self.assertEqual(str(ctx.new_tag), 'v4.4.115-rt39')
 
     def test_after_push_without_state(self):
-        # srt push cleared the state, the new release is the last
-        # published one: the old one is the release before it
+        # srt push cleared the state, the new release is the last one
+        # on HEAD: the old one is the release before it
         m = 'stable_rt_tools.srt_util_context.'
         with patch.dict('os.environ', {}, clear=True), \
                 patch(m + 'read_srt_state', return_value=None), \
-                patch(m + 'get_remote_branch_name', return_value='v6.12-rt'), \
-                patch(m + 'get_old_tag', return_value='v6.12.118-rt24'), \
-                patch(m + 'get_last_tag', return_value='v6.12.118-rt24'), \
+                patch(m + 'get_last_release',
+                      return_value='v6.12.118-rt24') as last, \
                 patch(m + 'get_previous_release',
                       return_value='v6.12.117-rt23') as previous:
             ctx = SrtContext(make_args(), '/tmp')
-            previous.assert_called_once_with('v6.12.118-rt24')
+            last.assert_called_once_with(rc=True, path='/tmp')
+            previous.assert_called_once_with('v6.12.118-rt24', '/tmp')
             self.assertEqual(str(ctx.old_tag), 'v6.12.117-rt23')
             self.assertEqual(str(ctx.new_tag), 'v6.12.118-rt24')
+
+    def test_new_tag_given_old_tag_from_history(self):
+        m = 'stable_rt_tools.srt_util_context.'
+        with patch.dict('os.environ', {}, clear=True), \
+                patch(m + 'read_srt_state', return_value=None), \
+                patch(m + 'get_last_release') as last, \
+                patch(m + 'get_previous_release',
+                      return_value='v6.12.117-rt23') as previous:
+            ctx = SrtContext(make_args(new_tag='v6.12.118-rt24-rc1'),
+                             '/tmp')
+            last.assert_not_called()
+            previous.assert_called_once_with('v6.12.118-rt24-rc1', '/tmp')
+            self.assertEqual(str(ctx.old_tag), 'v6.12.117-rt23')
+            self.assertTrue(ctx.is_rc)
+
+    def test_no_release_on_head(self):
+        m = 'stable_rt_tools.srt_util_context.'
+        with patch.dict('os.environ', {}, clear=True), \
+                patch(m + 'read_srt_state', return_value=None), \
+                patch(m + 'get_last_release', return_value=None), \
+                self.assertRaises(SystemExit):
+            SrtContext(make_args(), '/tmp')
 
     def test_tags_given_are_taken_as_they_are(self):
         m = 'stable_rt_tools.srt_util_context.'

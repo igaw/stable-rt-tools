@@ -500,3 +500,138 @@ class TestStatePerSeries(TestCase):
         self.assertEqual(state['new_tag'], 'v6.12-rt-b')
         self.assertFalse(os.path.exists(legacy))
         self.assertTrue(os.path.exists(self.linux + '/.git/srt/v6.12-rt.json'))
+
+
+class TestReleaseTags(TestCase):
+    """The releases found in the history of a real repository: the
+    series v6.1-rt with v6.1.1-rt1 and v6.1.2-rt2, published on origin,
+    the stable tree is the clone v6.1 next to it."""
+
+    def git(self, path, *args):
+        return cmd(['git', '-C', path, '-c', 'user.name=Mighty Eagle',
+                    '-c', 'user.email=me@incredible.com'] + list(args))
+
+    def commit(self, path, msg):
+        # stable changes version, the series localversion-rt: the stable
+        # merges don't conflict
+        name = 'version' if path == self.stable else 'localversion-rt'
+        with open(f'{path}/{name}', 'w') as f:
+            f.write(msg + '\n')
+        self.git(path, 'add', name)
+        self.git(path, 'commit', '-q', '-m', msg)
+
+    def tag(self, path, name):
+        self.git(path, 'tag', '-a', '-m', name, name)
+
+    def stable_release(self, version):
+        self.commit(self.stable, f'Linux {version}')
+        self.tag(self.stable, f'v{version}')
+        self.git(self.rt, 'fetch', '-q', 'stable', '--tags')
+
+    def rt_release(self, version, number, rc=None):
+        self.git(self.rt, 'merge', '-q', '--no-ff', '-m',
+                 f'Merge tag v{version}', f'v{version}')
+        name = f'v{version}-rt{number}' + (f'-rc{rc}' if rc else '')
+        self.commit(self.rt, f'Linux {name[1:]}')
+        self.tag(self.rt, name)
+
+    def setUp(self):
+        self.tdir = tempfile.mkdtemp()
+        self.addCleanup(rmtree, self.tdir)
+        self.addCleanup(os.chdir, os.getcwd())
+        self.stable = self.tdir + '/v6.1'
+        self.rt = self.tdir + '/v6.1-rt'
+        self.origin = self.tdir + '/origin.git'
+
+        cmd(['git', 'init', '-q', '-b', 'master', self.stable])
+        self.commit(self.stable, 'Linux 6.1.1')
+        self.tag(self.stable, 'v6.1.1')
+
+        cmd(['git', 'clone', '-q', '-o', 'stable', self.stable, self.rt])
+        self.git(self.rt, 'checkout', '-q', '-b', 'v6.1-rt', 'v6.1.1')
+        self.commit(self.rt, 'Linux 6.1.1-rt1')
+        self.tag(self.rt, 'v6.1.1-rt1')
+        self.stable_release('6.1.2')
+        self.rt_release('6.1.2', 2)
+
+        cmd(['git', 'init', '-q', '--bare', self.origin])
+        self.git(self.rt, 'remote', 'add', 'origin', self.origin)
+        self.git(self.rt, 'push', '-q', '-u', 'origin', 'v6.1-rt', '--tags')
+        self.stable_release('6.1.3')
+        os.chdir(self.rt)
+
+    def context(self):
+        from unittest import mock
+
+        from stable_rt_tools.srt_util_context import SrtContext
+
+        with mock.patch.dict(os.environ):
+            os.environ.pop('OLD_TAG', None)
+            os.environ.pop('NEW_TAG', None)
+            ctx = SrtContext(None, path=self.rt)
+        return str(ctx.old_tag), str(ctx.new_tag)
+
+    def test_last_release_not_the_merged_stable_tag(self):
+        from stable_rt_tools.srt_util import (
+            get_last_release,
+            get_previous_release,
+        )
+
+        self.git(self.rt, 'merge', '-q', '--no-ff', '-m', 'Merge', 'v6.1.3')
+        self.assertEqual(get_last_release('HEAD', 'rt'), 'v6.1.2-rt2')
+        self.assertEqual(get_last_release(), 'v6.1.2-rt2')
+        self.assertIsNone(get_last_release('HEAD', 'foo'))
+        self.assertEqual(get_previous_release('v6.1.2-rt2'), 'v6.1.1-rt1')
+        with self.assertRaises(SystemExit):
+            get_previous_release('v6.1.1-rt1')
+
+    def test_prep_finds_the_old_release_locally(self):
+        from unittest import mock
+
+        from stable_rt_tools.srt_prep import prep
+        from stable_rt_tools.srt_util import read_srt_state
+
+        # nothing is fetched: origin can't be reached
+        self.git(self.rt, 'remote', 'set-url', 'origin', '/nonexistent')
+        self.git(self.rt, 'merge', '-q', '--no-ff', '-m', 'Merge', 'v6.1.3')
+        with mock.patch('sys.stdout'):
+            prep({'WORKFLOW': 'git'}, pull=False)
+        state = read_srt_state(self.rt)
+        assert state is not None
+        self.assertEqual(state['old_tag'], 'v6.1.2-rt2')
+        self.assertEqual(state['new_tag'], 'v6.1.3-rt3')
+
+    def test_after_push_without_state(self):
+        # srt push published v6.1.3-rt3 and cleared the state
+        self.rt_release('6.1.3', 3)
+        self.git(self.rt, 'push', '-q', 'origin', 'v6.1-rt', '--tags')
+        self.assertEqual(self.context(), ('v6.1.2-rt2', 'v6.1.3-rt3'))
+
+    def test_tagged_not_pushed_without_state(self):
+        self.rt_release('6.1.3', 3)
+        self.assertEqual(self.context(), ('v6.1.2-rt2', 'v6.1.3-rt3'))
+
+    def test_release_candidate(self):
+        from stable_rt_tools.srt_util import (
+            get_last_release,
+            get_last_release_number,
+            get_previous_release,
+        )
+
+        self.git(self.rt, 'checkout', '-q', '-b', 'v6.1-rt-next')
+        self.rt_release('6.1.3', 3, rc=1)
+        # the new release is the release candidate, the old one the last
+        # release
+        self.assertEqual(self.context(), ('v6.1.2-rt2', 'v6.1.3-rt3-rc1'))
+        self.assertEqual(get_last_release('HEAD', 'rt'), 'v6.1.2-rt2')
+        # srt commit -r numbers the release after the last one of v6.1-rt
+        self.assertEqual(
+            get_last_release_number('v6.1-rt-next', 'rt', '-next'), 2)
+
+        # the release after the release candidate, on v6.1-rt
+        self.git(self.rt, 'checkout', '-q', 'v6.1-rt')
+        self.git(self.rt, 'merge', '-q', '--ff-only', 'v6.1-rt-next')
+        self.commit(self.rt, 'Linux 6.1.3-rt3')
+        self.tag(self.rt, 'v6.1.3-rt3')
+        self.assertEqual(get_previous_release('v6.1.3-rt3'), 'v6.1.2-rt2')
+        self.assertEqual(self.context(), ('v6.1.2-rt2', 'v6.1.3-rt3'))

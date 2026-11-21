@@ -25,7 +25,6 @@
 import argparse
 import json
 import os
-import re
 import sys
 from collections import ChainMap
 from collections.abc import Mapping, Sequence
@@ -35,6 +34,8 @@ from importlib.resources import files
 from logging import debug
 from subprocess import PIPE, CalledProcessError, Popen, run
 from typing import IO, TYPE_CHECKING, Any, TypedDict
+
+from stable_rt_tools.srt_util_tag import Tag, TagBaseError, TagParseError
 
 if TYPE_CHECKING:
     from stable_rt_tools.srt_util_context import SrtContext
@@ -151,105 +152,73 @@ def tag_exists(tag: object) -> bool:
     return True
 
 
-def get_last_tag(branch_name: str, postfix: str | None = None) -> str:
-    if postfix:
-        base_branch = branch_name[:-len(postfix)]
-    else:
-        base_branch = branch_name
-    last_tag = cmd(['git', 'describe', '--abbrev=0', '--tags', base_branch])
-    return last_tag
-
-
 def get_suffix(config: Mapping[str, Any]) -> str:
     """The release suffix of the patch series, rt for v6.12.116-rt22."""
     return str(config.get('SUFFIX', 'rt'))
 
 
+def get_last_release(rev: str = 'HEAD', suffix: str | None = None,
+                     rc: bool = False, path: str | None = None) -> str | None:
+    """The last release on the first-parent history of rev, e.g.
+    v6.12.118-rt24, None if there is none.
+
+    The first parents are the history of the branch itself, not the
+    stable tags merged into it. -rebase and -patches tags are no
+    releases, release candidates (-rcN) only with rc. suffix is the
+    release suffix (SUFFIX), None for any.
+
+    It is local and follows the history only: no git ls-remote, nothing
+    to fetch. The callers describe HEAD (or a local branch), not the
+    upstream branch: HEAD is what the release is made of and has a
+    release tagged but not pushed yet, the upstream branch is only as
+    current as the last fetch.
+    """
+    pattern = f'v[0-9]*.[0-9]*.[0-9]*-{suffix or "*"}[0-9]*'
+    args = ['git', 'describe', '--abbrev=0', '--tags', '--first-parent',
+            '--match', pattern, '--exclude', '*-rebase',
+            '--exclude', '*-patches']
+    if not rc:
+        args += ['--exclude', '*-rc[0-9]*']
+    try:
+        tag = cmd(args + [rev], cwd=path)
+    except CalledProcessError:
+        return None
+    try:
+        _ = Tag(tag).number
+    except (TagParseError, TagBaseError):
+        sys.exit(f'{tag}, the last tag on {rev}, is no release tag')
+    return tag
+
+
 def get_last_release_number(branch_name: str, suffix: str,
                             postfix: str | None = None) -> int:
-    """Return N of the last vX.Y.Z-<suffix>N tag on the branch."""
-    last_tag = get_last_tag(branch_name, postfix)
-    m = re.search(rf'-{re.escape(suffix)}([0-9]+)$', last_tag)
-    if not m:
-        sys.exit(f'Last tag {last_tag} does not end in -{suffix}[0-9]+ on '
-                 f'{branch_name}')
-    return int(m.group(1))
+    """Return N of the last vX.Y.Z-<suffix>N release on the branch.
+
+    With postfix (-rebase, -next) of the branch the series is named
+    after: v6.12-rt for v6.12-rt-rebase.
+    """
+    if postfix:
+        branch_name = branch_name[:-len(postfix)]
+    tag = get_last_release(branch_name, suffix)
+    if tag is None:
+        sys.exit(f'no -{suffix}N release on {branch_name}')
+    return Tag(tag).number
 
 
-def get_previous_release(tag: str) -> str:
+def get_previous_release(tag: str, path: str | None = None) -> str:
     """The release before tag on its branch: v6.12.117-rt23 for
-    v6.12.118-rt24, following the first parents (not the merged stable
-    tags, not -rebase, -patches or release candidates)."""
-    m = re.match(r'^v[\d.]+-([a-z]+)\d+', tag)
-    if not m:
-        sys.exit(f'{tag} is not a release tag')
+    v6.12.118-rt24 or v6.12.118-rt24-rc1, following the first parents
+    (not the merged stable tags, not -rebase, -patches or release
+    candidates)."""
     try:
-        return cmd(['git', 'describe', '--abbrev=0', '--tags',
-                    '--first-parent', '--match', f'v*-{m.group(1)}[0-9]*',
-                    '--exclude', '*-rebase', '--exclude', '*-patches',
-                    '--exclude', '*-rc*', f'{tag}^'])
-    except CalledProcessError:
+        suffix = Tag(tag).suffix
+    except (TagParseError, TagBaseError):
+        sys.exit(f'{tag} is not a release tag')
+    previous = get_last_release(f'{tag}^', suffix, path=path)
+    if previous is None:
         sys.exit(f'no release before {tag} on its branch, give the tags: '
                  'srt <command> OLD_TAG NEW_TAG')
-
-
-def get_old_tag() -> str:
-    last_tag = get_last_tag(get_remote_branch_name())
-
-    import logging
-    log = logging.getLogger()
-    log.debug("Last tag: %s", last_tag)
-
-    # Match tags like: v6.12.28-rt10[-rc1][-patches], any release suffix
-    tag_re = (r'^v(\d+)\.(\d+)\.(\d+)-([a-z]+)(\d+)(-rc(\d+))?'
-              r'(-patches)?$')
-    m = re.match(tag_re, last_tag)
-    if not m:
-        print(f'Invalid last tag format: {last_tag}')
-        sys.exit(1)
-
-    major = int(m.group(1))
-    minor = int(m.group(2))
-    suffix = m.group(4)
-    base_version = f'v{major}.{minor}'
-
-    tags = cmd(['git', 'ls-remote', '--tags'])
-    # Look for all matching tags with optional -rcN and -patches
-    match_re = (rf'.*({re.escape(base_version)}\.\d+-{suffix}\d+'
-                r'(-rc\d+)?(-patches)?)$')
-    matches = re.findall(match_re, tags, re.MULTILINE)
-
-    if not matches:
-        print(f'Last remote tag -{suffix}[0-9]+ not found on '
-              f'{get_remote_branch_name()}')
-        sys.exit(1)
-
-    last_patch = 0
-    last_rt = 0
-    last_rc: int | None = None
-
-    for groups in matches:
-        tag_str = groups[0]  # full tag string
-        m2 = re.match(tag_re, tag_str)
-        if not m2:
-            continue
-        patch = int(m2.group(3))
-        rt = int(m2.group(5))
-        rc_str = m2.group(7)
-        rc = int(rc_str) if rc_str else None
-
-        if patch > last_patch or (patch == last_patch and rt > last_rt):
-            last_patch = patch
-            last_rt = rt
-            last_rc = rc
-        elif (patch == last_patch and rt == last_rt and rc is not None
-              and (last_rc is None or rc > last_rc)):
-            last_rc = rc
-
-    tag = f'{base_version}.{last_patch}-{suffix}{last_rt}'
-    if last_rc is not None:
-        tag += f'-rc{last_rc}'
-    return tag
+    return previous
 
 
 def get_git_common_dir(path: str | None = None) -> str:
@@ -555,13 +524,8 @@ def confirm(text: str) -> bool:
 
 def check_context(ctx: 'SrtContext') -> None:
     """Exit unless OLD_TAG, NEW_TAG and the tags they need exist."""
-    if ctx.old_tag == ctx.new_tag:
-        text = ('Something went wrong. '
-                'OLD_TAG and NEW_TAG are the same ({}).\n'
-                'Did you push your changes already? In this case you need to\n'
-                'provide the OLD_TAG and NEW_TAG')
-        print(text.format(ctx.old_tag))
-        sys.exit(1)
+    if str(ctx.old_tag) == str(ctx.new_tag):
+        sys.exit(f'OLD_TAG and NEW_TAG are the same ({ctx.old_tag})')
 
     tags = [ctx.old_tag, ctx.new_tag, ctx.new_tag.base]
     if not ctx.new_tag.is_rc:

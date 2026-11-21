@@ -37,8 +37,7 @@ from stable_rt_tools.srt_util import (
     clear_srt_state,
     cmd,
     get_config,
-    get_last_release_number,
-    get_old_tag,
+    get_last_release,
     get_remote_branch_name,
     get_suffix,
     get_workflow_branch,
@@ -47,6 +46,7 @@ from stable_rt_tools.srt_util import (
     read_srt_state,
     write_srt_state,
 )
+from stable_rt_tools.srt_util_tag import Tag
 
 
 def get_next_stable_version(branch_name: str, tree_dir: str) -> str | None:
@@ -106,12 +106,14 @@ def prep(config: Config, pull: bool = True) -> None:
         if pull:
             pull_stable(dirs['stable_dir'])
 
-    # old tag
-    old_tag = get_old_tag()
+    # old tag: the last release on the branch, HEAD (local, no fetch)
+    branch_name = get_remote_branch_name()
+    old_tag = get_last_release('HEAD', suffix)
+    if old_tag is None:
+        sys.exit(f'no -{suffix}N release on {branch_name}')
 
     # new tag
-    branch_name = get_remote_branch_name()
-    number = get_last_release_number(branch_name, suffix) + 1
+    number = Tag(old_tag).number + 1
     next_stable = get_next_stable_version(branch_name, dirs['stable_dir'])
     if next_stable is None:
         sys.exit(f'no stable release tag found in {dirs["stable_dir"]}')

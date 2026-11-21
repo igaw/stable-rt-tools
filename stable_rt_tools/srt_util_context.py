@@ -30,8 +30,7 @@ from logging import debug
 
 from stable_rt_tools.srt_util import (
     SrtState,
-    get_last_tag,
-    get_old_tag,
+    get_last_release,
     get_previous_release,
     get_remote_branch_name,
     read_srt_state,
@@ -53,11 +52,21 @@ def _read_and_validate_state(path: str) -> SrtState | None:
     return state
 
 
+def _given(args: argparse.Namespace | None, name: str) -> str | None:
+    """The tag name given on the command line or in the environment."""
+    tag = getattr(args, name, None) if args else None
+    return tag or os.environ.get(name) or None
+
+
 class SrtContext:
     """OLD_TAG and NEW_TAG of a release and the files made for them.
 
     The tags come from the command line, the environment, the state of
-    srt prep or the git history, in this order.
+    srt prep or the git history, in this order. From the history, NEW_TAG
+    is the last release (or release candidate) on the first parents of
+    HEAD in path, OLD_TAG the release before NEW_TAG: HEAD is local and
+    has the release once it is tagged, pushed or not. The release suffix
+    is the one of the last release tag there (no srt.conf needed).
     """
 
     old_tag: Tag
@@ -79,37 +88,22 @@ class SrtContext:
                  path: str | None = None) -> None:
         self.path = path if path is not None else os.getcwd()
 
-        state: SrtState | None = None
-        guessed = False
-        if args and getattr(args, 'OLD_TAG', None):
-            old_tag = args.OLD_TAG
-        elif os.environ.get('OLD_TAG'):
-            old_tag = os.environ['OLD_TAG']
-        else:
+        old_tag = _given(args, 'OLD_TAG')
+        new_tag = _given(args, 'NEW_TAG')
+        if old_tag is None or new_tag is None:
             state = _read_and_validate_state(self.path)
             if state:
-                old_tag = state['old_tag']
-            else:
-                old_tag = get_old_tag()
-                guessed = True
-
-        if args and getattr(args, 'NEW_TAG', None):
-            new_tag = args.NEW_TAG
-        elif os.environ.get('NEW_TAG'):
-            new_tag = os.environ['NEW_TAG']
-        else:
-            if state is None:
-                state = _read_and_validate_state(self.path)
-            if state:
-                new_tag = state['new_tag']
-            else:
-                new_tag = get_last_tag(get_remote_branch_name())
-
-        # get_old_tag() is the last published release: once the new one
-        # is pushed (srt push clears the state) it is the new one itself,
-        # srt announce after srt push mailed rt24..rt24, empty
-        if guessed and old_tag == new_tag:
-            old_tag = get_previous_release(new_tag)
+                old_tag = old_tag or state['old_tag']
+                new_tag = new_tag or state['new_tag']
+        if new_tag is None:
+            # the release is tagged already (srt push clears the state):
+            # the last one on HEAD, a release candidate too
+            new_tag = get_last_release(rc=True, path=self.path)
+            if new_tag is None:
+                sys.exit('no release tag on HEAD, give the tags: '
+                         'srt <command> OLD_TAG NEW_TAG')
+        if old_tag is None:
+            old_tag = get_previous_release(new_tag, self.path)
 
         self._add_tag('old', old_tag)
         self._add_tag('new', new_tag)

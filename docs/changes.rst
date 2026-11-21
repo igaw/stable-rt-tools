@@ -57,6 +57,14 @@ Fixed
   and delta: without the state of the release (``srt push`` clears it)
   the old release was the last published one, the new one itself. It is
   the release before the new one now.
+- ``srt prep`` and the commands run without a prepared release asked the
+  remote for the last release (``git ls-remote``), which failed offline,
+  and took the last tag of the branch, which could be a merged stable
+  tag. They look at the local history of the branch now (``HEAD``),
+  without the merged stable tags, ``-rebase`` and ``-patches``:
+  ``srt prep`` takes the last release as the old one, the other commands
+  take it (or a release candidate) as the new one and the release before
+  it as the old one.
 - ``srt quilt merge`` kept the signature of the stable tag as comment
   lines (``# -----BEGIN PGP SIGNATURE-----`` ... ``# gpg: ...``) in the
   message of the stable merge, e.g. in v6.12.116-rt22 and v6.12.117-rt23.
