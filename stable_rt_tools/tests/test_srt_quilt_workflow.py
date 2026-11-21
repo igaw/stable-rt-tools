@@ -44,6 +44,7 @@ import os
 import subprocess
 import unittest
 from argparse import Namespace
+from pprint import pformat
 from typing import cast
 from unittest import mock
 
@@ -58,7 +59,9 @@ from stable_rt_tools import (
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
+from stable_rt_tools.srt_push import push
 from stable_rt_tools.srt_sign import sign
+from stable_rt_tools.srt_upload import upload
 from stable_rt_tools.srt_util import (
     clear_srt_state,
     cmd,
@@ -449,6 +452,8 @@ class TestQuiltRelease(TestQuiltBase):
         # found in the history, or given as OLD_TAG NEW_TAG
         with_state = {n: c.result for n, c in
                       self.checks_of(path=self.rt_dir).items()}
+        state = read_srt_state(self.rt_dir)
+        assert state is not None
         clear_srt_state(self.rt_dir)
         self.assertEqual({n: c.result for n, c in
                           self.checks_of(path=self.rt_dir).items()},
@@ -457,10 +462,115 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertEqual({n: c.result for n, c in
                           self.checks_of(tags, self.rt_dir).items()},
                          with_state)
+        # srt push clears it, the steps up to the push have it
+        write_srt_state(state, self.rt_dir)
 
     @staticmethod
     def checks_of(args=None, path=None):
         return {c.name: c for c in srt_check.run_checks(args, path)}
+
+    def step8d_upload(self):
+        d = f'{self.rt_dir}/patches/{self.new_tag}/'
+        v, old = self.new_tag[1:], self.old_tag[1:]
+        prj = self.config['PRJ_DIR']
+        kup = ['kup',
+               'put', d + f'patch-{v}.patch.xz', d + f'patch-{v}.patch.sign',
+               prj + '/older/', '--',
+               'put', d + f'patches-{v}.tar.xz', d + f'patches-{v}.tar.sign',
+               prj + '/older/', '--',
+               'ln', prj + f'/older/patch-{v}.patch.xz', '../', '--',
+               'ln', prj + f'/older/patches-{v}.tar.xz', '../', '--',
+               'rm', prj + f'/patch-{old}.patch.xz', '--',
+               'rm', prj + f'/patches-{old}.tar.xz', '--',
+               'ls', prj]
+        msg = f'{pformat(kup)}\nOK to commit? (y/n): '
+        self.maxDiff = None
+        ctx = SrtContext(None, path=self.rt_dir)
+
+        # declined: nothing runs
+        stub_stdin(self, 'n')
+        stub_stdouts(self)
+        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+            upload(self.config, ctx)
+        run_kup.assert_not_called()
+        self.assertEqual(stdout_text(), msg)
+        self.assertNotIn('upload', [e['step'] for e in
+                                    srt_log.read_log(self.rt_dir)])
+
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        with mock.patch('stable_rt_tools.srt_upload.cmd') as run_kup:
+            upload(self.config, ctx)
+        run_kup.assert_called_once_with(kup)
+        self.assertEqual(stdout_text(), msg + 'next: srt push\n')
+        event = srt_log.read_log(self.rt_dir)[-1]
+        self.assertEqual(event['step'], 'upload')
+        self.assertEqual(event['dir'], prj)
+        self.assertEqual(event['files'], [f'patch-{v}.patch.xz',
+                                          f'patches-{v}.tar.xz'])
+        self.assertEqual(event['removed'], [f'patch-{old}.patch.xz',
+                                            f'patches-{old}.tar.xz'])
+        # kup ls lists the files now
+        self.kup_ls.return_value = (self.kup_names(), '')
+        self.assertEqual(srt_status.status_info()['next'], 'srt push')
+
+    def step8e_push(self):
+        tag, series = self.new_tag, self.series
+        refs = [f'{tag}^{{}}:{series}',
+                f'+{tag}-rebase^{{}}:{series}-rebase',
+                'tag', tag, 'tag', f'{tag}-rebase',
+                f'{series}-patches', 'tag', f'{tag}-patches']
+        self.assertIsNotNone(read_srt_state(self.rt_dir))
+        stub_stdin(self, 'y')
+        stub_stdouts(self)
+        push(self.config, SrtContext(None, path=self.rt_dir))
+        out = stdout_text()
+        self.assertIn('git push -n ' + ' '.join([self.rt_repo] + refs),
+                      out)
+        self.assertIn('OK to push? (y/n): next: srt announce > '
+                      '../announce', out)
+        # the branches and tags arrived at the commits of the release
+        for branch, ref in ((series, tag), (f'{series}-rebase',
+                                            f'{tag}-rebase'),
+                            (f'{series}-patches', f'{tag}-patches')):
+            self.assertEqual(git(self.rt_repo, 'rev-parse', branch),
+                             git(self.rt_dir, 'rev-parse',
+                                 ref + '^{commit}'), branch)
+            self.assertEqual(git(self.rt_repo, 'rev-parse', ref),
+                             git(self.rt_dir, 'rev-parse', ref), ref)
+        # srt push is done with the release prepared by srt prep
+        self.assertIsNone(read_srt_state(self.rt_dir))
+        event = srt_log.read_log(self.rt_dir)[-1]
+        self.assertEqual(event['step'], 'push')
+        self.assertEqual(event['remote'], self.rt_repo)
+        self.assertEqual(event['refs'], refs)
+        self.assertNotIn('force', event)
+
+        # pushed, as of the next fetch
+        git(self.rt_dir, 'fetch', '-q', 'stable-rt')
+        info = srt_status.status_info()
+        steps = cast(list[dict[str, object]], info['steps'])
+        self.assertTrue(info['prepared'])
+        self.assertEqual(info['new_tag'], tag)
+        self.assertEqual([s['done'] for s in steps], [True] * 9 + [None])
+        self.assertEqual(steps[-2], {'step': 'srt push', 'done': True})
+        # the archive of the mailing list isn't reachable
+        self.assertEqual(steps[-1], {'step': 'srt announce', 'done': None,
+                                     'unknown': 'no network in the tests'})
+        self.assertEqual(info['next'], 'srt announce (unless done already)')
+        # announced: the release is complete
+        inbox = self.tdir + '/inbox'
+        add_mail(inbox, f'[ANNOUNCE] {tag[1:]}', '<announce@x>')
+        self.config['INBOX'] = inbox
+        info = srt_status.status_info()
+        self.assertFalse(info['prepared'])
+        self.assertEqual(info['new_tag'], tag)
+        self.assertEqual([s['done'] for s in
+                          cast(list[dict[str, object]], info['steps'])],
+                         [True] * 10)
+        self.assertEqual(info['warnings'], [])
+        self.assertEqual(info['next'], 'srt prep, once upstream has a '
+                         'release after v6.1.2')
 
     def step9_announce(self):
         ctx = SrtContext(None, path=self.rt_dir)
@@ -488,10 +598,11 @@ class TestQuiltRelease(TestQuiltBase):
 
     def step10_log(self):
         events = srt_log.read_log(self.rt_dir)
-        # srt announce only printed the mail: not in the log
+        # srt announce only printed the mail, srt status found it
         self.assertEqual([e['step'] for e in events], [
             'prep', 'quilt refresh', 'quilt queue', 'quilt rebase',
-            'quilt merge', 'quilt release', 'create', 'sign'])
+            'quilt merge', 'quilt release', 'create', 'sign', 'upload',
+            'push', 'announced'])
         for e in events:
             self.assertEqual(e['series'], self.series)
             self.assertEqual(e['release'], self.new_tag)
@@ -515,6 +626,7 @@ class TestQuiltRelease(TestQuiltBase):
         v = self.new_tag[1:]
         self.assertEqual(steps['sign']['files'],
                          [f'patch-{v}.patch.sign', f'patches-{v}.tar.sign'])
+        self.assertEqual(steps['announced']['message_id'], '<announce@x>')
         # one log for all worktrees of the series, next to the state
         log = srt_log.get_log_path(self.patches_dir)
         self.assertEqual(log, srt_log.get_log_path(self.rt_dir))
@@ -523,14 +635,17 @@ class TestQuiltRelease(TestQuiltBase):
                 '--git-common-dir'), 'srt', self.series + '.log'))
 
         stub_stdouts(self)
-        srt_log.show_log(2)
+        srt_log.show_log(5)
         lines = stdout_text().splitlines()
-        self.assertEqual(len(lines), 2)
+        self.assertEqual(len(lines), 5)
         self.assertIn(f'create         {self.new_tag} (from {self.old_tag})',
                       lines[0])
         self.assertIn(f'files=patch-{v}.patch.sign,patches-{v}.tar.sign',
                       lines[1])
         self.assertTrue(lines[1].endswith('by Mighty Eagle'))
+        self.assertIn(f'upload         {self.new_tag}', lines[2])
+        self.assertIn(f'push           {self.new_tag}', lines[3])
+        self.assertIn(f'remote={self.rt_repo}', lines[3])
 
     def test_release(self):
         for step in sort_steps(dir(self)):
