@@ -24,9 +24,9 @@
 
 
 import argparse
-import shutil
+import os
+import re
 import sys
-import tempfile
 
 from stable_rt_tools.srt_util import (
     Config,
@@ -65,12 +65,44 @@ def localversion_inc(filename: str) -> None:
         f.truncate()
 
 
-def get_kernel_version() -> str:
-    tmp = tempfile.mkdtemp()
-    cmd(['make', f'O={tmp}', 'defconfig'])
-    line = cmd(['make', '-s', f'O={tmp}', 'kernelrelease'])
-    shutil.rmtree(tmp)
-    return line.strip()[:-1]
+def get_kernel_version(path: str = '.') -> str:
+    """The kernel release of the tree in path, what make kernelrelease
+    says before HEAD is tagged without the scm suffix (+).
+
+    The version of the top-level Makefile (VERSION, PATCHLEVEL, SUBLEVEL,
+    EXTRAVERSION) and the localversion* files of the tree root, like
+    scripts/setlocalversion: all of them in sorted order, without the
+    ones with '~' in their name (backups), their trailing newlines cut
+    off. CONFIG_LOCALVERSION is not used, srt keeps the release in the
+    localversion file.
+    """
+    values: dict[str, str] = {}
+    with open(os.path.join(path, 'Makefile')) as f:
+        for line in f:
+            m = re.match(r'^(VERSION|PATCHLEVEL|SUBLEVEL|EXTRAVERSION)'
+                         r'\s*=(.*)$', line)
+            if m and m.group(1) not in values:
+                values[m.group(1)] = m.group(2).split('#')[0].strip()
+    if not values.get('VERSION'):
+        sys.exit(f'no VERSION in {os.path.join(path, "Makefile")}')
+
+    # $(VERSION)$(if $(PATCHLEVEL),.$(PATCHLEVEL)$(if $(SUBLEVEL),
+    # .$(SUBLEVEL)))$(EXTRAVERSION)
+    version = values['VERSION']
+    if values.get('PATCHLEVEL'):
+        version += '.' + values['PATCHLEVEL']
+        if values.get('SUBLEVEL'):
+            version += '.' + values['SUBLEVEL']
+    version += values.get('EXTRAVERSION', '')
+
+    for name in sorted(os.listdir(path)):
+        file = os.path.join(path, name)
+        if not name.startswith('localversion') or '~' in name or \
+                not os.path.isfile(file):
+            continue
+        with open(file) as f:
+            version += f.read().rstrip('\n')
+    return version
 
 
 def last_commit_was_release_commit() -> bool:

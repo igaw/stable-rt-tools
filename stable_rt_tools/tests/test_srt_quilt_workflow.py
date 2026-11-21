@@ -60,7 +60,7 @@ from stable_rt_tools.srt_util import clear_srt_state, cmd, read_srt_state
 from stable_rt_tools.srt_util_context import SrtContext
 from stable_rt_tools.tests.test_srt import (
     gnupg_config,
-    makefile,
+    kernel_makefile,
     sort_steps,
     stdout_text,
     stub_stdin,
@@ -118,7 +118,7 @@ class TestQuiltBase(unittest.TestCase):
         git(self.stable_repo, 'init', '--initial-branch=master')
         identity(self.stable_repo)
         write(self.stable_repo + '/version', '6.1.1\n\n')
-        write(self.stable_repo + '/Makefile', makefile)
+        write(self.stable_repo + '/Makefile', kernel_makefile('6.1.1'))
         write(self.stable_repo + '/kernel.c', KERNEL_C)
         git(self.stable_repo, 'add', '.')
         git(self.stable_repo, 'commit', '-m', 'Linux 6.1.1')

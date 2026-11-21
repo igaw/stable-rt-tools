@@ -44,8 +44,6 @@ srt also calls the following external tools:
 - ``gpg`` (GnuPG 2) with your kernel.org signing key (``srt tag``, ``srt sign``,
   ``srt quilt``, ``srt announce``)
 - ``kup`` (``srt upload``)
-- ``make``, ``gcc``, ``flex`` and ``bison`` to determine the kernel release
-  (``srt commit``)
 - ``tar`` and ``xz`` (``srt create``, ``srt sign``)
 - ``quilt`` and ``patch`` (quilt workflow only, ``srt quilt``)
 - optionally a mail client (``mutt``, Thunderbird, ...) or ``msmtp`` to

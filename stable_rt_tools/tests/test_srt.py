@@ -105,21 +105,30 @@ def find_string(lines, token):
     return any(line.strip() == token for line in lines.splitlines())
 
 
-makefile = """
-.PHONE: kernelrelease
+def kernel_makefile(version):
+    """The top of a kernel Makefile, the version srt commit reads."""
+    major, minor, patch = version.split('.')
+    return ('# SPDX-License-Identifier: GPL-2.0\n'
+            f'VERSION = {major}\n'
+            f'PATCHLEVEL = {minor}\n'
+            f'SUBLEVEL = {patch}\n'
+            'EXTRAVERSION =\n'
+            'NAME = Fake Kernel\n'
+            '\n'
+            '# *DOCUMENTATION*\n'
+            '# no build, only the version\n'
+            '\n')
 
-version := $(shell cat version)
-localversion := $(shell \
-    if ls localversion* 1> /dev/null 2>&1; then \
-        cat localversion*; \
-    fi)
 
-kernelrelease:
-	@echo $(version)$(localversion)x
+def set_sublevel(version):
+    """A new stable release: SUBLEVEL of the Makefile in the cwd."""
+    with open('Makefile') as f:
+        text = f.read()
+    text = re.sub(r'(?m)^SUBLEVEL = .*$',
+                  f'SUBLEVEL = {version.split(".")[2]}', text)
+    with open('Makefile', 'w') as f:
+        f.write(text)
 
-defconfig:
-
-"""
 
 gnupg_config = """
 Key-Type: eddsa
@@ -140,23 +149,17 @@ class TestSrtBase(unittest.TestCase):
         os.chdir(self.stable_repo)
         cmd(['git', 'init', '--initial-branch=master'])
         self.setup_git_tree('.')
-        with open('version', 'w') as f:
-            f.write(version)
-            f.write('\n\n')
         with open('Makefile', 'w') as f:
-            # make kernelrelease adds an bogus? char to the end of the string
-            f.write(makefile)
+            f.write(kernel_makefile(version))
 
-        cmd(['git', 'add', 'version', 'Makefile'])
+        cmd(['git', 'add', 'Makefile'])
         cmd(['git', 'commit', '-m', 'Initial stable commit'])
         cmd(['git', 'tag', '-a', '-m', 'v'+version, 'v'+version])
 
     def setup_stable_new_release(self, version):
         os.chdir(self.stable_repo)
-        with open('version', 'w') as f:
-            f.write(version)
-            f.write('\n\n')
-        cmd(['git', 'add', 'version'])
+        set_sublevel(version)
+        cmd(['git', 'add', 'Makefile'])
         cmd(['git', 'commit', '-m', 'New stable release'])
         cmd(['git', 'tag', '-a', '-m', 'v'+version, 'v'+version])
 
@@ -826,7 +829,7 @@ class TestReleaseCanditateMergeConflict(TestSrtBase):
                   stdout=DEVNULL, stderr=DEVNULL)
         self.assertNotEqual(res.returncode, 0)
         with open('Makefile', 'w') as f:
-            f.write(makefile + '# rt\n# stable\n')
+            f.write(kernel_makefile('4.4.15') + '# rt\n# stable\n')
         cmd(['git', 'add', 'Makefile'])
         cmd(['git', 'commit', '-m',
              "Merge tag 'v4.4.15' into v4.4-rt-next\n\n"

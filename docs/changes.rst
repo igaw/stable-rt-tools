@@ -113,6 +113,15 @@ Fixed
   instead of doing nothing, and a stable release commit
   (``Linux 6.12.118``) is no release commit for ``srt tag`` and
   ``srt commit`` anymore.
+- ``srt commit`` no longer builds a defconfig (``make defconfig`` and
+  ``make kernelrelease``) to get the kernel release for the commit
+  message: it reads the version from the top-level ``Makefile`` and adds
+  the ``localversion*`` files, like ``scripts/setlocalversion``. It
+  doesn't need ``make``, ``gcc``, ``flex`` and ``bison`` anymore and
+  leaves no build directory behind. The defconfig of current kernels
+  has ``CONFIG_LOCALVERSION_AUTO=y``, so the release had the git version
+  appended (``6.12.117-rt24-00094-gbe72f8e7a3f4-dirt``), and cutting off
+  the ``+`` of an untagged tree cut the last digit of a tagged one.
 
 2.1
 ---
