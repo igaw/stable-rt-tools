@@ -169,6 +169,18 @@ The settings:
 ``ORIGIN_GIT_URL``
     What the repository is cloned from, default ``UPSTREAM_GIT_URL``
     (``srt setup``). Its basename is the first part of the group name.
+``INBOX``
+    The public inbox of the mailing list the announcements go to, default
+    ``https://lore.kernel.org/stable-rt``. ``srt status`` shows ``srt
+    announce`` as done when its archive has the announcement. srt keeps a
+    clone of the archive's git repository (``INBOX/0``) in
+    ``$XDG_CACHE_HOME/srt/inbox/<name>.git`` (default
+    ``~/.cache/srt/inbox/stable-rt.git``), a cache you can remove any
+    time. It clones it the first time a pushed release is looked for and
+    fetches it only when the announcement isn't in it yet, at most every 10
+    minutes, never with ``srt status --offline``; it never uses the search
+    or the web pages of the archive. The same for all series, so set it in
+    ``[DEFAULT]``; empty turns the step off (unknown).
 ``ANNOUNCE``, ``RC_TEXT``, ``COMMIT_TMPL``
     Own templates for the announcement, the review mails and the patch
     queue commit, instead of the ones srt ships.
@@ -240,7 +252,9 @@ series when it succeeds: ``srt prep`` and ``srt prep --clear``, the
 candidate sent by ``srt announce`` and the announcement opened in the mail
 client by ``srt announce --mail``. Dry runs, drafts, ``srt status``,
 ``srt check`` and a plain ``srt announce``, which only prints the mail,
-change nothing and leave no line. A step srt didn't do, e.g. a merge
+change nothing and leave no line, except that ``srt status`` adds
+``announced`` once it finds the announcement of a release in the archive
+of the mailing list (``INBOX``). A step srt didn't do, e.g. a merge
 conflict you resolved by hand, isn't in it either.
 
 ``srt log`` shows the history of the series of the current worktree, oldest
@@ -253,8 +267,10 @@ fields for scripts:
   2026-11-21 10:12  quilt release  v6.12.118-rt24 (from v6.12.117-rt23)  tag=v6.12.118-rt24  commit=3f1c0a9e2b7d  by Daniel Wagner
   2026-11-21 11:40  create         v6.12.118-rt24 (from v6.12.117-rt23)  dir=...  files=patch-6.12.118-rt24.patch.xz,patches-6.12.118-rt24.tar.xz  by Daniel Wagner
 
-The history is for people to read: srt never looks at it to decide
-anything, where a release stands comes from the trees (``srt status``).
+The history is for people to read: where a release stands comes from
+the trees (``srt status``). The one exception: ``srt status`` takes an
+announcement it found once from the ``announced`` line instead of looking
+in the archive again, the archive can always tell it again.
 It lives in the git directory shared by the worktrees, next to the
 prepared release, one file per series:
 ``<git common dir>/srt/<series>.log``, e.g. ``linux/.git/srt/v6.12-rt.log``.
@@ -304,6 +320,9 @@ and the details of the step, left out when empty:
   ``announce --mail``: ``result`` (``mail opened``: whether it was sent is
   up to you and the mail client), ``mailer``, ``mail`` (the file) and
   ``message_id``.
+- ``announced`` (by ``srt status``): the announcement in the archive of
+  the mailing list, its ``subject``, ``date``, ``sender``, ``message_id``
+  and ``link`` (to the archive, for people).
 
 Troubleshooting
 ---------------

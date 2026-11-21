@@ -75,7 +75,10 @@ counts as no and the step stops.
 2. `srt status` lists the steps done and the next one, found in the trees
    (it works without `srt prep`'s state too). `srt upload` is unknown
    (`[?]`, `done: null` in the JSON) when kup can't reach kernel.org:
-   ask the maintainer. `srt push` reflects the last fetch. A warning
+   ask the maintainer. `srt push` reflects the last fetch. `srt
+   announce` is done once the archive of the mailing list (`INBOX`, a
+   local clone fetched at most every 10 minutes) has the announcement;
+   unknown when it can't be fetched. The release is complete then. A warning
    means the prepared release doesn't fit the fetched branches (published already,
    newer release on the series, newer upstream release): tell the
    maintainer, then `srt prep --clear` and `srt prep`.

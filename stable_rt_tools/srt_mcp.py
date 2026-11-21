@@ -68,8 +68,10 @@ leave everything which leaves the machine to their explicit OK.
 Start with list_series, then status of the series: it lists the steps
 done and the next one, and warns when the prepared release doesn't fit
 the fetched branches. A step with done null is unknown: srt upload when
-kup can't reach kernel.org; ask the maintainer. check runs the sanity
-checks between the trees.
+kup can't reach kernel.org, srt announce when the archive of the mailing
+list can't be fetched; ask the maintainer. srt announce is done once the
+announcement is in the archive, then the release is complete. check runs
+the sanity checks between the trees.
 
 Quilt workflow: prep, refresh, check (review the queue with queue_diff),
 queue_draft (the maintainer completes the announcement), queue with the

@@ -41,6 +41,15 @@ New
   is unknown (``[?]``, ``"done": null`` with the reason as ``unknown`` in
   the JSON) when kup can't tell or with the new ``--offline``. ``srt
   push`` is done when the fetched branch of the series has the release.
+- ``srt status`` shows ``srt announce`` as last step: done when the
+  archive of the mailing list has the announcement, with its date, sender,
+  Message-ID and link. srt looks in a local clone of the archive's git
+  repository in ``~/.cache/srt/inbox``, the new ``INBOX`` setting (default
+  ``https://lore.kernel.org/stable-rt``), cloned on the first need and
+  fetched at most every 10 minutes while the announcement is missing,
+  never with ``--offline``; the search and the web pages of the archive
+  aren't used. Once found, the history has it (``announced``). A release
+  is complete, ``next: srt prep``, once it is announced.
 - ``srt check`` runs the reviews of the documentation as sanity checks
   between the trees: the refreshed queue against the last one (patches
   added, dropped or changed beyond hunk offsets, with the ``git diff`` to

@@ -27,9 +27,11 @@
 The steps which change something append an event to the log of their
 series when they succeed, one JSON object per line, in the git common
 dir next to the release state: <git common dir>/srt/<series>.log. The
-worktrees of a work area share it. srt never reads it for a decision,
-the status comes from the trees. A failure to write it is a warning, the
-step is done anyway.
+worktrees of a work area share it. The status comes from the trees,
+srt reads the log for one fact only: srt status takes an announcement it
+found once in the archive of the mailing list from the 'announced'
+event, the archive can always tell it again. A failure to write it is a
+warning, the step is done anyway.
 
 The fields of an event (see docs/userguide.rst):
 

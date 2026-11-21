@@ -285,7 +285,8 @@ the history of the series, ``srt log``, stays (see :doc:`userguide`).
 If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
 
 ``srt status`` shows the steps done, ``srt create``, ``srt sign``,
-``srt upload`` and ``srt push`` included, and the next step. It warns when
+``srt upload``, ``srt push`` and ``srt announce`` included, and the next
+step. It warns when
 the prepared release doesn't fit the fetched branches anymore: the release
 was published already, e.g. by another maintainer of the group, the series
 has a newer release than the one the release was prepared on, or upstream
@@ -310,12 +311,20 @@ The steps are found in the trees, the state only names the release:
 - ``srt push``: the remote-tracking branch of the series has the release
   tag. It shows the last fetch: fetch first to see a push of another
   maintainer.
+- ``srt announce``: the archive of the mailing list (``INBOX``, see
+  :doc:`userguide`) has the mail ``[ANNOUNCE] v6.12.118-rt24`` (or
+  without the ``v``), replies don't count. srt looks in a local clone of
+  the archive, once the release is pushed, and fetches it at most every
+  10 minutes while the announcement isn't there; unknown (``[?]``) when
+  the fetch fails or with ``--offline``. Once found, the history of the
+  series has it (``announced``) and srt doesn't look again.
 
 Without the state, e.g. after ``srt push`` or when it got lost, ``srt
 status`` finds the release in the trees: the release after the last one
 on the branch (``HEAD``) if one of its steps is done (a tag of it exists or
 the queue is refreshed for it), else the last release itself. When all
-steps of the last release are done, nothing is in progress: it shows that
+steps of the last release are done, announced too, nothing is in
+progress: it shows that
 release and ``next: srt prep`` once upstream has a newer release.
 
 Release candidates are not supported by the quilt workflow.

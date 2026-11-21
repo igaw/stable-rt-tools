@@ -48,6 +48,7 @@ from stable_rt_tools.srt_tag import tag
 from stable_rt_tools.srt_upload import upload
 from stable_rt_tools.srt_util import cmd, tag_exists
 from stable_rt_tools.srt_util_context import SrtContext
+from stable_rt_tools.tests.inbox import add_mail
 
 
 def sort_steps(entries):
@@ -390,13 +391,25 @@ class TestRelease(TestSrtBase):
         # pushed, as of the next fetch
         cmd(['git', 'fetch', '-q', 'origin'])
         v = '4.4.14-rt4'
-        info = self.status([f'patch-{v}.patch.xz', f'patch-{v}.patch.sign',
-                            f'patches-{v}.tar.xz', f'patches-{v}.tar.sign'])
-        self.assertFalse(info['prepared'])
-        self.assertEqual(info['new_tag'], 'v4.4.14-rt4')
+        kup = [f'patch-{v}.patch.xz', f'patch-{v}.patch.sign',
+               f'patches-{v}.tar.xz', f'patches-{v}.tar.sign']
+        info = self.status(kup)
+        # the archive of the mailing list isn't reachable
+        self.assertTrue(info['prepared'])
         self.assertEqual([s['done'] for s in
                           cast(list[dict[str, object]], info['steps'])],
-                         [True] * 5)
+                         [True] * 5 + [None])
+        self.assertEqual(info['next'], 'srt announce (unless done already)')
+        # announced (without the v)
+        inbox = self.tdir + '/inbox'
+        add_mail(inbox, f'[ANNOUNCE] {v}', '<rt4@x>')
+        self.config['INBOX'] = inbox
+        info = self.status(kup)
+        self.assertFalse(info['prepared'])
+        self.assertEqual(info['new_tag'], 'v4.4.14-rt4')
+        steps = cast(list[dict[str, object]], info['steps'])
+        self.assertEqual([s['done'] for s in steps], [True] * 6)
+        self.assertEqual(steps[-1]['step'], 'srt announce')
         self.assertEqual(info['next'],
                          'srt prep, once upstream has a release after '
                          'v4.4.14')
@@ -427,7 +440,8 @@ class TestRelease(TestSrtBase):
         events = read_log(self.work_tree)
         # the upload was declined, the announcement only printed
         self.assertEqual([e['step'] for e in events], [
-            'commit', 'tag', 'commit', 'tag', 'create', 'sign', 'push'])
+            'commit', 'tag', 'commit', 'tag', 'create', 'sign', 'push',
+            'announced'])
         self.assertTrue(all(e['release'] == 'v4.4.14-rt4' and
                             e['series'] == 'v4.4-rt' for e in events))
         commit1, tag1, commit2, tag2 = events[:4]
@@ -440,8 +454,11 @@ class TestRelease(TestSrtBase):
             ['git', 'rev-parse', 'v4.4.14-rt4-rebase^{commit}']))
         # without srt prep only the steps after the tag know the old one
         self.assertNotIn('old', commit1)
-        push_ = events[-1]
+        push_ = events[-2]
         self.assertEqual(push_['old'], 'v4.4.13-rt3')
+        # srt status found the announcement
+        self.assertEqual(events[-1]['message_id'], '<rt4@x>')
+        self.assertEqual(events[-1]['old'], 'v4.4.13-rt3')
         self.assertEqual(push_['remote'], self.rt_repo)
         self.assertIn('tag', push_['refs'])
         self.assertIn('v4.4.14-rt4-rebase', push_['refs'])

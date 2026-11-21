@@ -39,13 +39,29 @@ The status as JSON
     the quilt workflow only.
 ``steps``
     The steps in order, ``{"step": "srt quilt refresh", "done": true}``,
-    up to ``srt create``, ``srt sign``, ``srt upload`` and ``srt push``.
-    ``done`` is ``null`` when srt can't tell: ``srt upload`` asks
-    kernel.org with ``kup ls``, which needs kup and access to kernel.org,
-    and doesn't ask with ``--offline``. ``unknown`` then says why. Treat
-    it as "ask the maintainer", not as done or not done. ``srt push`` is
-    done when the fetched branch of the series has the release: fetch
-    first.
+    up to ``srt create``, ``srt sign``, ``srt upload``, ``srt push`` and
+    ``srt announce``. ``done`` is ``null`` when srt can't tell: ``srt
+    upload`` asks kernel.org with ``kup ls``, which needs kup and access
+    to kernel.org, ``srt announce`` looks in a local clone of the archive
+    of the mailing list (``INBOX``), which it fetches at most every 10
+    minutes; neither asks with ``--offline``. ``unknown`` then says why.
+    Treat it as "ask the maintainer", not as done or not done. ``srt
+    push`` is done when the fetched branch of the series has the release:
+    fetch first. ``srt announce`` is done when the archive has the
+    announcement (``[ANNOUNCE] <tag>``, with or without the ``v``), then
+    ``mail`` has its ``subject``, ``date``, ``sender``, ``message_id`` and
+    ``link``:
+
+    .. code-block:: json
+
+       {"step": "srt announce", "done": true,
+        "mail": {"subject": "[ANNOUNCE] v6.12.118-rt24",
+                 "date": "2026-11-21T13:57:47+01:00",
+                 "sender": "Daniel Wagner <wagi@monom.org>",
+                 "message_id": "<5f522636-3555-4694-ac55-923c981eab3f@kernel.org>",
+                 "link": "https://lore.kernel.org/stable-rt/5f522636-3555-4694-ac55-923c981eab3f@kernel.org/"}}
+
+    The release is complete (``prepared`` false) once it is announced.
 ``warnings``, ``next``
     Why the release doesn't fit the fetched branches, and the next step.
 

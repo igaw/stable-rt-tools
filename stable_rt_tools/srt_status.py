@@ -28,10 +28,11 @@
 The steps up to the tag differ (srt commit and srt tag, or srt quilt
 refresh..release), the rest is the same: srt create and srt sign leave
 their files in the release directory, srt upload puts them on kernel.org
-(kup ls tells) and srt push puts the release on the remote branch (as of
-the last fetch). A release published or made on top of another one
-meanwhile is stale. srt status, srt mcp and agents read the result, see
-status_info().
+(kup ls tells), srt push puts the release on the remote branch (as of
+the last fetch) and srt announce sends the announcement (its mail is in
+the archive of the mailing list, see srt_inbox). A release published or
+made on top of another one meanwhile is stale. srt status, srt mcp and
+agents read the result, see status_info().
 
 The steps are derived from the trees: the state of srt prep only names
 the release prepared. Without it (srt push clears it, or it got lost),
@@ -48,7 +49,7 @@ from collections.abc import Mapping, Sequence
 from subprocess import CalledProcessError
 from typing import cast
 
-from stable_rt_tools import srt_quilt
+from stable_rt_tools import srt_inbox, srt_log, srt_quilt
 from stable_rt_tools.srt_prep import get_next_stable_version, worktree_dirs
 from stable_rt_tools.srt_quilt import git, pushed, rev, upstream
 from stable_rt_tools.srt_util import (
@@ -77,6 +78,13 @@ KUP_TIMEOUT = 30
 # a step is done (True), not done (False) or unknown (None), e.g. srt
 # upload without access to kernel.org
 type Step = tuple[str, bool | None]
+
+# what the JSON tells about a step besides done: why it is unknown, the
+# mail of the announcement
+type StepDetails = dict[str, dict[str, object]]
+
+# the event in the log of the series once the announcement is found
+ANNOUNCED = 'announced'
 
 NOT_PREPARED_NEXT = 'srt prep (in the worktree of the series)'
 
@@ -168,12 +176,19 @@ def uploaded(names: set[str], files: Sequence[str]) -> bool:
     return True
 
 
-def _prj_dir(path: str, config: Config | None) -> str | None:
+def _config(path: str, config: Config | None) -> Config | None:
     if config is None:
         try:
             config = get_config(path)
         except SystemExit:
             return None
+    return config
+
+
+def _prj_dir(path: str, config: Config | None) -> str | None:
+    config = _config(path, config)
+    if config is None:
+        return None
     return config.get('PRJ_DIR') or None
 
 
@@ -196,17 +211,79 @@ def upload_step(path: str, tag: str, signed: bool, offline: bool,
     return (name, uploaded(names, release_files(path, tag))), None
 
 
+def logged_mail(path: str, tag: str) -> dict[str, object] | None:
+    """The mail of the announcement of tag an earlier srt status found,
+    from the log of the series: the archive doesn't forget it."""
+    try:
+        events = srt_log.read_log(path)
+    except (OSError, SystemExit):
+        return None
+    for event in reversed(events):
+        if event.get('step') == ANNOUNCED and event.get('release') == tag:
+            return {k: event.get(k) for k in
+                    ('subject', 'date', 'sender', 'message_id', 'link')}
+    return None
+
+
+def announce_step(path: str, tag: str, old: str | None, pushed: bool,
+                  offline: bool, config: Config | None = None) \
+        -> tuple[Step, dict[str, object]]:
+    """srt announce: done when the archive of the mailing list (INBOX)
+    has the announcement, in the local clone of it (srt_inbox). Only
+    looked for once the release is pushed; the clone is fetched only
+    when the mail isn't in it yet, never offline. Once found, the log of
+    the series has it and the next srt status doesn't look again.
+    Returns the step and its details for the JSON: the mail, or why it
+    is unknown."""
+    name = 'srt announce'
+    if not pushed:
+        return (name, False), {}
+    mail = logged_mail(path, tag)
+    if mail is not None:
+        return (name, True), {'mail': mail}
+    config = _config(path, config)
+    if config is None:
+        return (name, None), {'unknown': 'no srt.conf group'}
+    inbox = config.get('INBOX', srt_inbox.DEFAULT_INBOX)
+    if not inbox:
+        return (name, None), {'unknown': 'INBOX is empty'}
+    found = srt_inbox.find(inbox, tag)
+    if found is None:
+        if offline:
+            return (name, None), {'unknown': 'offline'}
+        why = srt_inbox.sync(inbox)
+        if why:
+            return (name, None), {'unknown': why}
+        found = srt_inbox.find(inbox, tag)
+        if found is None:
+            return (name, False), {}
+    srt_log.log_step(ANNOUNCED, tag, old, path, subject=found.subject,
+                     date=found.date, sender=found.sender,
+                     message_id=found.message_id, link=found.link)
+    return (name, True), {'mail': dict(found.as_dict())}
+
+
 def publish_steps(path: str, tag: str, tagged: bool, offline: bool,
-                  config: Config | None = None) \
-        -> tuple[list[Step], dict[str, str]]:
-    """srt create, sign, upload and push of the release tag, and why a
-    step is unknown."""
+                  config: Config | None = None, old: str | None = None) \
+        -> tuple[list[Step], StepDetails]:
+    """srt create, sign, upload, push and announce of the release tag,
+    and the details of the steps: why one is unknown, the mail of the
+    announcement."""
     steps = file_steps(path, tag, tagged)
+    details: StepDetails = {}
     upload, why = upload_step(path, tag, steps[-1][1] is True, offline,
                               config)
     steps.append(upload)
-    steps.append(('srt push', tagged and published(path, tag)))
-    return steps, ({upload[0]: why} if why else {})
+    if why:
+        details[upload[0]] = {'unknown': why}
+    pushed = tagged and published(path, tag)
+    steps.append(('srt push', pushed))
+    announce, extra = announce_step(path, tag, old, pushed, offline,
+                                    config)
+    steps.append(announce)
+    if extra:
+        details[announce[0]] = extra
+    return steps, details
 
 
 def leftover_warnings(path: str, tag: str, tagged: bool) -> list[str]:
@@ -221,7 +298,8 @@ def leftover_warnings(path: str, tag: str, tagged: bool) -> list[str]:
 
 def first_open(steps: Sequence[Step]) -> Step | None:
     """The first step not done. An unknown step followed by a done one
-    counts as done: srt upload comes before srt push."""
+    counts as done: srt upload comes before srt push. None when all are
+    done: the release is complete."""
     for i, (name, done) in enumerate(steps):
         if done is True:
             continue
@@ -237,12 +315,13 @@ def release_next(tag: str, steps: Sequence[Step],
     """The next step of the release tag: the first one not done, told
     as overrides says (e.g. 'srt tag' -> 'srt commit and srt tag'). A
     stale release (the first warning is about the tag) is prepared
-    again, a release with all steps done is announced."""
+    again. After a release with all steps done, announced too, comes the
+    next one (tree_status_info tells when)."""
     if warnings and warnings[0].startswith(tag):
         return 'srt prep --clear, then srt prep'
     nxt = first_open(steps)
     if nxt is None:
-        return 'srt announce'
+        return 'srt prep'
     name, done = nxt
     text = overrides.get(name, name)
     if done is None:
@@ -251,13 +330,10 @@ def release_next(tag: str, steps: Sequence[Step],
 
 
 def _info(workflow: str, old: str, new: str, steps: Sequence[Step],
-          warnings: list[str], nxt: str, unknown: Mapping[str, str],
+          warnings: list[str], nxt: str, details: StepDetails,
           **extra: object) -> dict[str, object]:
     def step(name: str, done: bool | None) -> dict[str, object]:
-        s: dict[str, object] = {'step': name, 'done': done}
-        if name in unknown:
-            s['unknown'] = unknown[name]
-        return s
+        return {'step': name, 'done': done, **details.get(name, {})}
 
     return {
         'prepared': True,
@@ -278,13 +354,13 @@ def git_status_info(old: str, new: str, offline: bool = False,
     directory for None."""
     path = path or os.getcwd()
     tagged = rev(path, 'refs/tags/' + new) is not None
-    publish, unknown = publish_steps(path, new, tagged, offline)
+    publish, details = publish_steps(path, new, tagged, offline, old=old)
     steps: list[Step] = [('srt tag', tagged), *publish]
     warnings = stale_warnings(path, old, new, from_state)
     warnings += leftover_warnings(path, new, tagged)
     nxt = release_next(new, steps, warnings,
                        {'srt tag': 'srt commit and srt tag'})
-    return _info('git', old, new, steps, warnings, nxt, unknown)
+    return _info('git', old, new, steps, warnings, nxt, details)
 
 
 def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
@@ -294,8 +370,8 @@ def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
     tagged = rel.done('release')
     steps: list[Step] = [(f'srt quilt {step}', rel.done(step))
                          for step in srt_quilt.STEPS]
-    publish, unknown = publish_steps(rel.rt_dir, rel.release_tag, tagged,
-                                     offline, rel.config)
+    publish, details = publish_steps(rel.rt_dir, rel.release_tag, tagged,
+                                     offline, rel.config, str(rel.old))
     steps += publish
     warnings = stale_warnings(rel.rt_dir, str(rel.old), rel.release_tag,
                               from_state)
@@ -308,7 +384,7 @@ def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
     nxt = release_next(rel.release_tag, steps, warnings,
                        {'srt create': srt_quilt.RELEASE_NEXT})
     return _info('quilt', str(rel.old), rel.release_tag, steps, warnings,
-                 nxt, unknown, dropped=dropped, added=added)
+                 nxt, details, dropped=dropped, added=added)
 
 
 #
@@ -501,6 +577,10 @@ def print_status(info: Mapping[str, object]) -> None:
         if 'unknown' in step:
             line += f" (unknown: {step['unknown']})"
         print(line)
+        mail = cast(dict[str, object] | None, step.get('mail'))
+        if mail:
+            print(f"      {mail['date']} {mail['sender']}")
+            print(f"      {mail.get('link') or mail['message_id']}")
     for w in cast(list[str], info['warnings']):
         print(f'warning: {w}')
     next_step(cast(str, info['next']))
@@ -514,7 +594,8 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
                      help='print the status as JSON, for scripts')
     prs.add_argument('--offline', action='store_true',
                      help="don't ask kernel.org (kup ls) whether the "
-                     'release is uploaded')
+                     "release is uploaded, don't fetch the archive of the "
+                     'mailing list (INBOX) whether it is announced')
     return prs
 
 

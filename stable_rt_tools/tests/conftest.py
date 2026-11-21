@@ -29,7 +29,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from stable_rt_tools import srt_log
+from stable_rt_tools import srt_inbox, srt_log
 
 
 def _git_common_dir(path: str) -> str | None:
@@ -67,3 +67,23 @@ def _no_log_in_the_srt_repository(
         return log
 
     monkeypatch.setattr(srt_log, 'get_log_path', guarded)
+
+
+@pytest.fixture(autouse=True)
+def _no_inbox_from_the_network(monkeypatch: pytest.MonkeyPatch,
+                               tmp_path_factory: pytest.TempPathFactory) \
+        -> None:
+    """srt status clones the archive of the mailing list (INBOX, by
+    default lore.kernel.org) once a release is pushed: the tests use a
+    cache of their own and never clone or fetch over the network, only
+    local fake inboxes."""
+    monkeypatch.setenv('XDG_CACHE_HOME',
+                       str(tmp_path_factory.mktemp('cache')))
+    network_git = srt_inbox.network_git
+
+    def guarded(args: list[str]) -> str | None:
+        if any('://' in a for a in args):
+            return 'no network in the tests'
+        return network_git(args)
+
+    monkeypatch.setattr(srt_inbox, 'network_git', guarded)

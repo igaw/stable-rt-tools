@@ -30,6 +30,11 @@ workflow release and ``test_srt_quilt_workflow.py`` a complete quilt
 workflow release, both with temporary repositories and a temporary GPG
 key.
 
+The tests never reach the network. To check the ``srt announce`` step
+against the real announcements as well, point ``SRT_TEST_INBOX`` at a
+clone of the stable-rt public inbox (``git clone --mirror
+https://lore.kernel.org/stable-rt/0``).
+
 Build the documentation and the package::
 
     $ sphinx-build -b html docs docs/_build/html

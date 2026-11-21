@@ -53,6 +53,7 @@ from unittest import mock
 
 from stable_rt_tools import (
     srt_check,
+    srt_inbox,
     srt_log,
     srt_quilt,
     srt_setup,
@@ -69,6 +70,7 @@ from stable_rt_tools.srt_util import (
     write_srt_state,
 )
 from stable_rt_tools.srt_util_context import SrtContext
+from stable_rt_tools.tests.inbox import add_mail
 from stable_rt_tools.tests.test_srt import (
     gnupg_config,
     kernel_makefile,
@@ -433,7 +435,7 @@ class TestQuiltRelease(TestQuiltBase):
         steps = cast(list[dict[str, bool]], info['steps'])
         # kup can't tell whether it is uploaded
         self.assertEqual([s['done'] for s in steps],
-                         [True] * 7 + [None, False])
+                         [True] * 7 + [None, False, False])
         self.assertEqual(steps[7], {'step': 'srt upload', 'done': None,
                                     'unknown': 'kup is not installed'})
         self.assertEqual(info['next'], 'srt upload (unless done already)')
@@ -442,7 +444,7 @@ class TestQuiltRelease(TestQuiltBase):
         self.kup_ls.assert_called_with(self.config['PRJ_DIR'] + '/older')
         self.assertEqual([s['done'] for s in
                           cast(list[dict[str, bool]], info['steps'])],
-                         [True] * 8 + [False])
+                         [True] * 8 + [False, False])
         self.assertEqual(info['next'], 'srt push')
         # offline, kup isn't asked
         self.kup_ls.reset_mock()
@@ -898,21 +900,48 @@ class TestQuiltChecks(TestQuiltBase):
         git(self.rt_dir, 'push', '-q', 'stable-rt', 'HEAD:' + self.series)
         git(self.rt_dir, 'fetch', '-q', 'stable-rt')
         info = self.status_json()
-        self.assertFalse(info['prepared'])
+        self.assertTrue(info['prepared'])
         self.assertEqual(info['new_tag'], self.new_tag)
-        self.assertEqual([s['done'] for s in info['steps']], [True] * 9)
-        self.assertEqual(info['steps'][-1], {'step': 'srt push',
+        self.assertEqual([s['done'] for s in info['steps']],
+                         [True] * 9 + [None])
+        self.assertEqual(info['steps'][-2], {'step': 'srt push',
                                              'done': True})
+        # the archive of the mailing list isn't reachable
+        self.assertEqual(info['steps'][-1],
+                         {'step': 'srt announce', 'done': None,
+                          'unknown': 'no network in the tests'})
+        self.assertEqual(info['warnings'], [])
+        self.assertEqual(info['next'], 'srt announce (unless done already)')
+        # an inbox without the announcement
+        inbox = self.tdir + '/inbox'
+        add_mail(inbox, f'Re: [ANNOUNCE] {self.new_tag}', '<re@x>')
+        self.config['INBOX'] = inbox
+        info = self.status_json()
+        self.assertTrue(info['prepared'])
+        self.assertEqual(info['steps'][-1],
+                         {'step': 'srt announce', 'done': False})
+        self.assertEqual(info['next'], 'srt announce')
+        # announced, the next fetch shows it
+        add_mail(inbox, f'[ANNOUNCE] {self.new_tag}', '<a@x>')
+        stamp = srt_inbox.stamp_path(srt_inbox.clone_dir(inbox))
+        os.utime(stamp, (0, 0))
+        info = self.status_json()
+        self.assertFalse(info['prepared'])
+        self.assertEqual([s['done'] for s in info['steps']], [True] * 10)
+        self.assertEqual(info['steps'][-1]['mail']['message_id'], '<a@x>')
         self.assertEqual(info['warnings'], [])
         self.assertEqual(info['next'],
                          'srt prep, once upstream has a release after '
                          'v6.1.2')
+        self.assertEqual(srt_log.read_log()[-1]['step'], 'announced')
         stub_stdouts(self)
         srt_status.status()
         out = stdout_text()
         self.assertIn('No release in progress, the last one:\n'
                       f'{self.old_tag} -> {self.new_tag}\n', out)
-        self.assertIn('  [x] srt push\n', out)
+        self.assertIn('  [x] srt push\n  [x] srt announce\n'
+                      '      2026-11-21T13:57:47+01:00 Mighty Eagle '
+                      '<me@incredible.com>\n      <a@x>\n', out)
         # a newer upstream release is fetched
         self.fake_fetch('refs/remotes/stable/master', 'v6.1.3', 'v6.1.2^{}')
         self.assertEqual(self.status_json()['next'], 'srt prep')
