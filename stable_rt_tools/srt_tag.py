@@ -72,9 +72,17 @@ def tag(config: Config, rc: int | None) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('tag')
+    prs = parser.add_parser(
+        'tag', help='tag the release commit (git workflow)',
+        description='Git workflow: create the signed tag of the release '
+        'commit at HEAD (srt commit), named after its message: '
+        'v4.19.291-rt127 on the series, v4.19.291-rt127-rebase on the '
+        '-rebase branch. With -r N the release candidate '
+        'v4.19.291-rt127-rcN. It signs with GPG_KEY_ID and asks before it '
+        'tags. The tag stays local until srt push.')
     prs.add_argument('--release-candidate', '-r',
-                     default=None, metavar='N', type=int)
+                     default=None, metavar='N', type=int,
+                     help='tag release candidate N, e.g. -rc1')
     return prs
 
 

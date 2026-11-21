@@ -152,9 +152,20 @@ def commit(config: Config, rc: int | None) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('commit')
+    prs = parser.add_parser(
+        'commit', help='commit the release (git workflow)',
+        description='Git workflow: commit the new localversion as the '
+        'release commit "Linux <version>", signed off. On the series it '
+        'increments the localversion file, e.g. -rt23 -> -rt24; with -r N '
+        'it commits the release candidate -rt24-rcN instead. On the '
+        '-rebase branch it sets the number of the last release of the '
+        'series and adds REBASE to the message, replacing a release commit '
+        'at HEAD. The worktree must be clean. srt commit asks before it '
+        'commits and resets the localversion file if you say no.')
     prs.add_argument('--release-candidate', '-r',
-                     default=None, metavar='N', type=int)
+                     default=None, metavar='N', type=int,
+                     help='commit release candidate N of the next release, '
+                     'e.g. -rt24-rc1')
     return prs
 
 

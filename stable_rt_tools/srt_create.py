@@ -31,6 +31,7 @@ from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
+    add_tag_args,
     check_context,
     cmd,
     get_config,
@@ -103,9 +104,19 @@ def create(config: Config, ctx: SrtContext) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('create')
-    prs.add_argument('OLD_TAG', nargs='?')
-    prs.add_argument('NEW_TAG', nargs='?')
+    prs = parser.add_parser(
+        'create', help='write the patch and the tarball of the release',
+        description='Write the files of the release to patches/NEW_TAG in '
+        'the worktree: patch-<release>.patch.xz, the diff from the upstream '
+        'release to NEW_TAG, and patches-<release>.tar.xz, the patches/ '
+        'directory of the queue tag NEW_TAG-patches (quilt workflow) or '
+        'the commits of NEW_TAG-rebase on the upstream release as git '
+        'format-patch series (git workflow). For a release candidate the '
+        'patch is the diff from the upstream release of OLD_TAG, the series '
+        'the commits since OLD_TAG. '
+        'The tags must exist. It changes no tags or commits; review the '
+        'files, then srt sign.')
+    add_tag_args(prs)
     return prs
 
 

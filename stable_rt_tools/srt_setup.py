@@ -341,7 +341,15 @@ def add_group(path: str, group: str, settings: Mapping[str, str]) -> None:
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser(
-        'setup', help='create or check the work area of a patch series')
+        'setup', help='create or check the work area of a patch series',
+        description='Create the work area of a series as its srt.conf group '
+        'describes it, in the current directory or --dir: clone the '
+        'repository, add the remotes, fetch, and add a worktree with the '
+        'right tracking branch for each branch of the series, next to each '
+        'other. Existing parts are checked, not changed: rerun it to check '
+        'a work area or to add another series to it. Without the group in '
+        'srt.conf it takes the settings from the options and adds the group '
+        'to srt.conf. It pushes nothing.')
     prs.add_argument('group',
                      help='srt.conf group <repo>/<remote>/<series>, e.g. '
                      'linux/stable-rt/v6.12-rt')
@@ -351,15 +359,19 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     opt = prs.add_argument_group(
         'settings', 'written to srt.conf for a new group; the URLs default '
         'to the remotes of an existing work area')
-    opt.add_argument('--workflow', choices=('quilt', 'git'))
+    opt.add_argument('--workflow', choices=('quilt', 'git'),
+                     help='the release workflow (default: git)')
     opt.add_argument('--suffix', help='release suffix (default: rt)')
     opt.add_argument('--upstream-branch', metavar='BRANCH',
                      help='upstream branch, e.g. linux-6.12.y')
-    opt.add_argument('--upstream-url', metavar='URL')
+    opt.add_argument('--upstream-url', metavar='URL',
+                     help='URL of the upstream tree, e.g. stable')
     opt.add_argument('--upstream-remote', metavar='NAME',
-                     help='default: upstream')
+                     help='name of the upstream remote (default: '
+                     'upstream)')
     opt.add_argument('--origin-url', metavar='URL',
-                     help='default: the upstream URL')
+                     help='URL the repository is cloned from (default: '
+                     'the upstream URL)')
     opt.add_argument('--prj-url', metavar='URL',
                      help='URL to fetch the series from')
     opt.add_argument('--push-url', metavar='URL',

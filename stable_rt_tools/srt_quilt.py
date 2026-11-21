@@ -721,14 +721,38 @@ COMMANDS = {
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('quilt', help='quilt workflow release steps')
+    prs = parser.add_parser(
+        'quilt', help='quilt workflow release steps',
+        description='The release steps of the quilt workflow, in this '
+        'order: refresh, queue, rebase, merge, release; undo takes them '
+        'back. They read the release prepared with srt prep and work on the '
+        'worktrees of the series themselves: run them in the worktree of '
+        'the series. Every step can be rerun, finished work is detected and '
+        'skipped. Without a step srt quilt runs refresh.')
     sub = prs.add_subparsers(dest='quilt_cmd', metavar='STEP')
-    sub.add_parser('refresh',
-                   help='refresh the patch series on the new upstream '
-                   'release (default)')
-    prs_queue = sub.add_parser('queue',
-                               help='commit and tag the patch queue with '
-                               'the announcement')
+    sub.add_parser(
+        'refresh',
+        help='refresh the patch series on the new upstream release '
+        '(default)',
+        description='Push the patch queue of the -patches worktree onto the '
+        'upstream worktree one patch at a time, refresh each patch in the '
+        'format of the series (ignoring ~/.quiltrc), write the localversion '
+        'of the new release into the last patch and pop the series again. '
+        'Only hunk offsets and the localversion change. A patch upstream '
+        'contains already is detected and srt asks to drop it from the '
+        'series. If a patch does not apply, fix it in the upstream worktree '
+        'and rerun. It changes patches/ in the -patches worktree, no '
+        'commits or tags.')
+    prs_queue = sub.add_parser(
+        'queue',
+        help='commit and tag the patch queue with the announcement',
+        description='Commit patches/ in the -patches worktree, added and '
+        'removed patch files included, with the announcement of the '
+        'release as commit message, and tag it signed as NEW_TAG-patches. '
+        'The message is generated from COMMIT_TMPL with the dropped and '
+        'added patches and opened in the editor to complete it; --no-edit, '
+        '-F FILE and --draft work without an editor. srt asks before it '
+        'tags.')
     prs_queue.add_argument('--no-edit', dest='edit', action='store_false',
                            help='commit the generated announcement as it '
                            'is, without opening the editor')
@@ -737,15 +761,39 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs_queue.add_argument('--draft', action='store_true',
                            help='only print the generated announcement, '
                            'e.g. to complete it for --file')
-    sub.add_parser('rebase',
-                   help='import the queue on top of upstream in -rebase')
-    sub.add_parser('merge',
-                   help='merge upstream and apply added patches in the '
-                   'series')
-    sub.add_parser('release', help='commit and tag the release in the series')
-    sub.add_parser('undo',
-                   help='undo queue..release as long as nothing is pushed, '
-                   'keep the refreshed patches')
+    sub.add_parser(
+        'rebase',
+        help='import the queue on top of upstream in -rebase',
+        description='Reset the -rebase worktree to the upstream release, '
+        'import the tagged patch queue with git quiltimport and tag it '
+        'signed as NEW_TAG-rebase. srt asks before it resets and before it '
+        'tags.')
+    sub.add_parser(
+        'merge',
+        help='merge upstream and apply added patches in the series',
+        description='Merge the upstream release into the worktree of the '
+        'series, signed off, and apply the patches added to the queue with '
+        'git am. On a conflict resolve it, git commit -s (or git am '
+        '--continue) and rerun srt quilt merge. It asks nothing and creates '
+        'no tag.')
+    sub.add_parser(
+        'release', help='commit and tag the release in the series',
+        description='Set the localversion file of the series, check that '
+        'its tree is the one of NEW_TAG-rebase, commit the release '
+        '(subject NEW_TAG) and tag it signed as NEW_TAG. If the trees '
+        'differ srt shows the difference: commit a fixup and rerun. srt '
+        'asks before it tags. Then test the release, nothing has left the '
+        'machine yet.')
+    sub.add_parser(
+        'undo',
+        help='undo queue..release as long as nothing is pushed, '
+        'keep the refreshed patches',
+        description='Take back a release which is not pushed: delete the '
+        'local tags NEW_TAG, NEW_TAG-rebase and NEW_TAG-patches, reset the '
+        'series to its upstream branch, undo the queue commit keeping the '
+        'refreshed patches staged and remove the files of srt create and '
+        'srt sign. srt lists what it will do and asks first; it refuses if '
+        'a tag or the queue commit is pushed already.')
     return prs
 
 

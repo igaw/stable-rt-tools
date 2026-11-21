@@ -33,6 +33,7 @@ from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
+    add_tag_args,
     check_context,
     cmd,
     confirm,
@@ -87,11 +88,18 @@ def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('upload')
-    prs.add_argument('OLD_TAG', nargs='?')
-    prs.add_argument('NEW_TAG', nargs='?')
+    prs = parser.add_parser(
+        'upload', help='upload the release files to kernel.org (kup)',
+        description='Upload the signed files of the release to PRJ_DIR on '
+        'kernel.org with one kup command: put the files and their '
+        'signatures into PRJ_DIR/older, link them into PRJ_DIR, remove the '
+        'files of OLD_TAG from PRJ_DIR and list it. srt upload prints the '
+        'kup command and asks before it runs it. The upload is public and '
+        'cannot be taken back with srt.')
+    add_tag_args(prs)
     prs.add_argument('-n', '--dry-run', action='store_true',
-                     help='only show the kup command, upload nothing')
+                     help='only show the kup command, ask nothing and '
+                     'upload nothing')
     return prs
 
 

@@ -553,7 +553,16 @@ def _error(mid: Any, code: int, message: str) -> dict[str, Any]:
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('mcp',
                             help='serve the release steps to an agent '
-                            '(MCP over stdin and stdout)')
+                            '(MCP over stdin and stdout)',
+                            description='Serve the release steps as MCP '
+                            'server on stdin and stdout, for an agent. It '
+                            'runs in the work area, the parent of the '
+                            'worktrees; each tool names its series and runs '
+                            'srt in its worktree, without a terminal. '
+                            'upload and push are dry runs unless the server '
+                            'runs with --allow-publish and the call asks for '
+                            'it; announce returns the mail, it sends '
+                            'nothing.')
     prs.add_argument('--dir', default=os.curdir,
                      help='the work area, the parent of the worktrees '
                      '(default: the current directory)')

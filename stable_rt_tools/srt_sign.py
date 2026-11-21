@@ -31,6 +31,7 @@ from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
+    add_tag_args,
     check_context,
     get_config,
     get_gnupghome,
@@ -71,9 +72,14 @@ def sign(config: Config, ctx: SrtContext) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('sign')
-    prs.add_argument('OLD_TAG', nargs='?')
-    prs.add_argument('NEW_TAG', nargs='?')
+    prs = parser.add_parser(
+        'sign', help='sign the patch and the tarball of the release',
+        description='Sign the uncompressed content of the files srt create '
+        'wrote with GPG_KEY_ID, as kup expects it: a detached, armored '
+        'signature next to each file, patch-<release>.patch.sign and '
+        'patches-<release>.tar.sign. Run srt create first. It changes no '
+        'tags or commits.')
+    add_tag_args(prs)
     return prs
 
 

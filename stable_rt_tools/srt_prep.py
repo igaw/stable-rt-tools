@@ -147,12 +147,24 @@ def prep(config: Config, pull: bool = True) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('prep')
+    prs = parser.add_parser(
+        'prep', help='prepare the next release: find OLD_TAG and NEW_TAG',
+        description='The first step of a release, run in the worktree of '
+        'the series. OLD_TAG is the last release on HEAD, NEW_TAG the '
+        'latest upstream release in the upstream worktree (../v6.12 next '
+        'to v6.12-rt) with the next release number, e.g. v6.12.117-rt23 '
+        '-> v6.12.118-rt24. In the quilt workflow srt prep checks that the '
+        'worktrees exist and first updates the upstream worktree with git '
+        'pull --ff-only. It stores the release in the git directory, the '
+        'state of srt prep, which the following commands read, and prints '
+        'OLD_TAG and NEW_TAG. It creates no tags or commits. srt push '
+        'forgets the prepared release, --clear forgets it any time.')
     prs.add_argument('--clear', action='store_true',
-                     help='Clear saved srt prep state')
+                     help='forget the prepared release (the state of srt '
+                     'prep); tags, commits and the history stay')
     prs.add_argument('--no-pull', action='store_true',
-                     help='Do not update the upstream worktree (quilt '
-                     'workflow)')
+                     help='do not update the upstream worktree with git '
+                     'pull --ff-only (quilt workflow)')
     return prs
 
 

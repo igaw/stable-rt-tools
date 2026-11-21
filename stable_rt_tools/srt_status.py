@@ -587,7 +587,20 @@ def print_status(info: Mapping[str, object]) -> None:
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('status',
                             help='show the release in progress and the '
-                            'next step')
+                            'next step',
+                            description='Show the release of the series of '
+                            'the current worktree, its steps done ([x]), not '
+                            'done ([ ]) or unknown ([?]), warnings and the '
+                            'next step. The release is the one prepared with '
+                            'srt prep, else the one the trees show. The steps '
+                            'come from the trees: tags, the patch queue, the '
+                            'files of srt create and srt sign, kup ls for '
+                            'srt upload, the fetched branch for srt push and '
+                            'the archive of the mailing list (INBOX) for srt '
+                            'announce. It changes nothing in the trees; it '
+                            'clones or fetches the archive into ~/.cache and '
+                            'adds a line to the history once it finds the '
+                            'announcement.')
     prs.add_argument('--json', action='store_true',
                      help='print the status as JSON, for scripts')
     prs.add_argument('--offline', action='store_true',

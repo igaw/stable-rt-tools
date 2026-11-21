@@ -39,6 +39,7 @@ from stable_rt_tools.srt_review import announce_rc
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
+    add_tag_args,
     check_context,
     cmd,
     get_config,
@@ -242,14 +243,24 @@ def announce_next_step(config: Config) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('announce')
-    prs.add_argument('OLD_TAG', nargs='?')
-    prs.add_argument('NEW_TAG', nargs='?')
+    prs = parser.add_parser(
+        'announce', help='print or send the announcement of the release',
+        description='Print the announcement of the release as mail, with '
+        'the headers, to stdout: the announcement of the queue commit '
+        '(quilt workflow) or the ANNOUNCE template (git workflow), followed '
+        'by the shortlog since OLD_TAG, the diffstat and the delta patch '
+        'without the upstream update. It sends nothing; --mail opens it in '
+        'MAILER. For a release candidate it writes the review mails to '
+        'patches/NEW_TAG/mails and sends them with git send-email to '
+        'MAIL_TO, after a dry run and a question.')
+    add_tag_args(prs)
     prs.add_argument('--suppress-cc', '-s', action="store_true", default=False,
-                     help='Don''t auto-cc anyone (for testing)')
+                     help="review mails: don't add Cc from the patches "
+                     '(git send-email --suppress-cc=all), e.g. for testing')
     prs.add_argument('--mail', '-m', action='store_true',
                      help='write the announcement to a temporary file and '
-                     'open it in the mail client MAILER (srt.conf)')
+                     'open it in the mail client MAILER (srt.conf); not for '
+                     'a release candidate')
     return prs
 
 

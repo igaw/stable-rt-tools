@@ -153,6 +153,21 @@ def get_workflow_branch(branch_name: str) -> str:
     return branch_name
 
 
+def add_tag_args(prs: argparse.ArgumentParser) -> None:
+    """Add OLD_TAG and NEW_TAG, the release a command works on, to the
+    parser of the command. Where they come from without them: see
+    SrtContext."""
+    prs.add_argument('OLD_TAG', nargs='?',
+                     help='the release before NEW_TAG, e.g. v6.12.117-rt23 '
+                     '(default: $OLD_TAG, the release prepared with srt '
+                     'prep, else the release before NEW_TAG on its branch)')
+    prs.add_argument('NEW_TAG', nargs='?',
+                     help='the release, e.g. v6.12.118-rt24 (default: '
+                     '$NEW_TAG, the release prepared with srt prep, else '
+                     'the last release or release candidate on HEAD); give '
+                     'both tags or none')
+
+
 def tag_exists(tag: object, path: str | None = None) -> bool:
     try:
         run(['git', 'rev-parse', '--verify',

@@ -28,6 +28,7 @@ from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
+    add_tag_args,
     check_context,
     clear_srt_state,
     cmd,
@@ -97,11 +98,20 @@ def offer_announcement(config: Config, ctx: SrtContext) -> None:
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
-    prs = parser.add_parser('push')
-    prs.add_argument('OLD_TAG', nargs='?')
-    prs.add_argument('NEW_TAG', nargs='?')
+    prs = parser.add_parser(
+        'push', help='push the release branches and tags (PRJ_GIT_TREE)',
+        description='Push the release to PRJ_GIT_TREE: the series branch '
+        'and NEW_TAG, the -rebase branch (forced) and its tag and, in the '
+        'quilt workflow, the -patches branch and its tag. A release '
+        'candidate goes to the -next branch, forced, with its tag only. '
+        'srt push first shows git push -n and asks before it pushes. After '
+        'the push it forgets the prepared release and offers to open the '
+        'announcement in MAILER. The push is public and cannot be taken '
+        'back with srt.')
+    add_tag_args(prs)
     prs.add_argument('-n', '--dry-run', action='store_true',
-                     help='only show what would be pushed (git push -n)')
+                     help='only show what would be pushed (git push -n), '
+                     'ask nothing and push nothing')
     return prs
 
 

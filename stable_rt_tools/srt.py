@@ -68,15 +68,24 @@ sub_cmd = {
 def srt_get_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description='srt - maintain out-of-tree patch series on top of '
-        'upstream releases')
+        'upstream releases. srt makes the release of a series, e.g. '
+        'v6.12.118-rt24 of the PREEMPT_RT series v6.12-rt, step by step: '
+        'srt prep, the steps of the workflow (srt quilt ... or srt commit '
+        'and srt tag), srt create, srt sign, srt upload, srt push and the '
+        'announcement. srt status shows where a release stands and the '
+        'next step.',
+        epilog='srt <command> --help describes each command.')
     parser.add_argument('-d', '--debug',
                         action='store_true',
-                        help='Enable debug logging')
+                        help='print debug messages, e.g. the configuration '
+                        'group and the commands srt runs, and a traceback '
+                        'when a command fails')
     parser.add_argument('-v', '--version',
                         action='store_true',
-                        help='Show stable-rt-tools version')
+                        help='show the version of stable-rt-tools')
 
-    subparser = parser.add_subparsers(help='sub command help', dest='cmd')
+    subparser = parser.add_subparsers(
+        help='the command, see srt <command> --help', dest='cmd')
 
     for _, cmd in sub_cmd.items():
         cmd.add_argparser(subparser)
@@ -92,8 +101,9 @@ def add_yes_option(parser: argparse.ArgumentParser) -> None:
     # before it
     parser.add_argument('-y', '--yes', action='store_true',
                         default=argparse.SUPPRESS,
-                        help='answer yes to all questions, e.g. for '
-                        'scripts')
+                        help='answer yes to all questions (OK to tag?, '
+                        'OK to push?, ...), e.g. for scripts; without it, '
+                        'a question counts as no when stdin is closed')
     for action in parser._actions:
         if isinstance(action, argparse._SubParsersAction):
             for sub in action.choices.values():

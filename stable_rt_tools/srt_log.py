@@ -203,7 +203,15 @@ def show_log(count: int | None = None, as_json: bool = False) -> None:
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('log',
                             help='show what srt did in the series, oldest '
-                            'first')
+                            'first',
+                            description='Show the history of the series of '
+                            'the current worktree: each step which changed '
+                            'something, with the time in UTC, the release, '
+                            'its details (tags, commits, files, pushed refs, '
+                            'Message-IDs) and who ran it. It is kept in '
+                            '<git common dir>/srt/<series>.log, for people '
+                            'to read; where a release stands is what srt '
+                            'status says.')
     prs.add_argument('-n', '--max-count', type=int, metavar='N',
                      help='only the last N steps')
     prs.add_argument('--json', action='store_true',

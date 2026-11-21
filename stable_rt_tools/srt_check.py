@@ -46,6 +46,7 @@ from stable_rt_tools.srt_util import (
     Config,
     SrtState,
     SubParsers,
+    add_tag_args,
     cmd,
     get_config,
     get_gnupghome,
@@ -341,9 +342,20 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('check',
                             help='sanity checks between the trees of a '
                             'release (the prepared one, the last tagged or '
-                            'OLD_TAG NEW_TAG)')
-    prs.add_argument('OLD_TAG', nargs='?')
-    prs.add_argument('NEW_TAG', nargs='?')
+                            'OLD_TAG NEW_TAG)',
+                            description='Sanity checks between the trees '
+                            'of a release, each once its step is done. '
+                            'Quilt workflow: the upstream worktree, the '
+                            'refreshed queue against the last one, -rebase '
+                            'against the queue, the stable merge message, '
+                            'the release against -rebase. Both workflows: '
+                            'the delta of the release, the files of srt '
+                            'create against the tags and the signatures. '
+                            'Each check prints ok, warn, fail or skip. It '
+                            'changes nothing and exits with 1 if a check '
+                            'fails. Run it any time, at the latest before '
+                            'srt upload.')
+    add_tag_args(prs)
     prs.add_argument('--json', action='store_true',
                      help='print the checks as JSON, for scripts')
     return prs
