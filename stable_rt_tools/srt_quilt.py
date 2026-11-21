@@ -243,12 +243,7 @@ class Release:
     def config(self) -> Config:
         # the configuration group of the -rt branch
         if self._config is None:
-            cwd = os.getcwd()
-            os.chdir(self.rt_dir)
-            try:
-                self._config = get_config()
-            finally:
-                os.chdir(cwd)
+            self._config = get_config(self.rt_dir)
         return self._config
 
     @property
@@ -393,12 +388,7 @@ def refresh(rel: Release) -> None:
 
 def queue_message(rel: Release) -> str:
     """The announcement of the release, from COMMIT_TMPL."""
-    cwd = os.getcwd()
-    os.chdir(rel.rt_dir)
-    try:
-        ctx = SrtContext(None, path=rel.rt_dir)
-    finally:
-        os.chdir(cwd)
+    ctx = SrtContext(None, path=rel.rt_dir)
     r = cover_letter_replacements(rel.config, ctx)
     r['date'] = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
     r['branch_name'] = rel.workflow_branch

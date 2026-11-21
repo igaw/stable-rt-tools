@@ -299,7 +299,7 @@ def delta_base(ctx: SrtContext) -> str:
     if ctx.old_tag.base == base:
         return old
     p = run(['git', 'merge-tree', '--write-tree', old, base],
-            stdout=PIPE, stderr=DEVNULL, encoding='utf-8')
+            stdout=PIPE, stderr=DEVNULL, encoding='utf-8', cwd=ctx.path)
     # 1: the merge has conflicts, the tree contains the conflict markers
     if p.returncode not in (0, 1):
         sys.exit(f'git merge-tree {old} {base} failed')
@@ -312,17 +312,18 @@ def changes(ctx: SrtContext) -> str:
     base = delta_base(ctx)
 
     return '\n'.join([
-        cmd(['git', 'shortlog', '--first-parent', f'{ctx.old_tag}..{new}']),
+        cmd(['git', 'shortlog', '--first-parent', f'{ctx.old_tag}..{new}'],
+            cwd=ctx.path),
         '---',
-        cmd(['git', 'diff', '--stat', base, new]),
+        cmd(['git', 'diff', '--stat', base, new], cwd=ctx.path),
         '---',
-        cmd(['git', 'diff', base, new])])
+        cmd(['git', 'diff', base, new], cwd=ctx.path)])
 
 
 def quilt_announcement(ctx: SrtContext) -> str:
     """The announcement of the queue commit, srt quilt queue wrote it."""
     msg = cmd(['git', 'show', '-s', '--format=%B',
-               f'{ctx.new_tag}-patches^{{commit}}'])
+               f'{ctx.new_tag}-patches^{{commit}}'], cwd=ctx.path)
     subject, _, body = msg.partition('\n')
     if not subject.startswith('[ANNOUNCE]'):
         sys.exit(f'{ctx.new_tag}-patches: the commit message is not an '

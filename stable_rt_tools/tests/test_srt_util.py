@@ -105,10 +105,10 @@ class TestUtil(TestCase):
         def fake_read_config():
             return config
 
-        def fake_get_remote_repo_name():
+        def fake_get_remote_repo_name(path=None):
             return 'repo'
 
-        def fake_get_remote_branch_name(short=False):
+        def fake_get_remote_branch_name(short=False, path=None):
             return 'branch'
 
         old_read_config = srt_util.read_config
@@ -244,7 +244,8 @@ class TestUtil(TestCase):
                                             NEW_TAG='v6.12.116-rt22'),
                          path='/tmp')
         with mock.patch.object(srt_util, 'tag_exists',
-                               side_effect=lambda t: str(t) != 'v6.12.116'):
+                               side_effect=lambda t, path=None:
+                               str(t) != 'v6.12.116'):
             with self.assertRaises(SystemExit) as e:
                 srt_util.check_context(ctx)
         self.assertIn('v6.12.116', str(e.exception))
@@ -663,3 +664,45 @@ class TestReleaseTags(TestCase):
         self.assertEqual(get_remote_branch_name(), 'stable/v6.1-rt')
         self.assertEqual(get_remote_branch_name(short=False),
                          'kernel/org/stable/v6.1-rt')
+
+    def test_get_config_of_another_worktree(self):
+        from unittest import mock
+
+        from stable_rt_tools.srt_util import (
+            get_config,
+            get_remote_branch_name,
+            get_remote_repo_name,
+        )
+
+        # srt runs in the directory above the worktrees, srt.conf is there
+        os.chdir(self.tdir)
+        with open(f'{self.tdir}/srt.conf', 'w') as f:
+            f.write('[origin/origin/v6.1-rt]\nSUFFIX = foo\n')
+        self.git(self.rt, 'config', 'user.signingkey', 'ABCD')
+        self.assertEqual(get_remote_repo_name(self.rt), 'origin')
+        self.assertEqual(get_remote_branch_name(path=self.rt), 'v6.1-rt')
+        with mock.patch.dict(os.environ):
+            os.environ.pop('SRT_CONF', None)
+            config = get_config(self.rt)
+        self.assertEqual(config['SUFFIX'], 'foo')
+        # the git configuration of the worktree, not of the cwd
+        self.assertEqual(config['GPG_KEY_ID'], 'ABCD')
+        self.assertEqual(os.getcwd(), self.tdir)
+
+    def test_context_of_another_worktree(self):
+        from unittest import mock
+
+        from stable_rt_tools.srt_util import write_srt_state
+        from stable_rt_tools.srt_util_context import SrtContext
+
+        write_srt_state({'old_tag': 'v6.1.2-rt2', 'new_tag': 'v6.1.3-rt3',
+                         'workflow_branch': 'v6.1-rt'}, self.rt)
+        # the current directory is no git repository at all
+        os.chdir(self.tdir)
+        with mock.patch.dict(os.environ):
+            os.environ.pop('OLD_TAG', None)
+            os.environ.pop('NEW_TAG', None)
+            ctx = SrtContext(None, path=self.rt)
+        self.assertEqual(str(ctx.old_tag), 'v6.1.2-rt2')
+        self.assertEqual(str(ctx.new_tag), 'v6.1.3-rt3')
+        self.assertEqual(os.getcwd(), self.tdir)

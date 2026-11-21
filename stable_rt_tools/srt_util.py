@@ -117,25 +117,31 @@ def pipe(producer: Sequence[str], consumer: Sequence[str],
                      f'{-p.returncode}')
 
 
-def get_remote_repo_name() -> str:
-    line = cmd(['git', 'config', '--get', 'remote.origin.url'])
+def get_remote_repo_name(path: str | None = None) -> str:
+    """The name of the repository origin of the worktree at path (the
+    current directory for None) points to, e.g. linux-stable-rt."""
+    line = cmd(['git', 'config', '--get', 'remote.origin.url'], cwd=path)
     name = os.path.splitext(os.path.basename(line))[0]
     return name
 
 
-def get_local_branch_name() -> str:
-    return cmd(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
+def get_local_branch_name(path: str | None = None) -> str:
+    return cmd(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+               cwd=path).strip()
 
 
-def get_remote_branch_name(short: bool = True) -> str:
-    """The upstream branch of the current branch: its name on the remote
-    (v6.12-rt, stable/v6.12-rt), with short=False <remote>/<name>."""
+def get_remote_branch_name(short: bool = True,
+                           path: str | None = None) -> str:
+    """The upstream branch of the current branch of the worktree at path
+    (the current directory for None): its name on the remote (v6.12-rt,
+    stable/v6.12-rt), with short=False <remote>/<name>."""
     name = cmd(['git', 'rev-parse', '--abbrev-ref',
-                '--symbolic-full-name', '@{u}'])
+                '--symbolic-full-name', '@{u}'], cwd=path)
     if short:
         # the branch name may contain '/' as well as the remote's name
         merge = cmd(['git', 'config', '--get',
-                     f'branch.{get_local_branch_name()}.merge'])
+                     f'branch.{get_local_branch_name(path)}.merge'],
+                    cwd=path)
         return merge.removeprefix('refs/heads/')
     return name
 
@@ -147,11 +153,11 @@ def get_workflow_branch(branch_name: str) -> str:
     return branch_name
 
 
-def tag_exists(tag: object) -> bool:
+def tag_exists(tag: object, path: str | None = None) -> bool:
     try:
         run(['git', 'rev-parse', '--verify',
              '--quiet', f'{tag}^{{tag}}'],
-            check=True, stdout=PIPE)
+            check=True, stdout=PIPE, cwd=path)
     except CalledProcessError:
         return False
     return True
@@ -322,13 +328,20 @@ def validate_srt_state(state: SrtState, current_branch: str) -> str | None:
     return None
 
 
-def is_dirty() -> bool:
-    line = cmd(['git', 'status', '--short'])
+def is_dirty(path: str | None = None) -> bool:
+    line = cmd(['git', 'status', '--short'], cwd=path)
     return line != ''
 
 
 def config_dirs() -> list[str]:
-    """The directories srt.conf is looked for, the first one wins."""
+    """The directories srt.conf is looked for, the first one wins.
+
+    os.curdir is the directory srt runs in, not the worktree a path
+    argument names (get_config(path)): srt.conf is the configuration of
+    the user and the work area, not of a worktree. The worktrees of the
+    quilt workflow share it, srt quilt reads the group of the -rt
+    worktree from the srt.conf of the directory it runs in.
+    """
     dirs = [os.curdir,
             os.path.expanduser('~/.config/'),
             os.path.expanduser('~'),
@@ -346,21 +359,24 @@ def read_config() -> ConfigParser:
     return config
 
 
-def _git_config(key: str) -> str | None:
+def _git_config(key: str, path: str | None = None) -> str | None:
     try:
-        return cmd(['git', 'config', '--get', key]) or None
+        return cmd(['git', 'config', '--get', key], cwd=path) or None
     except CalledProcessError:
         return None
 
 
-def config_defaults(group: Mapping[str, str]) -> dict[str, str]:
-    """The values srt derives for settings a group leaves out."""
+def config_defaults(group: Mapping[str, str],
+                    path: str | None = None) -> dict[str, str]:
+    """The values srt derives for settings a group leaves out, from the
+    git configuration of the worktree at path (the current directory for
+    None)."""
     defaults = {'LOCALVERSION': f'localversion-{get_suffix(group)}'}
-    signingkey = _git_config('user.signingkey')
+    signingkey = _git_config('user.signingkey', path)
     if signingkey:
         defaults['GPG_KEY_ID'] = signingkey
-    name = _git_config('user.name')
-    email = _git_config('user.email')
+    name = _git_config('user.name', path)
+    email = _git_config('user.email', path)
     if name:
         defaults['NAME'] = name.split()[0]
         if email:
@@ -368,9 +384,11 @@ def config_defaults(group: Mapping[str, str]) -> dict[str, str]:
     return defaults
 
 
-def with_defaults(group: Mapping[str, str]) -> Config:
+def with_defaults(group: Mapping[str, str],
+                  path: str | None = None) -> Config:
     """The group, falling back to the derived defaults."""
-    return ChainMap(group, config_defaults(group))  # type: ignore[arg-type]
+    return ChainMap(group,  # type: ignore[arg-type]
+                    config_defaults(group, path))
 
 
 # where a setting comes from when srt.conf leaves it out
@@ -408,10 +426,17 @@ def require(config: Mapping[str, str], key: str) -> str:
     sys.exit(msg)
 
 
-def get_config() -> Config:
+def get_config(path: str | None = None) -> Config:
+    """The srt.conf group of the branch of the worktree at path, the
+    current directory for None.
+
+    path selects the group and the git configuration the defaults come
+    from, srt.conf itself is looked for in config_dirs(): in the
+    current directory, not in path.
+    """
     try:
-        repo_name = get_remote_repo_name()
-        branch_name = get_remote_branch_name(short=False)
+        repo_name = get_remote_repo_name(path)
+        branch_name = get_remote_branch_name(short=False, path=path)
     except CalledProcessError:
         sys.exit('Could not determine configuration group: check that the '
                  'remote "origin" exists and the current branch tracks an '
@@ -425,7 +450,7 @@ def get_config() -> Config:
     for config_name in names:
         if config.has_section(config_name):
             debug(f'Using configuration {config_name}')
-            return with_defaults(config[config_name])
+            return with_defaults(config[config_name], path)
     sys.exit('Could not retrieve configuration [{}] from srt.conf'.format(
         '] or ['.join(dict.fromkeys(names))))
 
@@ -540,6 +565,7 @@ def check_context(ctx: 'SrtContext') -> None:
     if not ctx.new_tag.is_rc:
         tags.append(ctx.new_tag.rebase)
 
-    missing = [str(tag) for tag in tags if not tag_exists(tag)]
+    missing = [str(tag) for tag in tags
+               if not tag_exists(tag, ctx.path)]
     if missing:
         sys.exit('tag(s) missing: {}'.format(', '.join(missing)))

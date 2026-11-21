@@ -44,7 +44,7 @@ def _read_and_validate_state(path: str) -> SrtState | None:
     if not state:
         return None
 
-    current_branch = get_remote_branch_name()
+    current_branch = get_remote_branch_name(path=path)
     err = validate_srt_state(state, current_branch)
     if err:
         print(err, file=sys.stderr)

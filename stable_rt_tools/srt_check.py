@@ -30,13 +30,12 @@ checks. A check runs once the step it checks is done.
 """
 
 import argparse
-import contextlib
 import json
 import os
 import re
 import subprocess
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from subprocess import CalledProcessError
 
@@ -72,16 +71,6 @@ class Check:
     result: str
     text: str
     details: list[str] = field(default_factory=list)
-
-
-@contextlib.contextmanager
-def _cwd(path: str) -> Iterator[None]:
-    old = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(old)
 
 
 def _git(path: str, *args: str) -> str:
@@ -225,8 +214,7 @@ def check_delta(path: str, ctx: SrtContext) -> Check:
     new = str(ctx.new_tag)
     if srt_quilt.rev(path, 'refs/tags/' + new) is None:
         return Check('delta', SKIP, f'{new} is not tagged yet')
-    with _cwd(path):
-        base = delta_base(ctx)
+    base = delta_base(ctx)
     stat = _git(path, 'diff', '--stat', base, new).splitlines()
     return Check('delta', OK, f'{ctx.old_tag}..{new} without the upstream '
                  f'update: {stat[-1].strip() if stat else "no change"}',
@@ -317,8 +305,7 @@ def run_checks(state_path: str | None = None) -> list[Check]:
         config = get_config()
         new = state['new_tag']
         checks = [lambda: check_trees(path, new, new + '-rebase')]
-    with _cwd(path):
-        ctx = SrtContext(None, path=path)
+    ctx = SrtContext(None, path=path)
     quilt = is_quilt_workflow(config)
     checks += [lambda: check_delta(path, ctx),
                lambda: check_files(path, ctx, quilt),
