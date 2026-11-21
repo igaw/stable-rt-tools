@@ -30,6 +30,7 @@ from collections.abc import Iterator
 import pytest
 
 from stable_rt_tools import srt_inbox, srt_log
+from stable_rt_tools.tests import helpers
 
 
 def _git_common_dir(path: str) -> str | None:
@@ -51,6 +52,15 @@ EMAIL = 'me@incredible.com'
 UNSET = ('GNUPGHOME', 'SRT_CONF', 'OLD_TAG', 'NEW_TAG', 'GIT_DIR',
          'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG',
          'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT')
+
+
+@pytest.fixture(autouse=True, scope='session')
+def _gnupg_template() -> Iterator[None]:
+    """The tests copy the keyring with the test key made once per
+    session (helpers.gnupg_home): remove it at the end, no gpg-agent is
+    left running."""
+    yield
+    helpers.remove_gnupg_template()
 
 
 @pytest.fixture(autouse=True)

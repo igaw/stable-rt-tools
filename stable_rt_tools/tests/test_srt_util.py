@@ -29,7 +29,11 @@ from shutil import rmtree
 from unittest import TestCase
 
 from stable_rt_tools.srt_util import cmd, get_gpg_fingerprint
-from stable_rt_tools.tests.test_srt import gnupg_config
+from stable_rt_tools.tests.helpers import (
+    generate_key,
+    gnupg_config,
+    gnupg_home,
+)
 
 
 class TestUtil(TestCase):
@@ -57,29 +61,9 @@ class TestUtil(TestCase):
         # don't leave the next test in a deleted directory
         os.chdir(tempfile.gettempdir())
         rmtree(self.tdir)
-        rmtree(self.gnupghome)
 
     def setup_gpg(self):
-        self.gnupghome = tempfile.mkdtemp()
-        os.chmod(self.gnupghome, 0o700)
-
-        cfg_file = self.gnupghome + '/gpg.batch'
-        with open(cfg_file, 'w') as f:
-            f.write(gnupg_config)
-
-        cmd(['gpg', '--batch', '--generate-key', cfg_file],
-            env={'GNUPGHOME': self.gnupghome})
-        lines = cmd(['gpg', '--list-secret-keys', '--with-colons'],
-                    env={'GNUPGHOME': self.gnupghome})
-
-        key = ''
-        for line in lines.splitlines():
-            c = line.split(':')
-            if c[0] != 'fpr':
-                continue
-            key = c[-2]
-            break
-
+        self.gnupghome, key = gnupg_home(self)
         self.config['GPG_KEY_ID'] = key
         self.config['GNUPGHOME'] = self.gnupghome
 
@@ -264,12 +248,9 @@ class TestUtil(TestCase):
         import stable_rt_tools.srt_util as srt_util
 
         # a second key in the keyring must not be picked up
-        batch = os.path.join(self.gnupghome, 'other.batch')
-        with open(batch, 'w') as f:
-            f.write(gnupg_config.replace('Mighty Eagle', 'Other Key')
-                    .replace('me@incredible.com', 'other@example.com'))
-        cmd(['gpg', '--batch', '--generate-key', batch],
-            env={'GNUPGHOME': self.gnupghome})
+        generate_key(self.gnupghome,
+                     gnupg_config.replace('Mighty Eagle', 'Other Key')
+                     .replace('me@incredible.com', 'other@example.com'))
         config = {'GNUPGHOME': self.gnupghome,
                   'GPG_KEY_ID': self.config['GPG_KEY_ID']}
         fpr = srt_util.get_gpg_fingerprint(config)

@@ -70,9 +70,9 @@ from stable_rt_tools.srt_util import (
     write_srt_state,
 )
 from stable_rt_tools.srt_util_context import SrtContext
+from stable_rt_tools.tests.helpers import gnupg_home
 from stable_rt_tools.tests.inbox import add_mail
 from stable_rt_tools.tests.test_srt import (
-    gnupg_config,
     kernel_makefile,
     sort_steps,
     stdout_text,
@@ -112,18 +112,8 @@ def identity(path):
                  'quilt is not installed')
 class TestQuiltBase(unittest.TestCase):
     def setup_gpg(self):
-        self.gnupghome = tempfile.mkdtemp()
-        os.chmod(self.gnupghome, 0o700)
-        batch = os.path.join(self.gnupghome, 'gpg.batch')
-        write(batch, gnupg_config)
-        env = {'GNUPGHOME': self.gnupghome}
-        cmd(['gpg', '--batch', '--generate-key', batch], env=env)
-        lines = cmd(['gpg', '--list-secret-keys', '--with-colons'], env=env)
-        for line in lines.splitlines():
-            c = line.split(':')
-            if c[0] == 'fpr':
-                self.config['GPG_KEY_ID'] = c[-2]
-                break
+        self.gnupghome, key = gnupg_home(self)
+        self.config['GPG_KEY_ID'] = key
         self.config['GNUPGHOME'] = self.gnupghome
 
     def setup_stable_repo(self):
@@ -285,7 +275,6 @@ class TestQuiltBase(unittest.TestCase):
     def tearDown(self):
         os.chdir(self.cwd)
         rmtree(self.tdir)
-        rmtree(self.gnupghome)
 
     def run_step(self, step, answers='y\ny\n'):
         stub_stdin(self, answers)

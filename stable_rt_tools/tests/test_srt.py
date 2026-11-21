@@ -48,6 +48,7 @@ from stable_rt_tools.srt_tag import tag
 from stable_rt_tools.srt_upload import upload
 from stable_rt_tools.srt_util import cmd, tag_exists
 from stable_rt_tools.srt_util_context import SrtContext
+from stable_rt_tools.tests.helpers import gnupg_home
 from stable_rt_tools.tests.inbox import add_mail
 
 
@@ -133,19 +134,6 @@ def set_sublevel(version):
         f.write(text)
 
 
-gnupg_config = """
-Key-Type: eddsa
-Key-Curve: ed25519
-Key-Usage: sign
-Name-Real: Mighty Eagle
-Name-Email: me@incredible.com
-Expire-Date: 0
-%no-protection
-%commit
-%echo done
-"""
-
-
 class TestSrtBase(unittest.TestCase):
     def setup_stable_repo(self, version):
         os.mkdir(self.stable_repo)
@@ -201,26 +189,7 @@ class TestSrtBase(unittest.TestCase):
         cmd(['git', 'merge', 'v'+version])
 
     def setup_gpg(self):
-        self.gnupghome = tempfile.mkdtemp()
-        os.chmod(self.gnupghome, 0o700)
-
-        cfg_file = self.gnupghome + '/gpg.batch'
-        with open(cfg_file, 'w') as f:
-            f.write(gnupg_config)
-
-        cmd(['gpg', '--batch', '--generate-key', cfg_file],
-            env={'GNUPGHOME': self.gnupghome})
-        lines = cmd(['gpg', '--list-secret-keys', '--with-colons'],
-                    env={'GNUPGHOME': self.gnupghome})
-
-        key = ''
-        for line in lines.splitlines():
-            c = line.split(':')
-            if c[0] != 'fpr':
-                continue
-            key = c[-2]
-            break
-
+        self.gnupghome, key = gnupg_home(self)
         self.config['GPG_KEY_ID'] = key
         self.config['GNUPGHOME'] = self.gnupghome
 
@@ -253,7 +222,6 @@ class TestSrtBase(unittest.TestCase):
         # don't leave the next test in a deleted directory
         os.chdir(tempfile.gettempdir())
         rmtree(self.tdir)
-        rmtree(self.gnupghome)
 
     def _steps(self):
         yield from sort_steps(dir(self))
