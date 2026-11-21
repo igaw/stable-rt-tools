@@ -33,6 +33,8 @@ from subprocess import DEVNULL, run
 from typing import cast
 from unittest import mock
 
+import pytest
+
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_commit import commit
 from stable_rt_tools.srt_create import create
@@ -57,6 +59,9 @@ from stable_rt_tools.tests.helpers import (
     temp_dir,
 )
 from stable_rt_tools.tests.inbox import add_mail
+
+# every test here is a release of the git workflow
+pytestmark = pytest.mark.e2e
 
 
 class TestSrtBase(unittest.TestCase):

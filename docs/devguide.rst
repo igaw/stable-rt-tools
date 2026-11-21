@@ -27,13 +27,25 @@ three tools is in ``pyproject.toml``.
 The tests need ``git``, ``gpg``, ``quilt`` and ``patch``; without quilt
 the quilt workflow tests are skipped. ``test_srt.py`` runs a complete git
 workflow release and ``test_srt_quilt_workflow.py`` a complete quilt
-workflow release, both with temporary repositories and a temporary GPG
-key.
+workflow release, both step by step with temporary repositories and a
+temporary GPG key. These end to end tests take most of the time of the
+test suite, they are marked ``e2e``; for a quick run leave them out::
+
+    $ pytest -m 'not e2e'
+
+The tests don't depend on the machine they run on: they don't read your
+git configuration (``~/.gitconfig``, the system one), your GPG keyring,
+your ``srt.conf`` or ``OLD_TAG``/``NEW_TAG`` from the environment. Each
+test has an empty ``HOME`` and commits as the owner of the test key
+(``tests/conftest.py``); a test which needs a setting sets it itself.
+The GPG key is generated once per test run, each test signs with a copy
+of the keyring (``tests/helpers.py``).
 
 The tests never reach the network. To check the ``srt announce`` step
 against the real announcements as well, point ``SRT_TEST_INBOX`` at a
 clone of the stable-rt public inbox (``git clone --mirror
-https://lore.kernel.org/stable-rt/0``).
+https://lore.kernel.org/stable-rt/0``), the one setting of the
+environment the tests use.
 
 Build the documentation and the package::
 

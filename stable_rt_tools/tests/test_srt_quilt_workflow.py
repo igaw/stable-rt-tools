@@ -48,6 +48,8 @@ from pprint import pformat
 from typing import cast
 from unittest import mock
 
+import pytest
+
 from stable_rt_tools import (
     srt_check,
     srt_inbox,
@@ -85,6 +87,9 @@ from stable_rt_tools.tests.helpers import (
     write,
 )
 from stable_rt_tools.tests.inbox import add_mail
+
+# every test here runs srt in a complete quilt work area
+pytestmark = pytest.mark.e2e
 
 KERNEL_C = ''.join(f'line{i}\n' for i in range(1, 31))
 

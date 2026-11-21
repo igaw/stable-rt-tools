@@ -53,6 +53,9 @@ stable_rt_tools = ["*.txt", "py.typed"]
 [tool.pytest.ini_options]
 testpaths = ["stable_rt_tools/tests"]
 addopts = "-ra"
+markers = [
+    "e2e: the workflow tests on complete repositories (-m 'not e2e')",
+]
 
 [tool.ruff]
 line-length = 79
