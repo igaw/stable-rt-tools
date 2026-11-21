@@ -508,7 +508,7 @@ class TestQuiltRelease(TestQuiltBase):
         announce(self.config, ctx, Namespace(suppress_cc=False))
         out = stdout_text()
         headers, _, body = out.partition('\n\n')
-        self.assertIn(f'Subject: [ANNOUNCE] {self.new_tag}', headers)
+        self.assertIn(f'Subject: [ANNOUNCE] {self.new_tag[1:]}\n', headers)
         self.assertIn('Message-ID: <', headers)
         self.assertIn('To: Foo Bar <foo@bar.barf>', headers)
         # the announcement of the queue commit, without its trailers

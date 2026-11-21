@@ -120,7 +120,9 @@ def announcement(config: Config, ctx: SrtContext) -> str:
     if is_quilt_workflow(config):
         return '\n'.join([
             f"From: {config.get('SENDER', '')}",
-            f"Subject: [ANNOUNCE] {ctx.new_tag}",
+            # without the v, like the announcements of the other stable
+            # series and the git workflow template (announce-srt.txt)
+            f"Subject: [ANNOUNCE] {ctx.new.short}",
             f"Date: {timestamp}",
             f"Message-ID: {make_msgid()}",
             f"To: {config.get('MAIL_TO', '')}",

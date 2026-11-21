@@ -77,6 +77,10 @@ New
 Fixed
 ~~~~~
 
+- The release announcement of the quilt workflow had the subject
+  ``[ANNOUNCE] v6.12.118-rt24``, the other stable series and the git
+  workflow announce ``[ANNOUNCE] 6.12.118-rt24``. Both workflows use the
+  subject without the v now.
 - ``srt check`` needed the state of ``srt prep``: after ``srt push``
   (which clears it) it stopped with "No release prepared". It finds the
   release like the other commands now, from ``OLD_TAG NEW_TAG``, the
