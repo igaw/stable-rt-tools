@@ -71,28 +71,28 @@ def create_tar_file(dirname: str, filename: str) -> None:
 
 
 def create(config: Config, ctx: SrtContext) -> None:
-    for d in [ctx.new_dir_patches, ctx.new_dir_series]:
+    for d in [ctx.new.dir, ctx.new.series_dir]:
         if not os.path.exists(d):
             os.makedirs(d)
 
     if ctx.new_tag.is_rc:
         create_patch_file(ctx.old_tag.base, str(
-            ctx.new_tag), ctx.new_fln_patch)
-        create_series(ctx.old_tag, ctx.new_tag, ctx.new_dir_series)
+            ctx.new_tag), ctx.new.patch_file)
+        create_series(ctx.old_tag, ctx.new_tag, ctx.new.series_dir)
     else:
         create_patch_file(ctx.new_tag.base, str(
-            ctx.new_tag), ctx.new_fln_patch)
+            ctx.new_tag), ctx.new.patch_file)
         if is_quilt_workflow(config):
             # the quilt series as released, like linux-6.18.y-rt
-            export_queue(f'{ctx.new_tag}-patches', ctx.new_dir_series)
+            export_queue(f'{ctx.new_tag}-patches', ctx.new.series_dir)
         else:
             create_series(ctx.new_tag.base, ctx.new_tag.rebase,
-                          ctx.new_dir_series)
+                          ctx.new.series_dir)
 
-    create_tar_file(ctx.new_dir_patches, ctx.new_fln_tar)
+    create_tar_file(ctx.new.dir, ctx.new.tar_file)
 
-    print(f'Created the following files in {ctx.new_dir_patches}')
-    for f in ctx.get_files():
+    print(f'Created the following files in {ctx.new.dir}')
+    for f in ctx.new.files:
         print(f'\t{f}')
     print('Review them')
     next_step('srt sign')

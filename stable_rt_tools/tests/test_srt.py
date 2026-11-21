@@ -551,13 +551,13 @@ class TestReleaseCanditate(TestSrtBase):
         review = ('\n\nv4.4.14-rt5-rc1 stable review patch.\n'
                   'If anyone has any objections, please let me know.\n')
         for p in patches:
-            with open(self.ctx.new_dir_mails + '/' + p) as f:
+            with open(self.ctx.new.mails_dir + '/' + p) as f:
                 mail = f.read()
             # the review note opens the body, the headers stay intact
             self.assertIn(review, mail)
             self.assertIn('Subject: [PATCH RT', mail.split(review)[0])
 
-        filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
+        filename = self.ctx.new.mails_dir + '/0000-cover-letter.patch'
         with open(filename) as f:
             letter = f.read()
             debug(letter)
@@ -793,9 +793,9 @@ class TestReleaseCanditateNewProcess(TestSrtBase):
         patches = ['0000-cover-letter.patch',
                    '0001-Linux-4.4.14-rt4.patch']
         # a clean merge has nothing to review, it gets no mail
-        self.assertEqual(sorted(os.listdir(self.ctx.new_dir_mails)), patches)
+        self.assertEqual(sorted(os.listdir(self.ctx.new.mails_dir)), patches)
 
-        filename = self.ctx.new_dir_mails + '/0000-cover-letter.patch'
+        filename = self.ctx.new.mails_dir + '/0000-cover-letter.patch'
         with open(filename) as f:
             letter = f.read()
             debug(letter)
@@ -851,7 +851,7 @@ class TestReleaseCanditateMergeConflict(TestSrtBase):
         stub_stdouts(self)
         announce(self.config, self.ctx, args)
 
-        mails = self.ctx.new_dir_mails
+        mails = self.ctx.new.mails_dir
         # everything added since the last release, in commit order: the
         # patch before the merge too, not the stable commits
         patches = ['0000-cover-letter.patch',

@@ -26,6 +26,7 @@
 import argparse
 import os
 import sys
+from dataclasses import dataclass
 from logging import debug
 
 from stable_rt_tools.srt_util import (
@@ -58,6 +59,51 @@ def _given(args: argparse.Namespace | None, name: str) -> str | None:
     return tag or os.environ.get(name) or None
 
 
+@dataclass(frozen=True)
+class ReleaseFiles:
+    """A release tag and where srt create puts its files: the directory
+    patches/<tag> of the worktree, with the patch, the tarball, the
+    exported series and the review mails of a release candidate."""
+
+    tag: Tag
+    # patches/<tag> in the worktree
+    dir: str
+
+    @classmethod
+    def of(cls, path: str, tag: str) -> 'ReleaseFiles':
+        """The files of the release tag in the worktree at path."""
+        return cls(Tag(tag), release_dir(path, tag))
+
+    @property
+    def short(self) -> str:
+        """The tag without the v: 6.12.118-rt24."""
+        return str(self.tag)[1:]
+
+    @property
+    def series_dir(self) -> str:
+        """Where srt create exports the series of patches."""
+        return f'{self.dir}/patches'
+
+    @property
+    def mails_dir(self) -> str:
+        """The review mails of a release candidate."""
+        return f'{self.dir}/mails'
+
+    @property
+    def patch_file(self) -> str:
+        return f'{self.dir}/patch-{self.short}.patch.xz'
+
+    @property
+    def tar_file(self) -> str:
+        return f'{self.dir}/patches-{self.short}.tar.xz'
+
+    @property
+    def files(self) -> tuple[str, str]:
+        """The patch and the tarball, the files srt sign and srt upload
+        handle."""
+        return (self.patch_file, self.tar_file)
+
+
 class SrtContext:
     """OLD_TAG and NEW_TAG of a release and the files made for them.
 
@@ -67,22 +113,10 @@ class SrtContext:
     HEAD in path, OLD_TAG the release before NEW_TAG: HEAD is local and
     has the release once it is tagged, pushed or not. The release suffix
     is the one of the last release tag there (no srt.conf needed).
-    """
 
-    old_tag: Tag
-    old_short_tag: str
-    old_dir_patches: str
-    old_dir_series: str
-    old_dir_mails: str
-    old_fln_patch: str
-    old_fln_tar: str
-    new_tag: Tag
-    new_short_tag: str
-    new_dir_patches: str
-    new_dir_series: str
-    new_dir_mails: str
-    new_fln_patch: str
-    new_fln_tar: str
+    old and new are the ReleaseFiles of the tags in path: ctx.new.tag,
+    ctx.new.patch_file, ...
+    """
 
     def __init__(self, args: argparse.Namespace | None,
                  path: str | None = None) -> None:
@@ -105,31 +139,24 @@ class SrtContext:
         if old_tag is None:
             old_tag = get_previous_release(new_tag, self.path)
 
-        self._add_tag('old', old_tag)
-        self._add_tag('new', new_tag)
-        self.is_rc = self.new_tag.is_rc
+        self.old = ReleaseFiles.of(self.path, old_tag)
+        self.new = ReleaseFiles.of(self.path, new_tag)
+        self.is_rc: bool = self.new.tag.is_rc
         debug(self._dump())
 
-    def _add_tag(self, prefix: str, tag: str) -> None:
-        dir_patches = release_dir(self.path, tag)
-        setattr(self, prefix + '_tag', Tag(tag))
-        setattr(self, prefix + '_short_tag', tag[1:])
-        setattr(self, prefix + '_dir_patches', dir_patches)
-        setattr(self, prefix + '_dir_series', f'{dir_patches}/patches')
-        setattr(self, prefix + '_dir_mails', f'{dir_patches}/mails')
-        patch, tar = release_files(self.path, tag)
-        setattr(self, prefix + '_fln_patch', patch)
-        setattr(self, prefix + '_fln_tar', tar)
+    @property
+    def old_tag(self) -> Tag:
+        return self.old.tag
 
-    def get_files(self) -> list[str]:
-        return [self.new_fln_patch, self.new_fln_tar]
-
-    def get_old_files(self) -> list[str]:
-        return [self.old_fln_patch, self.old_fln_tar]
+    @property
+    def new_tag(self) -> Tag:
+        return self.new.tag
 
     def _dump(self) -> str:
-        return '\n' + '\n'.join(f'\t{key}: {val}'
-                                for key, val in self.__dict__.items())
+        return (f'\n\tpath: {self.path}\n\tis_rc: {self.is_rc}' +
+                ''.join(f'\n\t{name}: {rel.tag} in {rel.dir}'
+                        for name, rel in (('old', self.old),
+                                          ('new', self.new))))
 
 
 def release_dir(path: str, tag: str) -> str:
@@ -139,5 +166,4 @@ def release_dir(path: str, tag: str) -> str:
 
 def release_files(path: str, tag: str) -> tuple[str, str]:
     """The patch and the tarball srt create makes for the release tag."""
-    d = release_dir(path, tag)
-    return (f'{d}/patch-{tag[1:]}.patch.xz', f'{d}/patches-{tag[1:]}.tar.xz')
+    return ReleaseFiles.of(path, tag).files

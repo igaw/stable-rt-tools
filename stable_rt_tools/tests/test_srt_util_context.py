@@ -26,7 +26,7 @@ import argparse
 from unittest import TestCase
 from unittest.mock import patch
 
-from stable_rt_tools.srt_util_context import SrtContext
+from stable_rt_tools.srt_util_context import SrtContext, release_files
 
 
 def make_args(old_tag=None, new_tag=None):
@@ -38,13 +38,13 @@ class TestSrtContext(TestCase):
         ctx = SrtContext(make_args('v4.4.114-rt37', 'v4.4.115-rt38'), '/tmp')
         path = '/tmp/patches/v4.4.115-rt38'
         self.assertEqual(str(ctx.new_tag), 'v4.4.115-rt38')
-        self.assertEqual(ctx.new_short_tag, '4.4.115-rt38')
-        self.assertEqual(ctx.new_dir_patches, path)
-        self.assertEqual(ctx.new_dir_series, path + '/patches')
-        self.assertEqual(ctx.new_dir_mails, path + '/mails')
-        self.assertEqual(ctx.new_fln_patch,
+        self.assertEqual(ctx.new.short, '4.4.115-rt38')
+        self.assertEqual(ctx.new.dir, path)
+        self.assertEqual(ctx.new.series_dir, path + '/patches')
+        self.assertEqual(ctx.new.mails_dir, path + '/mails')
+        self.assertEqual(ctx.new.patch_file,
                          path + '/patch-4.4.115-rt38.patch.xz')
-        self.assertEqual(ctx.new_fln_tar,
+        self.assertEqual(ctx.new.tar_file,
                          path + '/patches-4.4.115-rt38.tar.xz')
 
     def test_is_rc(self):
@@ -53,15 +53,23 @@ class TestSrtContext(TestCase):
         path = '/tmp/patches/v4.4.115-rt39-rc1/'
         files = [path + 'patch-4.4.115-rt39-rc1.patch.xz',
                  path + 'patches-4.4.115-rt39-rc1.tar.xz']
-        self.assertEqual(ctx.get_files(), files)
+        self.assertEqual(ctx.new.files, tuple(files))
 
-    def test_get_files(self):
+    def test_files(self):
         ctx = SrtContext(make_args('v4.4.115-rt38', 'v4.4.115-rt39'), '/tmp')
 
         path = '/tmp/patches/v4.4.115-rt39/'
         files = [path + 'patch-4.4.115-rt39.patch.xz',
                  path + 'patches-4.4.115-rt39.tar.xz']
-        self.assertEqual(ctx.get_files(), files)
+        self.assertEqual(ctx.new.files, tuple(files))
+        # srt upload removes the files of the old release from latest/
+        self.assertEqual(ctx.old.files,
+                         ('/tmp/patches/v4.4.115-rt38/'
+                          'patch-4.4.115-rt38.patch.xz',
+                          '/tmp/patches/v4.4.115-rt38/'
+                          'patches-4.4.115-rt38.tar.xz'))
+        self.assertEqual(ctx.old.files, release_files('/tmp',
+                                                      'v4.4.115-rt38'))
 
     def test_use_state_when_no_args_or_env(self):
         state = {

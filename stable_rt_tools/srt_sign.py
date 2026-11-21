@@ -57,7 +57,7 @@ def gpg_sign(config: Config, filename: str) -> None:
 
 
 def sign(config: Config, ctx: SrtContext) -> None:
-    for f in ctx.get_files():
+    for f in ctx.new.files:
         if not os.path.isfile(f):
             sys.exit(f'Unable to read {f}, did you remember to create?')
         gpg_sign(config, f)

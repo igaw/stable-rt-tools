@@ -186,7 +186,7 @@ def create_rc_patches(config: Config, ctx: SrtContext) -> None:
     ref = str(ctx.old_tag)
     prefix = f'PATCH {get_suffix(config).upper()}'
     mails = cmd(['git', 'format-patch', '--first-parent', f'{ref}..',
-                 '-o', ctx.new_dir_mails, '--subject-prefix', prefix,
+                 '-o', ctx.new.mails_dir, '--subject-prefix', prefix,
                  '--cover-letter']).splitlines()
     mails = add_merge_mails(mails, ref, resolved_merges(ref), prefix)
     for mail in mails:
@@ -201,8 +201,8 @@ def cover_letter_replacements(config: Config,
         "major": ctx.new_tag.major,
         "minor": ctx.new_tag.minor,
         "patch": ctx.new_tag.patch,
-        "new_version": ctx.new_short_tag,
-        "old_version": ctx.old_short_tag,
+        "new_version": ctx.new.short,
+        "old_version": ctx.old.short,
         "prj_dir": require(config, 'PRJ_DIR'),
         "message_id": make_msgid(),
         "sender": require(config, 'SENDER'),
@@ -218,7 +218,7 @@ def cover_letter_replacements(config: Config,
 
 
 def write_rc_cover_letter(config: Config, ctx: SrtContext) -> None:
-    with open(ctx.new_dir_mails + '/0000-cover-letter.patch') as f:
+    with open(ctx.new.mails_dir + '/0000-cover-letter.patch') as f:
         coverletter = f.read()
 
     coverletter = coverletter.replace('*** SUBJECT HERE ***',
@@ -239,7 +239,7 @@ def write_rc_cover_letter(config: Config, ctx: SrtContext) -> None:
     coverletter = coverletter.replace('*** BLURB HERE ***',
                                       rc_text)
 
-    with open(ctx.new_dir_mails + '/0000-cover-letter.patch', 'w') as f:
+    with open(ctx.new.mails_dir + '/0000-cover-letter.patch', 'w') as f:
         f.write(coverletter)
 
 
@@ -250,7 +250,7 @@ def send_rc_patches(config: Config, ctx: SrtContext,
         gmd += ['--suppress-cc=all']
     # an argument list, no shell: quotes would end up in the address
     gmd += [f'--to={t.strip()}' for t in require(config, 'MAIL_TO').split(',')]
-    gmd += [ctx.new_dir_mails]
+    gmd += [ctx.new.mails_dir]
 
     print('Dry run')
     gmdd = gmd.copy()

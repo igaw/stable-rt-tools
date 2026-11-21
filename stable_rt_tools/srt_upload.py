@@ -43,7 +43,7 @@ from stable_rt_tools.srt_util_context import SrtContext
 
 
 def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
-    for f in ctx.get_files():
+    for f in ctx.new.files:
         if not os.path.isfile(f):
             sys.exit(f'Unable to read {f}, did you remember to create?')
 
@@ -53,17 +53,17 @@ def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     kup = ['kup']
 
     # upload files to archive
-    for _i, f in enumerate(ctx.get_files()):
+    for _i, f in enumerate(ctx.new.files):
         basename = os.path.splitext(f)[0]
         kup.extend(['put', basename + '.xz', basename + '.sign',
                     older_path + '/', '--'])
 
     # create links from archive to latest dir.
-    for f in ctx.get_files():
+    for f in ctx.new.files:
         kup.extend(['ln', older_path + '/' + os.path.basename(f), '../', '--'])
 
     # remove previous release from latest dir
-    for f in ctx.get_old_files():
+    for f in ctx.old.files:
         kup.extend(['rm', path + '/' + os.path.basename(f), '--'])
 
     kup.extend(['ls', path])

@@ -133,7 +133,7 @@ class TestUpload(unittest.TestCase):
         from stable_rt_tools.srt_upload import upload
 
         ctx = mock.Mock()
-        ctx.get_files.return_value = ['/nonexistent/patch-6.12-rt1.patch.xz']
+        ctx.new.files = ['/nonexistent/patch-6.12-rt1.patch.xz']
         out = io.StringIO()
         with mock.patch('sys.stdout', out), \
                 self.assertRaises(SystemExit) as cm:
