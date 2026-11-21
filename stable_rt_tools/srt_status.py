@@ -131,13 +131,13 @@ def file_steps(path: str, tag: str, tagged: bool) -> list[Step]:
 
 
 def parse_kup_ls(text: str) -> set[str]:
-    """The names kup ls lists, one entry per line. The name is the last
-    field of a line: kup-server lists the names, directories with a
-    trailing /; a long format would end with the name as well."""
+    """The names kup ls lists: a '+++ <directory>/' line, then one entry
+    per line in the format of ls -l, the name is the last field
+    (directories with a trailing /)."""
     names = set()
     for line in text.splitlines():
         fields = line.split()
-        if fields:
+        if fields and fields[0] != '+++':
             names.add(os.path.basename(fields[-1].rstrip('/')))
     return names
 

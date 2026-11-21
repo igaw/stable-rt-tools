@@ -42,21 +42,34 @@ FILES = ('/rt/patches/v6.12.118-rt24/patch-6.12.118-rt24.patch.xz',
          '/rt/patches/v6.12.118-rt24/patches-6.12.118-rt24.tar.xz')
 
 # NOT verified against the output of a real kup: the names, one per line
+# the format of kup ls (kup-server), as kernel.org answers
 KUP_LS = '''\
++++ /pub/linux/kernel/projects/rt/6.12/older/
+-rw-rw-r--   1 gitolite3 gitolite3        228 2026-11-11 15:07:54 \
 patch-6.12.117-rt23.patch.sign
+-rw-rw-r--   1 gitolite3 gitolite3      18180 2026-11-11 15:07:54 \
 patch-6.12.117-rt23.patch.xz
+-rw-rw-r--   2 gitolite3 gitolite3      19816 2026-11-21 12:57:02 \
+patch-6.12.118-rt24.patch.gz
+-rw-rw-r--   2 gitolite3 gitolite3        228 2026-11-21 12:57:02 \
 patch-6.12.118-rt24.patch.sign
+-rw-rw-r--   2 gitolite3 gitolite3      18176 2026-11-21 12:57:02 \
 patch-6.12.118-rt24.patch.xz
+-rw-rw-r--   2 gitolite3 gitolite3        228 2026-11-21 12:57:03 \
 patches-6.12.118-rt24.tar.sign
+-rw-rw-r--   2 gitolite3 gitolite3      30372 2026-11-21 12:57:03 \
 patches-6.12.118-rt24.tar.xz
-sub/
+drwxrwxr-x   2 gitolite3 gitolite3       4096 2026-11-21 12:57:03 sub/
 '''
+
 
 class TestKup(unittest.TestCase):
     def test_parse(self) -> None:
         names = srt_status.parse_kup_ls(KUP_LS)
         self.assertIn('patch-6.12.118-rt24.patch.xz', names)
         self.assertIn('sub', names)
+        # not the directory of the '+++' line
+        self.assertNotIn('older', names)
         # a long format ends with the name as well
         self.assertEqual(srt_status.parse_kup_ls(
             '-rw-r--r-- 1 x y 12 2026-01-01 patch-1.patch.xz\n\n'),
