@@ -284,12 +284,38 @@ not provided explicitly. ``srt push`` clears the state after a successful push;
 the history of the series, ``srt log``, stays (see :doc:`userguide`).
 If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
 
-``srt status`` shows the steps done, ``srt create`` and ``srt sign``
-included, and the next step. It warns when the prepared release doesn't
-fit the fetched branches anymore: the release was published already, e.g.
-by another maintainer of the group, the series has a newer release than
-the one the release was prepared on, or upstream has a newer release
-before ``srt quilt refresh``. ``srt status --json`` prints the same for
-scripts.
+``srt status`` shows the steps done, ``srt create``, ``srt sign``,
+``srt upload`` and ``srt push`` included, and the next step. It warns when
+the prepared release doesn't fit the fetched branches anymore: the release
+was published already, e.g. by another maintainer of the group, the series
+has a newer release than the one the release was prepared on, or upstream
+has a newer release before ``srt quilt refresh``. ``srt status --json``
+prints the same for scripts.
+
+The steps are found in the trees, the state only names the release:
+
+- ``srt quilt refresh``: the localversion patch of the queue in
+  ``v6.12-rt-patches/patches`` sets the localversion of the release
+  (``-rt22``, ``srt quilt refresh`` writes it last), or the ``-patches``
+  tag exists. After ``srt quilt undo``, which keeps the refreshed patches,
+  the state says they need a refresh again.
+- ``srt quilt queue``, ``rebase`` and ``release``: their tags.
+  ``srt quilt merge``: upstream is merged and the added patches are
+  applied.
+- ``srt create`` and ``srt sign``: their files in ``patches/<tag>``.
+- ``srt upload``: ``kup ls PRJ_DIR/older`` lists the files and their
+  signatures. It is only asked once the files are signed; without kup,
+  network or access to kernel.org the step is unknown (``[?]``), as with
+  ``srt status --offline``, which doesn't ask.
+- ``srt push``: the remote-tracking branch of the series has the release
+  tag. It shows the last fetch: fetch first to see a push of another
+  maintainer.
+
+Without the state, e.g. after ``srt push`` or when it got lost, ``srt
+status`` finds the release in the trees: the release after the last one
+on the branch (``HEAD``) if one of its steps is done (a tag of it exists or
+the queue is refreshed for it), else the last release itself. When all
+steps of the last release are done, nothing is in progress: it shows that
+release and ``next: srt prep`` once upstream has a newer release.
 
 Release candidates are not supported by the quilt workflow.

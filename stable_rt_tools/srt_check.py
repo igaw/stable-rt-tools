@@ -41,7 +41,7 @@ from subprocess import CalledProcessError
 
 from stable_rt_tools import srt_quilt
 from stable_rt_tools.srt_announce import delta_base
-from stable_rt_tools.srt_prep import worktree_dirs
+from stable_rt_tools.srt_status import tree_state
 from stable_rt_tools.srt_util import (
     Config,
     SrtState,
@@ -49,9 +49,6 @@ from stable_rt_tools.srt_util import (
     cmd,
     get_config,
     get_gnupghome,
-    get_remote_branch_name,
-    get_suffix,
-    get_workflow_branch,
     is_quilt_workflow,
     read_srt_state,
 )
@@ -304,22 +301,7 @@ def release_state(args: argparse.Namespace | None = None,
     if state and (state.get('old_tag'), state.get('new_tag')) == (old, new):
         return state
 
-    config = get_config(path)
-    suffix = get_suffix(config)
-    quilt = is_quilt_workflow(config)
-    state = SrtState(
-        old_tag=old, new_tag=new, suffix=suffix, quilt_workflow=quilt,
-        workflow_branch=get_workflow_branch(
-            get_remote_branch_name(path=path)))
-    if quilt:
-        dirs = worktree_dirs(path, suffix)
-        state['rt_dir'] = dirs['rt_dir']
-        state['stable_dir'] = dirs['stable_dir']
-        state['patches_dir'] = dirs['patches_dir']
-        state['rebase_dir'] = dirs['rebase_dir']
-        state['quilt_patches'] = os.path.join(dirs['patches_dir'],
-                                              'patches')
-    return state
+    return tree_state(path, get_config(path), old, new)
 
 
 def run_checks(args: argparse.Namespace | None = None,

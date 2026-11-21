@@ -62,7 +62,12 @@ from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
 from stable_rt_tools.srt_sign import sign
-from stable_rt_tools.srt_util import clear_srt_state, cmd, read_srt_state
+from stable_rt_tools.srt_util import (
+    clear_srt_state,
+    cmd,
+    read_srt_state,
+    write_srt_state,
+)
 from stable_rt_tools.srt_util_context import SrtContext
 from stable_rt_tools.tests.test_srt import (
     gnupg_config,
@@ -260,11 +265,16 @@ class TestQuiltBase(unittest.TestCase):
         self.setup_work_area()
         self.setup_stable_new_release()
 
-        for module in ('srt_quilt', 'srt_check'):
+        for module in ('srt_quilt', 'srt_check', 'srt_status'):
             patcher = mock.patch(f'stable_rt_tools.{module}.get_config',
                                  return_value=self.config)
             patcher.start()
             self.addCleanup(patcher.stop)
+        # kup ls needs kernel.org: unknown, unless a test says otherwise
+        self.kup_ls = mock.patch(
+            'stable_rt_tools.srt_status.kup_ls',
+            return_value=(None, 'kup is not installed')).start()
+        self.addCleanup(mock.patch.stopall)
         env = mock.patch.dict(os.environ, {'GIT_EDITOR': 'true'})
         env.start()
         self.addCleanup(env.stop)
@@ -306,6 +316,12 @@ class TestQuiltBase(unittest.TestCase):
     def prepare(self):
         stub_stdouts(self)
         prep(self.config)
+
+    def kup_names(self, tag=None):
+        """What kup ls lists in PRJ_DIR/older after srt upload of tag."""
+        v = (tag or self.new_tag)[1:]
+        return {f'patch-{v}.patch.xz', f'patch-{v}.patch.sign',
+                f'patches-{v}.tar.xz', f'patches-{v}.tar.sign'}
 
     def release_until(self, last):
         self.prepare()
@@ -415,8 +431,26 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertIn('.tar.sign\nnext: srt upload', out)
         info = srt_status.status_info()
         steps = cast(list[dict[str, bool]], info['steps'])
-        self.assertEqual([s['done'] for s in steps], [True] * 7)
-        self.assertEqual(info['next'], 'srt upload, srt push, srt announce')
+        # kup can't tell whether it is uploaded
+        self.assertEqual([s['done'] for s in steps],
+                         [True] * 7 + [None, False])
+        self.assertEqual(steps[7], {'step': 'srt upload', 'done': None,
+                                    'unknown': 'kup is not installed'})
+        self.assertEqual(info['next'], 'srt upload (unless done already)')
+        self.kup_ls.return_value = (self.kup_names(), '')
+        info = srt_status.status_info()
+        self.kup_ls.assert_called_with(self.config['PRJ_DIR'] + '/older')
+        self.assertEqual([s['done'] for s in
+                          cast(list[dict[str, bool]], info['steps'])],
+                         [True] * 8 + [False])
+        self.assertEqual(info['next'], 'srt push')
+        # offline, kup isn't asked
+        self.kup_ls.reset_mock()
+        info = srt_status.status_info(offline=True)
+        self.kup_ls.assert_not_called()
+        self.assertEqual(cast(list[dict[str, object]], info['steps'])[7],
+                         {'step': 'srt upload', 'done': None,
+                          'unknown': 'offline'})
         d = self.rt_dir + '/patches/' + self.new_tag + '/'
         v = self.new_tag[1:]
         for f in (f'patch-{v}.patch.xz', f'patches-{v}.tar.xz',
@@ -821,6 +855,94 @@ class TestQuiltChecks(TestQuiltBase):
                          {'step': 'srt quilt refresh', 'done': False})
         self.assertEqual(info['next'], 'srt quilt refresh')
         self.assertEqual(info['warnings'], [])
+
+    def assert_status_without_state(self):
+        """srt status finds the same in the trees as with the state."""
+        with_state = srt_status.status_info()
+        self.assertEqual(with_state['source'], 'state')
+        state = read_srt_state()
+        assert state is not None
+        clear_srt_state()
+        try:
+            without = srt_status.status_info()
+        finally:
+            write_srt_state(state)
+        self.assertEqual(without['source'], 'trees')
+        for key in ('prepared', 'workflow', 'old_tag', 'new_tag', 'dropped',
+                    'added', 'steps', 'warnings', 'next'):
+            self.assertEqual(without[key], with_state[key], key)
+        return without
+
+    def test_status_without_state(self):
+        self.prepare()
+        self.add_new_patch()
+        for step in srt_quilt.STEPS:
+            self.run_step(step)
+            info = self.assert_status_without_state()
+            self.assertTrue(info['prepared'])
+            self.assertEqual(info['new_tag'], self.new_tag)
+        ctx = SrtContext(None, path=self.rt_dir)
+        stub_stdouts(self)
+        create(self.config, ctx)
+        sign(self.config, ctx)
+        self.assert_status_without_state()
+        self.kup_ls.return_value = (self.kup_names(), '')
+        info = self.assert_status_without_state()
+        self.assertEqual(info['next'], 'srt push')
+        # from the other worktrees of the series too
+        os.chdir(self.patches_dir)
+        clear_srt_state()
+        self.assertEqual(srt_status.status_info(), info)
+
+        # srt push pushes and clears the state, the fetch shows it
+        git(self.rt_dir, 'push', '-q', 'stable-rt', 'HEAD:' + self.series)
+        git(self.rt_dir, 'fetch', '-q', 'stable-rt')
+        info = self.status_json()
+        self.assertFalse(info['prepared'])
+        self.assertEqual(info['new_tag'], self.new_tag)
+        self.assertEqual([s['done'] for s in info['steps']], [True] * 9)
+        self.assertEqual(info['steps'][-1], {'step': 'srt push',
+                                             'done': True})
+        self.assertEqual(info['warnings'], [])
+        self.assertEqual(info['next'],
+                         'srt prep, once upstream has a release after '
+                         'v6.1.2')
+        stub_stdouts(self)
+        srt_status.status()
+        out = stdout_text()
+        self.assertIn('No release in progress, the last one:\n'
+                      f'{self.old_tag} -> {self.new_tag}\n', out)
+        self.assertIn('  [x] srt push\n', out)
+        # a newer upstream release is fetched
+        self.fake_fetch('refs/remotes/stable/master', 'v6.1.3', 'v6.1.2^{}')
+        self.assertEqual(self.status_json()['next'], 'srt prep')
+
+    def test_status_refresh_from_the_queue(self):
+        """The refresh is done when the localversion patch of the queue
+        has the localversion of the release."""
+        self.prepare()
+        self.add_new_patch()
+        clear_srt_state()
+        self.assertFalse(self.status_json()['prepared'])
+        self.prepare()
+        self.run_step('refresh')
+        clear_srt_state()
+        info = self.status_json()
+        self.assertTrue(info['prepared'])
+        self.assertEqual((info['old_tag'], info['new_tag']),
+                         (self.old_tag, self.new_tag))
+        self.assertEqual(info['steps'][0],
+                         {'step': 'srt quilt refresh', 'done': True})
+        self.assertEqual(info['next'], 'srt quilt queue')
+
+    def test_status_after_undo(self):
+        self.release_until('release')
+        self.run_step('undo')
+        # the state says the kept patches need a refresh again
+        info = self.status_json()
+        self.assertEqual([s['done'] for s in info['steps'][:5]],
+                         [False] * 5)
+        self.assertEqual(info['next'], 'srt quilt refresh')
 
     def test_status_without_release(self):
         stub_stdouts(self)

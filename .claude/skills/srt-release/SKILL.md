@@ -72,8 +72,11 @@ counts as no and the step stops.
 1. Fetch first, e.g. `git -C ../linux fetch stable` and
    `git -C ../linux fetch stable-rt`: another maintainer of the group may
    have released in the meantime.
-2. `srt status` lists the steps done and the next one. A warning means the
-   prepared release doesn't fit the fetched branches (published already,
+2. `srt status` lists the steps done and the next one, found in the trees
+   (it works without `srt prep`'s state too). `srt upload` is unknown
+   (`[?]`, `done: null` in the JSON) when kup can't reach kernel.org:
+   ask the maintainer. `srt push` reflects the last fetch. A warning
+   means the prepared release doesn't fit the fetched branches (published already,
    newer release on the series, newer upstream release): tell the
    maintainer, then `srt prep --clear` and `srt prep`.
 3. `srt check` checks the trees of the steps done so far. A `fail` stops

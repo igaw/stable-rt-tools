@@ -29,6 +29,18 @@ New
   starts from, or when upstream has a newer release than the prepared one.
   It trusted the tags only, so a release published elsewhere looked half
   done. ``srt status --json`` prints the status for scripts.
+- ``srt status`` finds the release in the trees, the state of ``srt prep``
+  only names the prepared one. Without the state (after ``srt push`` or
+  when it got lost) it shows the release after the last one on the branch
+  if one of its steps is done, else the last release, and ``next: srt
+  prep`` once that is done and upstream has a newer release. The JSON
+  tells where the release comes from (``source``: ``state`` or
+  ``trees``).
+- ``srt status`` shows ``srt upload`` and ``srt push`` as steps.
+  ``srt upload`` is done when ``kup ls`` lists the files on kernel.org, it
+  is unknown (``[?]``, ``"done": null`` with the reason as ``unknown`` in
+  the JSON) when kup can't tell or with the new ``--offline``. ``srt
+  push`` is done when the fetched branch of the series has the release.
 - ``srt check`` runs the reviews of the documentation as sanity checks
   between the trees: the refreshed queue against the last one (patches
   added, dropped or changed beyond hunk offsets, with the ``git diff`` to
@@ -66,6 +78,9 @@ Fixed
   refreshed again. The refresh is done when the localversion patch of the
   queue sets the localversion of the release or the ``-patches`` tag
   exists.
+- ``srt status`` said "No release prepared" after ``srt push`` (which
+  clears the state of ``srt prep``) or when the state was lost in the
+  middle of a release.
 - A setting missing in ``srt.conf`` (e.g. ``PRJ_DIR`` for ``srt upload``
   or ``MAIL_TO`` for ``srt announce``) ended the command with a Python
   traceback (``KeyError``). It names the setting and the group of

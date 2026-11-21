@@ -21,6 +21,34 @@ Every command works without a terminal:
   series (see :doc:`userguide`).
 - Every command ends with the next step, ``next: ...``.
 
+The status as JSON
+------------------
+
+``srt status --json`` (and the ``status`` tool of the MCP server) prints:
+
+``prepared``
+    true while a release is in progress: prepared with ``srt prep``, or
+    found in the trees with a step not done. false when nothing is in
+    progress; ``next`` says what to do then, and when there is a last
+    release, the keys below describe it.
+``source``
+    ``state`` (prepared with ``srt prep``) or ``trees`` (found in the
+    trees, without the state, e.g. after ``srt push``).
+``workflow``, ``old_tag``, ``new_tag``, ``dropped``, ``added``
+    The release; ``dropped`` and ``added`` (the patches of the queue) in
+    the quilt workflow only.
+``steps``
+    The steps in order, ``{"step": "srt quilt refresh", "done": true}``,
+    up to ``srt create``, ``srt sign``, ``srt upload`` and ``srt push``.
+    ``done`` is ``null`` when srt can't tell: ``srt upload`` asks
+    kernel.org with ``kup ls``, which needs kup and access to kernel.org,
+    and doesn't ask with ``--offline``. ``unknown`` then says why. Treat
+    it as "ask the maintainer", not as done or not done. ``srt push`` is
+    done when the fetched branch of the series has the release: fetch
+    first.
+``warnings``, ``next``
+    Why the release doesn't fit the fetched branches, and the next step.
+
 MCP server
 ----------
 

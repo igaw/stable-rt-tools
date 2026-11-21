@@ -36,6 +36,7 @@ from pprint import pformat
 from shutil import rmtree
 from subprocess import DEVNULL, run
 from typing import cast
+from unittest import mock
 
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_commit import commit
@@ -256,12 +257,31 @@ class TestSrtBase(unittest.TestCase):
     def _steps(self):
         yield from sort_steps(dir(self))
 
+    def status(self, kup=None):
+        """srt status without the state of srt prep, from the trees."""
+        from stable_rt_tools import srt_status
+
+        names = None if kup is None else set(kup)
+        with mock.patch('stable_rt_tools.srt_status.get_config',
+                        return_value=self.config), \
+                mock.patch('stable_rt_tools.srt_status.kup_ls',
+                           return_value=(names, 'kup is not installed')):
+            return srt_status.status_info()
+
     def test_srt(self):
         for _s in self._steps():
             getattr(self, _s)()
 
 
 class TestRelease(TestSrtBase):
+    def step0_status(self):
+        # v4.4.14 is merged: the release after v4.4.13-rt3 is started
+        info = self.status()
+        self.assertTrue(info['prepared'])
+        self.assertEqual((info['workflow'], info['old_tag'], info['new_tag']),
+                         ('git', 'v4.4.13-rt3', 'v4.4.14-rt4'))
+        self.assertEqual(info['next'], 'srt commit and srt tag')
+
     def step1_commit(self):
         stub_stdin(self, 'y')
         stub_stdouts(self)
@@ -277,6 +297,9 @@ class TestRelease(TestSrtBase):
         stub_stdouts(self)
         tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4'))
+        info = self.status()
+        self.assertEqual(info['new_tag'], 'v4.4.14-rt4')
+        self.assertEqual(info['next'], 'srt create')
 
     def step3_commit_rebase(self):
         cmd(['git', 'checkout', self.branch_rt_rebase])
@@ -364,6 +387,19 @@ class TestRelease(TestSrtBase):
         stub_stdin(self, 'y')
         stub_stdouts(self)
         push(self.config, self.ctx)
+        # pushed, as of the next fetch
+        cmd(['git', 'fetch', '-q', 'origin'])
+        v = '4.4.14-rt4'
+        info = self.status([f'patch-{v}.patch.xz', f'patch-{v}.patch.sign',
+                            f'patches-{v}.tar.xz', f'patches-{v}.tar.sign'])
+        self.assertFalse(info['prepared'])
+        self.assertEqual(info['new_tag'], 'v4.4.14-rt4')
+        self.assertEqual([s['done'] for s in
+                          cast(list[dict[str, object]], info['steps'])],
+                         [True] * 5)
+        self.assertEqual(info['next'],
+                         'srt prep, once upstream has a release after '
+                         'v4.4.14')
 
     def step9_announce(self):
         ap = argparse.ArgumentParser()
@@ -635,6 +671,9 @@ class TestNoTagsOneMergeCanditate(TestSrtBase):
         stub_stdouts(self)
         tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4'))
+        info = self.status()
+        self.assertEqual(info['new_tag'], 'v4.4.14-rt4')
+        self.assertEqual(info['next'], 'srt create')
 
     def step3_commit_rebase(self):
         cmd(['git', 'checkout', self.branch_rt_rebase])
@@ -688,6 +727,9 @@ class TestNoTagsManyMergesCanditate(TestSrtBase):
         stub_stdouts(self)
         tag(self.config, rc=False)
         self.assertTrue(tag_exists('v4.4.14-rt4'))
+        info = self.status()
+        self.assertEqual(info['new_tag'], 'v4.4.14-rt4')
+        self.assertEqual(info['next'], 'srt create')
 
     def step3_commit_rebase(self):
         cmd(['git', 'checkout', self.branch_rt_rebase])
