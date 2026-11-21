@@ -65,6 +65,11 @@ Fixed
   ``srt prep`` takes the last release as the old one, the other commands
   take it (or a release candidate) as the new one and the release before
   it as the old one.
+- The name of the upstream branch was its second ``/`` part: the branch
+  ``stable/v6.12-rt`` on ``origin`` was ``stable``, every branch of a
+  remote named ``kernel/org`` was ``org``. It is the branch name on the
+  remote now, in ``srt prep``, ``srt commit``, ``srt push``,
+  ``srt announce`` and the check of the prepared release.
 - ``srt quilt merge`` kept the signature of the stable tag as comment
   lines (``# -----BEGIN PGP SIGNATURE-----`` ... ``# gpg: ...``) in the
   message of the stable merge, e.g. in v6.12.116-rt22 and v6.12.117-rt23.

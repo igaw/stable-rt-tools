@@ -635,3 +635,20 @@ class TestReleaseTags(TestCase):
         self.tag(self.rt, 'v6.1.3-rt3')
         self.assertEqual(get_previous_release('v6.1.3-rt3'), 'v6.1.2-rt2')
         self.assertEqual(self.context(), ('v6.1.2-rt2', 'v6.1.3-rt3'))
+
+    def test_remote_branch_name(self):
+        from stable_rt_tools.srt_util import get_remote_branch_name
+
+        self.assertEqual(get_remote_branch_name(), 'v6.1-rt')
+        self.assertEqual(get_remote_branch_name(short=False),
+                         'origin/v6.1-rt')
+        # a branch name with '/', tracked by a local branch of another
+        # name, on a remote with '/' in its name
+        self.git(self.rt, 'remote', 'add', 'kernel/org', self.origin)
+        self.git(self.rt, 'push', '-q', 'kernel/org',
+                 'v6.1-rt:stable/v6.1-rt')
+        self.git(self.rt, 'checkout', '-q', '-b', 'work', '--track',
+                 'kernel/org/stable/v6.1-rt')
+        self.assertEqual(get_remote_branch_name(), 'stable/v6.1-rt')
+        self.assertEqual(get_remote_branch_name(short=False),
+                         'kernel/org/stable/v6.1-rt')

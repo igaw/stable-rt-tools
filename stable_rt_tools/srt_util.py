@@ -128,10 +128,15 @@ def get_local_branch_name() -> str:
 
 
 def get_remote_branch_name(short: bool = True) -> str:
+    """The upstream branch of the current branch: its name on the remote
+    (v6.12-rt, stable/v6.12-rt), with short=False <remote>/<name>."""
     name = cmd(['git', 'rev-parse', '--abbrev-ref',
                 '--symbolic-full-name', '@{u}'])
     if short:
-        return name.split('/')[1]
+        # the branch name may contain '/' as well as the remote's name
+        merge = cmd(['git', 'config', '--get',
+                     f'branch.{get_local_branch_name()}.merge'])
+        return merge.removeprefix('refs/heads/')
     return name
 
 
