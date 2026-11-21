@@ -43,6 +43,40 @@ def _git_common_dir(path: str) -> str | None:
 SOURCE_GIT_DIR = _git_common_dir(os.path.dirname(os.path.abspath(__file__)))
 
 
+# who commits and tags in the tests, the identity of the test GPG key
+NAME = 'Mighty Eagle'
+EMAIL = 'me@incredible.com'
+
+# set by git for hooks, or by srt users: none of them may leak into a test
+UNSET = ('GNUPGHOME', 'SRT_CONF', 'OLD_TAG', 'NEW_TAG', 'GIT_DIR',
+         'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_CONFIG',
+         'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT')
+
+
+@pytest.fixture(autouse=True)
+def _isolated_from_the_developer(
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path_factory: pytest.TempPathFactory) -> None:
+    """The tests must not depend on the machine they run on: no git
+    configuration of the user or the system (commit.gpgsign,
+    init.defaultBranch, hooks, a signing key), no GPG keyring, no
+    srt.conf. HOME is an empty directory, git commits as the owner of
+    the test key. A test which needs a setting sets it, e.g. in the
+    configuration of its repository."""
+    home = tmp_path_factory.mktemp('home')
+    gitconfig = home / '.gitconfig'
+    gitconfig.touch()
+    for name in UNSET:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv('HOME', str(home))
+    monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
+    monkeypatch.setenv('GIT_CONFIG_NOSYSTEM', '1')
+    monkeypatch.setenv('GIT_EDITOR', 'true')
+    for who in ('AUTHOR', 'COMMITTER'):
+        monkeypatch.setenv(f'GIT_{who}_NAME', NAME)
+        monkeypatch.setenv(f'GIT_{who}_EMAIL', EMAIL)
+
+
 @pytest.fixture(autouse=True)
 def _keep_cwd() -> Iterator[None]:
     """Many tests chdir into a temporary repository: go back afterwards,
