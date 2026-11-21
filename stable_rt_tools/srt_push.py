@@ -36,6 +36,7 @@ from stable_rt_tools.srt_util import (
     interactive,
     is_quilt_workflow,
     next_step,
+    require,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -45,12 +46,12 @@ def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
 
     args = None
     if ctx.is_rc:
-        args = [config['PRJ_GIT_TREE'],
+        args = [require(config, 'PRJ_GIT_TREE'),
                 f'{ctx.new_tag}^{{}}:{branch}',
                 'tag', str(ctx.new_tag)]
     else:
         args = [
-            config['PRJ_GIT_TREE'],
+            require(config, 'PRJ_GIT_TREE'),
             f'{ctx.new_tag}^{{}}:{branch}',
             f'+{ctx.new_tag}-rebase^{{}}:{branch}-rebase',
             'tag', str(ctx.new_tag),

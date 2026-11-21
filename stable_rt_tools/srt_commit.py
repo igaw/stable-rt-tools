@@ -41,6 +41,7 @@ from stable_rt_tools.srt_util import (
     get_suffix,
     is_dirty,
     next_step,
+    require,
 )
 
 
@@ -84,6 +85,7 @@ def commit(config: Config, rc: int | None) -> None:
         sys.exit('repo is dirty -> abort')
 
     suffix = get_suffix(config)
+    localversion = require(config, 'LOCALVERSION')
     branch_name = get_remote_branch_name()
     post_fix = branch_name.split('-')[-1]
     branch_rebase = post_fix == 'rebase'
@@ -94,12 +96,12 @@ def commit(config: Config, rc: int | None) -> None:
         number = get_last_release_number(branch_name, suffix, '-rebase')
         if last_commit_was_release_commit():
             cmd(['git', 'reset', 'HEAD~'])
-        localversion_set(config['LOCALVERSION'], f'-{suffix}{number}')
+        localversion_set(localversion, f'-{suffix}{number}')
     elif rc:
         number = get_last_release_number(branch_name, suffix, '-next') + 1
-        localversion_set(config['LOCALVERSION'], f'-{suffix}{number}-rc{rc}')
+        localversion_set(localversion, f'-{suffix}{number}-rc{rc}')
     else:
-        localversion_inc(config['LOCALVERSION'])
+        localversion_inc(localversion)
 
     version = get_kernel_version()
     msg = f'Linux {version}'
@@ -108,7 +110,7 @@ def commit(config: Config, rc: int | None) -> None:
 
     print(f'git commit -m {msg}')
     if confirm('OK to commit?'):
-        cmd(['git', 'add', config['LOCALVERSION']])
+        cmd(['git', 'add', localversion])
         cmd(['git', 'commit', '-s', '-m', msg],
             env=get_gpg_env(config))
         next_step(f'srt tag -r {rc}' if rc else 'srt tag')

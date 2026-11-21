@@ -67,6 +67,7 @@ from stable_rt_tools.srt_util import (
     get_gpg_env,
     get_template_path,
     read_srt_state,
+    require,
     update_srt_state,
 )
 from stable_rt_tools.srt_util_context import (
@@ -284,7 +285,7 @@ class Release:
         print(f'tagging HEAD of {path} as {tag}')
         if not confirm('OK to tag?'):
             sys.exit('not tagged, rerun to tag')
-        git(path, 'tag', '-s', '-u', self.config['GPG_KEY_ID'],
+        git(path, 'tag', '-s', '-u', require(self.config, 'GPG_KEY_ID'),
             '-m', msg, tag, env=get_gpg_env(self.config))
 
     def done(self, step: str) -> bool:

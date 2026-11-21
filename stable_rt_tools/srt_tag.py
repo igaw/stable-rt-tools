@@ -34,6 +34,7 @@ from stable_rt_tools.srt_util import (
     get_config,
     get_gpg_env,
     next_step,
+    require,
 )
 
 
@@ -60,7 +61,7 @@ def tag(config: Config, rc: int | None) -> None:
             tag = tag + f'-rc{rc}'
         print(f'tagging as {tag} with message \'{msg}\'')
         if confirm('OK to tag?'):
-            cmd(['git', 'tag', '-s', '-u', config['GPG_KEY_ID'],
+            cmd(['git', 'tag', '-s', '-u', require(config, 'GPG_KEY_ID'),
                  '-m', msg, tag],
                 env=get_gpg_env(config))
             next_step(tag_next_step(tag))

@@ -388,6 +388,41 @@ def with_defaults(group: Mapping[str, str]) -> Config:
     return ChainMap(group, config_defaults(group))  # type: ignore[arg-type]
 
 
+# where a setting comes from when srt.conf leaves it out
+_SETTING_HINTS = {
+    'GPG_KEY_ID': 'git config user.signingkey',
+    'NAME': 'git config user.name',
+    'SENDER': 'git config user.name and user.email',
+}
+
+
+def _group_name(config: Mapping[str, str]) -> str | None:
+    """The srt.conf group config was read from, if it is known."""
+    maps = config.maps if isinstance(config, ChainMap) else [config]
+    for m in maps:
+        name = getattr(m, 'name', None)
+        if isinstance(name, str):
+            return name
+    return None
+
+
+def require(config: Mapping[str, str], key: str) -> str:
+    """Return the setting key, exit with a clear message if it is unset."""
+    value = config.get(key)
+    if value:
+        return value
+    # your own settings are the same for all series (userguide)
+    if key in ('GPG_KEY_ID', 'GNUPGHOME', 'SENDER', 'NAME'):
+        group: str | None = 'DEFAULT'
+    else:
+        group = _group_name(config)
+    where = f'the [{group}] group of srt.conf' if group else 'srt.conf'
+    msg = f'{key} is not set: add it to {where}'
+    if key in _SETTING_HINTS:
+        msg += f' or set {_SETTING_HINTS[key]}'
+    sys.exit(msg)
+
+
 def get_config() -> Config:
     try:
         repo_name = get_remote_repo_name()
@@ -466,14 +501,15 @@ def format_fingerprint(fpr: str) -> str:
 
 def get_gpg_fingerprint(config: Config) -> str:
     """Return the fingerprint of GPG_KEY_ID for the announcements."""
+    key_id = require(config, 'GPG_KEY_ID')
     out = cmd(['gpg', '--homedir', get_gnupghome(config), '--with-colons',
-               '--fingerprint', config['GPG_KEY_ID']])
+               '--fingerprint', key_id])
     for line in out.splitlines():
         fields = line.split(':')
         if fields[0] == 'fpr':
             # the primary key comes first
             return format_fingerprint(fields[9])
-    sys.exit(f'no fingerprint for key {config["GPG_KEY_ID"]}')
+    sys.exit(f'no fingerprint for key {key_id}')
 
 
 def next_step(text: str, file: IO[str] | None = None) -> None:

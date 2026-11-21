@@ -48,6 +48,11 @@ New
 Fixed
 ~~~~~
 
+- A setting missing in ``srt.conf`` (e.g. ``PRJ_DIR`` for ``srt upload``
+  or ``MAIL_TO`` for ``srt announce``) ended the command with a Python
+  traceback (``KeyError``). It names the setting and the group of
+  ``srt.conf`` to add it to now, and for ``GPG_KEY_ID``, ``SENDER`` and
+  ``NAME`` the git setting they default to.
 - ``srt announce`` after ``srt push`` mailed an empty shortlog, diffstat
   and delta: without the state of the release (``srt push`` clears it)
   the old release was the last published one, the new one itself. It is

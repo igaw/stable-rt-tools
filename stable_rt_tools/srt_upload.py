@@ -37,6 +37,7 @@ from stable_rt_tools.srt_util import (
     confirm,
     get_config,
     next_step,
+    require,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -47,7 +48,7 @@ def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
             print(f'Unable to read {f}, did you remember to create?')
             sys.exit(1)
 
-    path = config['PRJ_DIR']
+    path = require(config, 'PRJ_DIR')
     older_path = path + '/' + 'older'
 
     kup = ['kup']

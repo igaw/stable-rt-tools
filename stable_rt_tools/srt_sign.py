@@ -36,6 +36,7 @@ from stable_rt_tools.srt_util import (
     get_gnupghome,
     next_step,
     pipe,
+    require,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -48,7 +49,7 @@ def gpg_sign(config: Config, filename: str) -> None:
     gpg = [
         'gpg',
         '--homedir', get_gnupghome(config),
-        '--local-user', '{}!'.format(config['GPG_KEY_ID']),
+        '--local-user', '{}!'.format(require(config, 'GPG_KEY_ID')),
         '--quiet', '--armor', '--detach-sign',
         '-o', f'{f}.sign',
         '--set-filename', basename, '-'

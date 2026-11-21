@@ -317,6 +317,59 @@ class TestUtil(TestCase):
         self.assertIn("'put'", out.getvalue())
         self.assertIn('/pub/rt/6.12/older/', out.getvalue())
 
+    def test_require(self):
+        from configparser import ConfigParser
+
+        from stable_rt_tools.srt_util import require, with_defaults
+
+        self.assertEqual(require({'PRJ_DIR': '/pub'}, 'PRJ_DIR'), '/pub')
+        with self.assertRaises(SystemExit) as e:
+            require({'PRJ_DIR': ''}, 'PRJ_DIR')
+        self.assertEqual(e.exception.code,
+                         'PRJ_DIR is not set: add it to srt.conf')
+
+        config = ConfigParser()
+        config.read_string('[rt/origin/v6.12-rt]\nPRJ_DIR = /pub\n')
+        group = with_defaults(config['rt/origin/v6.12-rt'])
+        self.assertEqual(require(group, 'PRJ_DIR'), '/pub')
+        with self.assertRaises(SystemExit) as e:
+            require(group, 'MAIL_TO')
+        self.assertEqual(e.exception.code,
+                         'MAIL_TO is not set: add it to the '
+                         '[rt/origin/v6.12-rt] group of srt.conf')
+
+    def test_require_hints_git_config(self):
+        from stable_rt_tools.srt_util import require
+
+        with self.assertRaises(SystemExit) as e:
+            require({}, 'GPG_KEY_ID')
+        self.assertEqual(e.exception.code,
+                         'GPG_KEY_ID is not set: add it to the [DEFAULT] '
+                         'group of srt.conf or set git config '
+                         'user.signingkey')
+        with self.assertRaises(SystemExit) as e:
+            require({}, 'SENDER')
+        self.assertIn('git config user.name and user.email',
+                      str(e.exception.code))
+
+    def test_upload_without_prj_dir(self):
+        import argparse
+        from unittest import mock
+
+        from stable_rt_tools import srt_upload
+        from stable_rt_tools.srt_util_context import SrtContext
+
+        ctx = SrtContext(argparse.Namespace(OLD_TAG='v6.12.111-rt21',
+                                            NEW_TAG='v6.12.116-rt22'),
+                         path=self.tdir)
+        with mock.patch('os.path.isfile', return_value=True), \
+                mock.patch.object(srt_upload, 'cmd') as kup, \
+                self.assertRaises(SystemExit) as e:
+            srt_upload.upload({}, ctx)
+        kup.assert_not_called()
+        self.assertEqual(e.exception.code,
+                         'PRJ_DIR is not set: add it to srt.conf')
+
     def test_srt_without_command_shows_usage(self):
         import io
         from unittest import mock

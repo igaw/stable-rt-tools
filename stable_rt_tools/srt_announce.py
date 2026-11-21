@@ -47,6 +47,7 @@ from stable_rt_tools.srt_util import (
     get_suffix,
     get_template_path,
     next_step,
+    require,
 )
 from stable_rt_tools.srt_util_context import SrtContext
 
@@ -196,16 +197,16 @@ def create_rc_patches(config: Config, ctx: SrtContext) -> None:
 def cover_letter_replacements(config: Config,
                               ctx: SrtContext) -> dict[str, object]:
     r = {
-        "mail_to": config['MAIL_TO'],
+        "mail_to": require(config, 'MAIL_TO'),
         "major": ctx.new_tag.major,
         "minor": ctx.new_tag.minor,
         "patch": ctx.new_tag.patch,
         "new_version": ctx.new_short_tag,
         "old_version": ctx.old_short_tag,
-        "prj_dir": config['PRJ_DIR'],
+        "prj_dir": require(config, 'PRJ_DIR'),
         "message_id": make_msgid(),
-        "sender": config['SENDER'],
-        "name": config['NAME'],
+        "sender": require(config, 'SENDER'),
+        "name": require(config, 'NAME'),
         # new_tag_rt: the name templates know from before 2.0
         "new_tag_rt": ctx.new_tag.number,
         "new_tag_number": ctx.new_tag.number,
@@ -248,7 +249,7 @@ def send_rc_patches(config: Config, ctx: SrtContext,
     if args.suppress_cc:
         gmd += ['--suppress-cc=all']
     # an argument list, no shell: quotes would end up in the address
-    gmd += [f'--to={t.strip()}' for t in config['MAIL_TO'].split(',')]
+    gmd += [f'--to={t.strip()}' for t in require(config, 'MAIL_TO').split(',')]
     gmd += [ctx.new_dir_mails]
 
     print('Dry run')
