@@ -36,6 +36,7 @@ class DummyCtx:
     def __init__(self, new_tag, is_rc=False):
         self.new_tag = new_tag
         self.is_rc = is_rc
+        self.path = None
 
 
 class DummyConfig(dict):
@@ -64,8 +65,9 @@ def test_push_quilt_workflow():
         with patch('stable_rt_tools.srt_push.confirm', return_value=True):
             calls = []
 
-            def fake_cmd(args, verbose=False):
+            def fake_cmd(args, verbose=False, cwd=None):
                 calls.append(args)
+                return ''  # no remotes: srt push pushes to the URL
 
             with patch('stable_rt_tools.srt_push.cmd', side_effect=fake_cmd):
                 with patch(
@@ -107,8 +109,9 @@ def test_push_dry_run():
     ctx: Any = DummyCtx('v6.12.39-rt11', is_rc=False)
     calls = []
 
-    def fake_cmd(args, verbose=False):
+    def fake_cmd(args, verbose=False, cwd=None):
         calls.append(args)
+        return ''  # no remotes: srt push pushes to the URL
 
     with patch('stable_rt_tools.srt_push.get_remote_branch_name',
                return_value='v6.12-rt'), \
@@ -119,8 +122,10 @@ def test_push_dry_run():
         confirm.assert_not_called()
         clear_state.assert_not_called()
     # only git push -n
-    assert len(calls) == 1
-    assert calls[0][:3] == ['git', 'push', '-n']
+    # git remote to find the push target, then only git push -n
+    pushes = [c for c in calls if c[:2] == ['git', 'push']]
+    assert len(pushes) == 1
+    assert pushes[0][:3] == ['git', 'push', '-n']
 
 
 def test_push_offers_announcement():
@@ -149,3 +154,22 @@ def test_push_no_mailer_with_yes_or_no_terminal(capsys):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def test_push_target(tmp_path):
+    """The remote with PRJ_GIT_TREE as push URL, else the URL."""
+    from stable_rt_tools.srt_push import push_target
+    from stable_rt_tools.srt_util import cmd
+
+    repo = str(tmp_path)
+    cmd(['git', 'init', '-q', repo])
+    url = 'git@gitolite.kernel.org:pub/scm/linux/kernel/git/rt/linux-stable-rt'
+    assert push_target(url, repo) == url
+    cmd(['git', 'remote', 'add', 'stable-rt',
+         'https://git.kernel.org/pub/scm/linux/kernel/git/rt/'
+         'linux-stable-rt.git'], cwd=repo)
+    # fetched from git.kernel.org, pushed to gitolite: srt setup's way
+    assert push_target(url, repo) == url
+    cmd(['git', 'remote', 'set-url', '--push', 'stable-rt', url], cwd=repo)
+    assert push_target(url, repo) == 'stable-rt'
+    assert push_target(url + '/', repo) == 'stable-rt'

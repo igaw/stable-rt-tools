@@ -314,8 +314,8 @@ class TestRelease(TestSrtBase):
         stub_stdin(self, 'y')
         stub_stdouts(self)
         push(self.config, self.ctx)
-        # pushed, as of the next fetch
-        cmd(['git', 'fetch', '-q', 'origin'])
+        # pushed to the remote origin (its push URL is PRJ_GIT_TREE): git
+        # updated origin/v4.4-rt, srt status sees it without a fetch
         v = '4.4.14-rt4'
         kup = [f'patch-{v}.patch.xz', f'patch-{v}.patch.sign',
                f'patches-{v}.tar.xz', f'patches-{v}.tar.sign']
@@ -381,7 +381,8 @@ class TestRelease(TestSrtBase):
         # srt status found the announcement
         self.assertEqual(events[-1]['message_id'], '<rt4@x>')
         self.assertEqual(events[-1]['old'], 'v4.4.13-rt3')
-        self.assertEqual(push_['remote'], self.rt_repo)
+        self.assertEqual((push_['remote'], push_['url']),
+                         ('origin', self.rt_repo))
         self.assertIn('tag', push_['refs'])
         self.assertIn('v4.4.14-rt4-rebase', push_['refs'])
         self.assertNotIn('force', push_)

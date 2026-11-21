@@ -24,6 +24,7 @@
 
 import argparse
 import sys
+from subprocess import CalledProcessError
 
 from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
@@ -44,17 +45,41 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_context import SrtContext
 
 
+def push_target(url: str, path: str | None = None) -> str:
+    """Where to push PRJ_GIT_TREE to: the remote with url as its push URL
+    (srt setup sets it up so), else url itself.
+
+    Pushed to the remote, git updates its remote-tracking branches, so
+    srt status sees the push right away; pushed to the URL, they stay
+    behind until the next fetch."""
+    try:
+        remotes = cmd(['git', 'remote'], cwd=path).split()
+    except CalledProcessError:
+        return url
+    for remote in remotes:
+        try:
+            push_url = cmd(['git', 'remote', 'get-url', '--push', remote],
+                           cwd=path)
+        except CalledProcessError:
+            continue
+        if push_url.rstrip('/') == url.rstrip('/'):
+            return remote
+    return url
+
+
 def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     branch = get_remote_branch_name()
+    url = require(config, 'PRJ_GIT_TREE')
+    target = push_target(url, ctx.path)
 
     args = None
     if ctx.is_rc:
-        args = [require(config, 'PRJ_GIT_TREE'),
+        args = [target,
                 f'{ctx.new_tag}^{{}}:{branch}',
                 'tag', str(ctx.new_tag)]
     else:
         args = [
-            require(config, 'PRJ_GIT_TREE'),
+            target,
             f'{ctx.new_tag}^{{}}:{branch}',
             f'+{ctx.new_tag}-rebase^{{}}:{branch}-rebase',
             'tag', str(ctx.new_tag),
@@ -77,8 +102,11 @@ def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     if not confirm('OK to push?'):
         sys.exit('not pushed')
     cmd(gcp + args)
-    log_step('push', ctx=ctx, remote=args[0], refs=args[1:],
+    log_step('push', ctx=ctx, remote=target, url=url, refs=args[1:],
              force=ctx.is_rc or None)
+    if target == url:
+        print(f'no remote pushes to {url}: fetch it to see the push in '
+              'srt status')
     clear_srt_state()
     if not ctx.is_rc:
         offer_announcement(config, ctx)

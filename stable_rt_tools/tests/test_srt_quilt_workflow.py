@@ -533,7 +533,8 @@ class TestQuiltRelease(TestQuiltBase):
         stub_stdouts(self)
         push(self.config, SrtContext(None, path=self.rt_dir))
         out = stdout_text()
-        self.assertIn('git push -n ' + ' '.join([self.rt_repo] + refs),
+        # to the remote with PRJ_GIT_TREE as push URL, not the URL
+        self.assertIn('git push -n ' + ' '.join(['stable-rt'] + refs),
                       out)
         self.assertIn('OK to push? (y/n): next: srt announce > '
                       '../announce', out)
@@ -550,12 +551,13 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertIsNone(read_srt_state(self.rt_dir))
         event = srt_log.read_log(self.rt_dir)[-1]
         self.assertEqual(event['step'], 'push')
-        self.assertEqual(event['remote'], self.rt_repo)
+        self.assertEqual((event['remote'], event['url']),
+                         ('stable-rt', self.rt_repo))
         self.assertEqual(event['refs'], refs)
         self.assertNotIn('force', event)
 
-        # pushed, as of the next fetch
-        git(self.rt_dir, 'fetch', '-q', 'stable-rt')
+        # git updated stable-rt/v6.1-rt with the push: srt status sees it
+        # without a fetch
         info = srt_status.status_info()
         steps = cast(list[dict[str, object]], info['steps'])
         self.assertTrue(info['prepared'])
@@ -653,7 +655,7 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertTrue(lines[1].endswith('by Mighty Eagle'))
         self.assertIn(f'upload         {self.new_tag}', lines[2])
         self.assertIn(f'push           {self.new_tag}', lines[3])
-        self.assertIn(f'remote={self.rt_repo}', lines[3])
+        self.assertIn(f'remote=stable-rt  url={self.rt_repo}', lines[3])
 
     def test_release(self):
         for step in sort_steps(dir(self)):

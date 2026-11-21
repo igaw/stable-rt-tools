@@ -315,8 +315,8 @@ The steps are found in the trees, the state only names the release:
   network or access to kernel.org the step is unknown (``[?]``), as with
   ``srt status --offline``, which doesn't ask.
 - ``srt push``: the remote-tracking branch of the series has the release
-  tag. It shows the last fetch: fetch first to see a push of another
-  maintainer.
+  tag. ``srt push`` updates it (it pushes through the remote), a push of
+  another maintainer shows after the next fetch.
 - ``srt announce``: the archive of the mailing list (``INBOX``, see
   :doc:`userguide`) has the mail ``[ANNOUNCE] 6.12.118-rt24`` (or
   ``v6.12.118-rt24``, as srt wrote it before 2.2), replies don't count.

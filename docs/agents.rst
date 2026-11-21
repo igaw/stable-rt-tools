@@ -46,8 +46,8 @@ The status as JSON
     of the mailing list (``INBOX``), which it fetches at most every 10
     minutes; neither asks with ``--offline``. ``unknown`` then says why.
     Treat it as "ask the maintainer", not as done or not done. ``srt
-    push`` is done when the fetched branch of the series has the release:
-    fetch first. ``srt announce`` is done when the archive has the
+    push`` is done when the remote-tracking branch of the series has the
+    release: srt push updates it, fetch to see a push made elsewhere. ``srt announce`` is done when the archive has the
     announcement (``[ANNOUNCE] <tag>``, with or without the ``v``), then
     ``mail`` has its ``subject``, ``date``, ``sender``, ``message_id`` and
     ``link``:

@@ -651,7 +651,11 @@ Pushes the release to the tree of the series, after ``srt upload`` (or,
 for a release candidate, after the review mails). It works on the
 release of :ref:`release-lookup`. This publishes the release.
 
-srt push pushes to ``PRJ_GIT_TREE``:
+srt push pushes to ``PRJ_GIT_TREE``, through the remote that has it as
+push URL (``srt setup`` sets the push URL of the series remote so). git
+then updates the remote-tracking branches with the push, and ``srt
+status`` sees it right away. Without such a remote srt pushes to the URL
+and says to fetch it. It pushes:
 
 - the release commit to the branch of the series and the tag
   ``NEW_TAG``,

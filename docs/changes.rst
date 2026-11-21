@@ -84,6 +84,12 @@ New
 Fixed
 ~~~~~
 
+- ``srt push`` pushed to the URL of ``PRJ_GIT_TREE``: git doesn't update
+  the remote-tracking branches then, ``srt status`` showed a pushed
+  release as not pushed (and didn't look for its announcement) until the
+  next fetch. srt push pushes through the remote with ``PRJ_GIT_TREE`` as
+  push URL now, as ``srt setup`` sets it up; without one it pushes to the
+  URL as before and says to fetch.
 - A no to a question stops every command with exit status 1 and a
   message (``not committed``, ``not tagged``, ``not uploaded``, ``not
   pushed``, ``not sent``), like the ``srt quilt`` steps did already:
