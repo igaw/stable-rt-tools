@@ -11,6 +11,7 @@ Contents:
    git-workflow
    quilt-workflow
    agents
+   commands
    command-line
    devguide
    changes
