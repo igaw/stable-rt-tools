@@ -94,10 +94,11 @@ mailing list and do the proper release after a week or so.
   OK to push? (y/n): y
   [...]
 
-``srt status`` follows a release candidate only with the state of ``srt
-prep`` or ``OLD_TAG``/``NEW_TAG``: without them it finds the releases in
-the trees, not the release candidates (see :doc:`devguide`, known
-limitations).
+``srt status`` doesn't follow a release candidate: it shows the release
+prepared with ``srt prep`` (``srt prep`` prepares the release, not a
+release candidate) or, without it, the releases it finds in the trees
+(see :doc:`devguide`, known limitations). It doesn't read
+``OLD_TAG``/``NEW_TAG``.
 
 The review mails contain everything added to the series since the last
 release, in commit order: the patches before and after the stable merge,
@@ -145,3 +146,8 @@ The announcement ends with the shortlog since the last release, the
 diffstat and the delta patch: the series' own change against the old
 release with the new stable release merged in, i.e. the patches, conflict
 resolutions and the release commit, not the stable update.
+
+:doc:`commands` describes what each command reads, changes, asks and
+prints: :ref:`cmd-commit`, :ref:`cmd-tag`, :ref:`cmd-create`,
+:ref:`cmd-sign`, :ref:`cmd-check`, :ref:`cmd-upload`, :ref:`cmd-push` and
+:ref:`cmd-announce`, the review mails of a release candidate included.

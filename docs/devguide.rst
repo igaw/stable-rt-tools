@@ -92,8 +92,9 @@ Release candidates in the status without a prepared release
     candidates, and it is not in use at the moment (the quilt workflow has
     none).
 
-    If it is needed: give ``OLD_TAG``/``NEW_TAG`` or keep the state of
-    ``srt prep``. The fix would be to look for an rc tag of the next
+    ``OLD_TAG``/``NEW_TAG`` don't help: ``srt status`` doesn't read them,
+    and the state of ``srt prep`` names the release, not an rc. If it is
+    needed, the fix would be to look for an rc tag of the next
     release on the ``-next`` branch (``get_last_release(rc=True)``) in
     ``tree_status_info()``, with the steps of the git workflow for an rc
     (commit -r, tag -r, announce = the review mails, push to -next).
