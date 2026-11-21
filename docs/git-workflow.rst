@@ -121,11 +121,20 @@ Release
   $ srt check
   $ srt upload
   $ srt push
-  $ srt announce > ../announce-rt
+  OK to push? (y/n): y
+  Open the announcement in the mail client? (y/n): y
 
+Without ``MAILER`` in ``srt.conf`` (see :doc:`userguide`) send the
+announcement yourself:
+
+.. code-block:: console
+
+  $ srt announce > ../announce-rt
   $ cat ../announce-rt | msmtp -t --
   or
   $ mutt -H ../announce-rt
+
+``srt announce --mail`` opens it in ``MAILER`` any time.
 
 The announcement ends with the shortlog since the last release, the
 diffstat and the delta patch: the series' own change against the old

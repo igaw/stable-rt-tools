@@ -26,8 +26,10 @@
 import argparse
 import os
 import re
+import shlex
 import sys
 from datetime import date, timedelta
+from email import message_from_string
 from email.utils import make_msgid
 from subprocess import DEVNULL, PIPE, run
 from time import gmtime, strftime
@@ -302,16 +304,17 @@ def delta_base(ctx: SrtContext) -> str:
     return p.stdout.splitlines()[0]
 
 
-def print_changes(ctx: SrtContext) -> None:
+def changes(ctx: SrtContext) -> str:
     """The shortlog, diffstat and delta of the release."""
     new = str(ctx.new_tag)
     base = delta_base(ctx)
-    print(cmd(['git', '--no-pager', 'shortlog', '--first-parent',
-               f'{ctx.old_tag}..{new}']))
-    print('---')
-    print(cmd(['git', '--no-pager', 'diff', '--stat', base, new]))
-    print('---')
-    print(cmd(['git', '--no-pager', 'diff', base, new]))
+    return '\n'.join([
+        cmd(['git', '--no-pager', 'shortlog', '--first-parent',
+             f'{ctx.old_tag}..{new}']),
+        '---',
+        cmd(['git', '--no-pager', 'diff', '--stat', base, new]),
+        '---',
+        cmd(['git', '--no-pager', 'diff', base, new])])
 
 
 def quilt_announcement(ctx: SrtContext) -> str:
@@ -325,32 +328,27 @@ def quilt_announcement(ctx: SrtContext) -> str:
     return strip_trailers(body.lstrip('\n'))
 
 
-def announce(config: Config, ctx: SrtContext,
-             args: argparse.Namespace) -> None:
+def announcement(config: Config, ctx: SrtContext) -> str:
+    """The announcement of a release as mail, with the headers."""
     from stable_rt_tools.srt_util import is_quilt_workflow
-    if ctx.is_rc:
-        announce_rc(config, ctx, args)
-        return
 
     # rfc2822.html
     # 3.3. Date and Time Specification
     timestamp = strftime('%a, %d %b %Y %H:%M:%S -0000', gmtime())
 
     if is_quilt_workflow(config):
-        print(f"From: {config.get('SENDER', '')}")
-        print(f"Subject: [ANNOUNCE] {ctx.new_tag}")
-        print(f"Date: {timestamp}")
-        print(f"Message-ID: {make_msgid()}")
-        print(f"To: {config.get('MAIL_TO', '')}")
-        print()
-        print(quilt_announcement(ctx))
-        print()
-        print('---')
-        print_changes(ctx)
-        announce_next_step()
-        return
+        return '\n'.join([
+            f"From: {config.get('SENDER', '')}",
+            f"Subject: [ANNOUNCE] {ctx.new_tag}",
+            f"Date: {timestamp}",
+            f"Message-ID: {make_msgid()}",
+            f"To: {config.get('MAIL_TO', '')}",
+            '',
+            quilt_announcement(ctx),
+            '',
+            '---',
+            changes(ctx)]) + '\n'
 
-    stable_rt_text = ''
     with open(get_announce_tmpl_path(config)) as f:
         stable_rt_text = f.read()
 
@@ -360,15 +358,94 @@ def announce(config: Config, ctx: SrtContext,
     r["branch_name"] = get_remote_branch_name()
     r["branch_head"] = cmd(['git', 'rev-parse', 'HEAD'])
 
-    print(stable_rt_text.format(**r))
-    print_changes(ctx)
-    announce_next_step()
+    return stable_rt_text.format(**r) + '\n' + changes(ctx) + '\n'
 
 
-def announce_next_step() -> None:
+def announce_path(ctx: SrtContext) -> str:
+    """Where srt announce --mail writes the mail: next to the worktree."""
+    return os.path.join('..', f'announce-{ctx.new_tag}')
+
+
+def mailer_command(mailer: str, mail_path: str, mail: str) -> list[str]:
+    """The MAILER command line for the mail in mail_path.
+
+    MAILER is split like a shell would split it, then the placeholders
+    in each word are replaced: {mail} the file with the headers, {body}
+    the file with only the body (written next to it), {from}, {to},
+    {cc} and {subject} the headers. A value stays one word, also with
+    spaces in it, and no shell runs the command.
+    """
+    headers, _, body = mail.partition('\n\n')
+    msg = message_from_string(headers + '\n\n')
+    words = shlex.split(mailer)
+    if not words:
+        sys.exit('MAILER is empty')
+    values = {
+        'mail': os.path.abspath(mail_path),
+        'body': os.path.abspath(mail_path + '.body'),
+        'from': msg.get('From', ''),
+        'to': msg.get('To', ''),
+        'cc': msg.get('Cc', ''),
+        'subject': msg.get('Subject', ''),
+    }
+    if any('{body}' in w for w in words):
+        with open(values['body'], 'w') as f:
+            f.write(body)
+    try:
+        return [w.format(**values) for w in words]
+    except (KeyError, IndexError, ValueError) as err:
+        sys.exit(f'MAILER {mailer!r}: unknown placeholder {err}, use '
+                 '{mail}, {body}, {from}, {to}, {cc} or {subject}')
+
+
+def mail_announcement(config: Config, ctx: SrtContext) -> None:
+    """Write the announcement to a file and open it in MAILER."""
+    mailer = config.get('MAILER')
+    if not mailer:
+        sys.exit('srt announce --mail: set MAILER in srt.conf, e.g. '
+                 'MAILER = mutt -H {mail}')
+    mail = announcement(config, ctx)
+    path = announce_path(ctx)
+    with open(path, 'w') as f:
+        f.write(mail)
+    print(f'wrote {path}', flush=True)
+    argv = mailer_command(mailer, path, mail)
+    print(' '.join(shlex.quote(w) for w in argv), flush=True)
+    try:
+        p = run(argv)
+    except OSError as err:
+        sys.exit(f'MAILER {argv[0]}: {err}')
+    if p.returncode != 0:
+        sys.exit(f'MAILER {argv[0]} failed with exit code {p.returncode}, '
+                 f'the mail is in {path}')
+
+
+def announce(config: Config, ctx: SrtContext,
+             args: argparse.Namespace) -> None:
+    if ctx.is_rc:
+        if getattr(args, 'mail', False):
+            sys.exit('srt announce --mail: the review mails of a release '
+                     'candidate are sent with git send-email')
+        announce_rc(config, ctx, args)
+        return
+
+    if getattr(args, 'mail', False):
+        mail_announcement(config, ctx)
+        return
+
+    print(announcement(config, ctx), end='')
+    announce_next_step(config)
+
+
+def announce_next_step(config: Config) -> None:
     # stdout is the mail
-    next_step('send the announcement, e.g. srt announce > ../announce and '
-              'mutt -H ../announce', file=sys.stderr)
+    if config.get('MAILER'):
+        next_step('srt announce --mail, it opens the announcement in '
+                  'MAILER', file=sys.stderr)
+    else:
+        next_step('send the announcement, e.g. srt announce > ../announce '
+                  'and mutt -H ../announce, or set MAILER in srt.conf for '
+                  'srt announce --mail', file=sys.stderr)
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
@@ -377,6 +454,9 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs.add_argument('NEW_TAG', nargs='?')
     prs.add_argument('--suppress-cc', '-s', action="store_true", default=False,
                      help='Don''t auto-cc anyone (for testing)')
+    prs.add_argument('--mail', '-m', action='store_true',
+                     help='write the announcement to ../announce-<tag> and '
+                     'open it in the mail client MAILER (srt.conf)')
     return prs
 
 

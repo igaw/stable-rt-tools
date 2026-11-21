@@ -473,6 +473,12 @@ def set_assume_yes(yes: bool) -> None:
     _assume_yes = yes
 
 
+def interactive() -> bool:
+    """A person at a terminal answers the questions: no --yes, stdin a
+    terminal (not a script or an agent)."""
+    return not _assume_yes and sys.stdin.isatty()
+
+
 def confirm(text: str) -> bool:
     if _assume_yes:
         print(text + ' (y/n): y (--yes)')

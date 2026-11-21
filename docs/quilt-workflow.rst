@@ -131,8 +131,9 @@ step works on the right worktree itself, so all commands are run from
   $ srt sign
   $ srt check
   $ srt upload
-  $ srt push
-
+  $ srt push                 # with MAILER: opens the announcement
+                             # or: srt announce --mail
+  # without MAILER:
   $ srt announce > ../announce-rt
   $ mutt -H ../announce-rt
 

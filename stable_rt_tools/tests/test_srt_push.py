@@ -120,5 +120,29 @@ def test_push_dry_run():
     assert calls[0][:3] == ['git', 'push', '-n']
 
 
+def test_push_offers_announcement():
+    from stable_rt_tools.srt_push import offer_announcement
+    ctx: Any = DummyCtx('v6.12.39-rt11')
+    config = DummyConfig({'MAILER': 'mutt -H {mail}'})
+    with patch('stable_rt_tools.srt_push.interactive', return_value=True), \
+            patch('stable_rt_tools.srt_push.confirm', return_value=True), \
+            patch('stable_rt_tools.srt_announce.mail_announcement') as mail:
+        offer_announcement(config, ctx)
+        mail.assert_called_once_with(config, ctx)
+
+
+def test_push_no_mailer_with_yes_or_no_terminal(capsys):
+    from stable_rt_tools.srt_push import offer_announcement
+    ctx: Any = DummyCtx('v6.12.39-rt11')
+    config = DummyConfig({'MAILER': 'mutt -H {mail}'})
+    with patch('stable_rt_tools.srt_push.interactive', return_value=False), \
+            patch('stable_rt_tools.srt_push.confirm') as confirm, \
+            patch('stable_rt_tools.srt_announce.mail_announcement') as mail:
+        offer_announcement(config, ctx)
+        confirm.assert_not_called()
+        mail.assert_not_called()
+    assert 'next: srt announce --mail' in capsys.readouterr().out
+
+
 if __name__ == '__main__':
     unittest.main()

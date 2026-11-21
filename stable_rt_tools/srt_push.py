@@ -33,6 +33,7 @@ from stable_rt_tools.srt_util import (
     confirm,
     get_config,
     get_remote_branch_name,
+    interactive,
     is_quilt_workflow,
     next_step,
 )
@@ -73,8 +74,22 @@ def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
         cmd(gcp + args)
         clear_srt_state()
         if not ctx.is_rc:
-            next_step('srt announce > ../announce, then send it, e.g. with '
-                      'mutt -H ../announce')
+            offer_announcement(config, ctx)
+
+
+def offer_announcement(config: Config, ctx: SrtContext) -> None:
+    """After the push: open the announcement in MAILER, or say how."""
+    from stable_rt_tools.srt_announce import mail_announcement
+    if not config.get('MAILER'):
+        next_step('srt announce > ../announce, then send it, e.g. with '
+                  'mutt -H ../announce (or set MAILER in srt.conf)')
+        return
+    # not from scripts or an agent: the mail client is for a person
+    if interactive() and confirm('Open the announcement in the mail '
+                                      'client?'):
+        mail_announcement(config, ctx)
+    else:
+        next_step('srt announce --mail')
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

@@ -48,7 +48,8 @@ srt also calls the following external tools:
   (``srt commit``)
 - ``tar`` and ``xz`` (``srt create``, ``srt sign``)
 - ``quilt`` and ``patch`` (quilt workflow only, ``srt quilt``)
-- optionally ``msmtp`` or ``mutt`` to send the announcement
+- optionally a mail client (``mutt``, Thunderbird, ...) or ``msmtp`` to
+  send the announcement, see ``MAILER``
 
 Repository layout
 -----------------
@@ -136,6 +137,24 @@ The settings:
     ``user.email``.
 ``MAIL_TO``
     The addresses the announcements and review mails are sent to.
+``MAILER``
+    The mail client ``srt announce --mail`` opens the announcement in,
+    and ``srt push`` offers after the push. Your client for all series,
+    so set it in ``[DEFAULT]``. The command line is split like a shell
+    splits it (no shell runs it), then in each word ``{mail}`` is
+    replaced with the file with the whole mail (``../announce-<tag>``),
+    ``{body}`` with a file with only the body, ``{from}``, ``{to}``,
+    ``{cc}`` and ``{subject}`` with the headers. For example:
+
+    .. code-block:: ini
+
+       MAILER = mutt -H {mail}
+       MAILER = neomutt -H {mail}
+       MAILER = thunderbird -compose "to='{to}',cc='{cc}',subject='{subject}',from='{from}',message='{body}',format=text"
+
+    mutt opens the mail as it is, headers included. Thunderbird takes the
+    headers as arguments and the body from the file; ``from`` must be one
+    of your Thunderbird identities.
 ``PRJ_GIT_URL``
     The URL the tree of the series is fetched from (``srt setup``).
 ``PRJ_GIT_TREE``

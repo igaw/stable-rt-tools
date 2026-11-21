@@ -22,7 +22,23 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+import os
+import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+
+MAIL = """\
+From: Daniel <d@example.org>
+Subject: [ANNOUNCE] v6.12.118-rt24
+Date: Sat, 21 Nov 2026 10:00:00 -0000
+Message-ID: <1@example.org>
+To: LKML <lkml@example.org>,<rt@example.org>
+
+Hello RT-list!
+
+Enjoy!
+"""
 
 
 class TestStripTrailers(unittest.TestCase):
@@ -35,6 +51,66 @@ class TestStripTrailers(unittest.TestCase):
                          'body\n\nEnjoy!\nDaniel')
         self.assertEqual(strip_trailers('Signed-off-by: A <a@b>'),
                          'Signed-off-by: A <a@b>')
+
+
+class TestMailer(unittest.TestCase):
+    def test_mutt(self):
+        from stable_rt_tools.srt_announce import mailer_command
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'announce')
+            self.assertEqual(mailer_command('mutt -H {mail}', path, MAIL),
+                             ['mutt', '-H', path])
+            # no {body}: no body file
+            self.assertFalse(os.path.exists(path + '.body'))
+
+    def test_thunderbird(self):
+        from stable_rt_tools.srt_announce import mailer_command
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'announce')
+            argv = mailer_command(
+                "thunderbird -compose \"to='{to}',subject='{subject}',"
+                "from='{from}',message='{body}',format=text\"", path, MAIL)
+            self.assertEqual(argv, [
+                'thunderbird', '-compose',
+                "to='LKML <lkml@example.org>,<rt@example.org>',"
+                "subject='[ANNOUNCE] v6.12.118-rt24',"
+                "from='Daniel <d@example.org>',"
+                f"message='{path}.body',format=text"])
+            with open(path + '.body') as f:
+                self.assertEqual(f.read(), 'Hello RT-list!\n\nEnjoy!\n')
+
+    def test_unknown_placeholder(self):
+        from stable_rt_tools.srt_announce import mailer_command
+        with self.assertRaises(SystemExit):
+            mailer_command('mutt -H {file}', '/tmp/x', MAIL)
+
+    def test_mail_announcement(self):
+        from stable_rt_tools import srt_announce
+        ctx = SimpleNamespace(new_tag='v6.12.118-rt24')
+        with tempfile.TemporaryDirectory() as d:
+            os.mkdir(os.path.join(d, 'tree'))
+            cwd = os.getcwd()
+            os.chdir(os.path.join(d, 'tree'))
+            try:
+                with patch.object(srt_announce, 'announcement',
+                                  return_value=MAIL), \
+                        patch.object(srt_announce, 'run') as run:
+                    run.return_value.returncode = 0
+                    srt_announce.mail_announcement(
+                        {'MAILER': 'mutt -H {mail}'}, ctx)  # type: ignore
+                path = os.path.join(d, 'announce-v6.12.118-rt24')
+                run.assert_called_once_with(
+                    ['mutt', '-H', os.path.realpath(path)])
+                with open(path) as f:
+                    self.assertEqual(f.read(), MAIL)
+            finally:
+                os.chdir(cwd)
+
+    def test_mail_needs_mailer(self):
+        from stable_rt_tools import srt_announce
+        with self.assertRaises(SystemExit):
+            srt_announce.mail_announcement(
+                {}, SimpleNamespace(new_tag='v1-rt1'))  # type: ignore
 
 
 if __name__ == '__main__':

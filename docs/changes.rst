@@ -7,6 +7,11 @@ Changes
 New
 ~~~
 
+- ``srt announce --mail`` writes the announcement to
+  ``../announce-<tag>`` and opens it in your mail client, the new
+  ``MAILER`` setting (e.g. ``mutt -H {mail}`` or Thunderbird's
+  ``-compose``). With ``MAILER`` set, ``srt push`` offers to do it right
+  after the push.
 - ``-y``/``--yes`` answers all questions with yes, before or after the
   command (``srt -y push``, ``srt quilt undo --yes``), for scripts.
 - ``srt quilt queue`` works without an editor: ``--draft`` prints the
