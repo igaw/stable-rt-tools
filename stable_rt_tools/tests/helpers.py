@@ -25,13 +25,120 @@
 
 """Helpers shared by the tests."""
 
+import argparse
+import io
 import os
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+from typing import cast
+from unittest import mock
 
 from stable_rt_tools.srt_util import cmd
+
+
+def sort_steps(names):
+    """The steps of a test (step1_..., step2_..., step10_..., step8b_...)
+    in their natural order, the order a test_ method runs them."""
+    def key(name):
+        return [int(c) if c.isdigit() else c
+                for c in re.split('([0-9]+)', name)]
+    return sorted((n for n in names if n.startswith('step')), key=key)
+
+
+def make_args(old_tag=None, new_tag=None):
+    """The command line arguments OLD_TAG and NEW_TAG of a step."""
+    return argparse.Namespace(OLD_TAG=old_tag, NEW_TAG=new_tag)
+
+
+def temp_dir(test: unittest.TestCase) -> str:
+    """A temporary directory, removed when the test is done."""
+    path = tempfile.mkdtemp(prefix='srt-test-')
+    test.addCleanup(shutil.rmtree, path, ignore_errors=True)
+    return path
+
+
+def stub_stdin(test: unittest.TestCase, answers: str) -> None:
+    """Let srt read answers from stdin, e.g. 'y' to its question."""
+    patcher = mock.patch('sys.stdin', io.StringIO(answers))
+    patcher.start()
+    test.addCleanup(patcher.stop)
+
+
+def stub_stdouts(test: unittest.TestCase) -> None:
+    """Capture what srt prints, until the test is done or the next
+    stub_stdouts(): see stdout_text() and stderr_text()."""
+    for name in ('sys.stdout', 'sys.stderr'):
+        patcher = mock.patch(name, io.StringIO())
+        patcher.start()
+        test.addCleanup(patcher.stop)
+
+
+def stdout_text() -> str:
+    """The output captured since stub_stdouts()."""
+    return cast(io.StringIO, sys.stdout).getvalue()
+
+
+def stderr_text() -> str:
+    """The error output captured since stub_stdouts()."""
+    return cast(io.StringIO, sys.stderr).getvalue()
+
+
+def find_string(lines, token):
+    """Whether one of the lines is token, but for white space."""
+    return any(line.strip() == token for line in lines.splitlines())
+
+
+def git(path, *args):
+    return cmd(['git', '-C', path] + list(args))
+
+
+def identity(path):
+    """Commit in the repository at path as the owner of the test key.
+    The environment of the tests says so too, but srt reads it from the
+    git configuration (srt log, the defaults of srt.conf)."""
+    git(path, 'config', 'user.name', 'Mighty Eagle')
+    git(path, 'config', 'user.email', 'me@incredible.com')
+
+
+def write(path, text):
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, 'w') as f:
+        f.write(text)
+
+
+def read(path):
+    with open(path) as f:
+        return f.read()
+
+
+def replace_line(path, old, new):
+    write(path, read(path).replace(old + '\n', new + '\n', 1))
+
+
+def kernel_makefile(version):
+    """The top of a kernel Makefile, the version srt commit reads."""
+    major, minor, patch = version.split('.')
+    return ('# SPDX-License-Identifier: GPL-2.0\n'
+            f'VERSION = {major}\n'
+            f'PATCHLEVEL = {minor}\n'
+            f'SUBLEVEL = {patch}\n'
+            'EXTRAVERSION =\n'
+            'NAME = Fake Kernel\n'
+            '\n'
+            '# *DOCUMENTATION*\n'
+            '# no build, only the version\n'
+            '\n')
+
+
+def set_sublevel(version):
+    """A new stable release: SUBLEVEL of the Makefile in the cwd."""
+    write('Makefile', re.sub(r'(?m)^SUBLEVEL = .*$',
+                             f'SUBLEVEL = {version.split(".")[2]}',
+                             read('Makefile')))
 
 gnupg_config = """
 Key-Type: eddsa

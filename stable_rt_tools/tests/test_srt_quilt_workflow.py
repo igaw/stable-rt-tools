@@ -39,15 +39,11 @@ upstreamed.patch (picked up by stable v6.1.2, so it has to be dropped)
 and the localversion patch. The release v6.1.2-rt2 adds new-fix.patch.
 """
 
-import io
 import json
 import os
 import subprocess
-import sys
-import tempfile
 import unittest
 from argparse import Namespace
-from shutil import rmtree
 from typing import cast
 from unittest import mock
 
@@ -70,41 +66,24 @@ from stable_rt_tools.srt_util import (
     write_srt_state,
 )
 from stable_rt_tools.srt_util_context import SrtContext
-from stable_rt_tools.tests.helpers import gnupg_home
-from stable_rt_tools.tests.inbox import add_mail
-from stable_rt_tools.tests.test_srt import (
+from stable_rt_tools.tests.helpers import (
+    git,
+    gnupg_home,
+    identity,
     kernel_makefile,
+    read,
+    replace_line,
     sort_steps,
+    stderr_text,
     stdout_text,
     stub_stdin,
     stub_stdouts,
+    temp_dir,
+    write,
 )
+from stable_rt_tools.tests.inbox import add_mail
 
 KERNEL_C = ''.join(f'line{i}\n' for i in range(1, 31))
-
-
-def git(path, *args):
-    return cmd(['git', '-C', path] + list(args))
-
-
-def write(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
-        f.write(text)
-
-
-def read(path):
-    with open(path) as f:
-        return f.read()
-
-
-def replace_line(path, old, new):
-    write(path, read(path).replace(old + '\n', new + '\n', 1))
-
-
-def identity(path):
-    git(path, 'config', 'user.name', 'Mighty Eagle')
-    git(path, 'config', 'user.email', 'me@incredible.com')
 
 
 @unittest.skipIf(subprocess.run(['which', 'quilt'],
@@ -232,8 +211,7 @@ class TestQuiltBase(unittest.TestCase):
         self.old_tag = f'v6.1.1-{self.suffix}1'
         self.new_tag = f'v6.1.2-{self.suffix}2'
         self.localversion = f'localversion-{self.suffix}'
-        self.cwd = tempfile.gettempdir()
-        self.tdir = tempfile.mkdtemp()
+        self.tdir = temp_dir(self)
         self.stable_repo = self.tdir + '/upstream/linux'
         self.rt_repo = self.tdir + '/rt-repo'
         self.rt = self.tdir + '/rt'
@@ -267,14 +245,7 @@ class TestQuiltBase(unittest.TestCase):
             'stable_rt_tools.srt_status.kup_ls',
             return_value=(None, 'kup is not installed')).start()
         self.addCleanup(mock.patch.stopall)
-        env = mock.patch.dict(os.environ, {'GIT_EDITOR': 'true'})
-        env.start()
-        self.addCleanup(env.stop)
         os.chdir(self.rt_dir)
-
-    def tearDown(self):
-        os.chdir(self.cwd)
-        rmtree(self.tdir)
 
     def run_step(self, step, answers='y\ny\n'):
         stub_stdin(self, answers)
@@ -725,9 +696,7 @@ class TestFromBranch(TestQuiltBase):
               'UPSTREAM_BRANCH = linux-6.2.y\nUPSTREAM_REMOTE = stable\n')
         self.srt_setup_cli('linux/stable-rt/v6.2-rt', '--dir', self.rt,
                            '--from', 'linux-6.2.y-rt', '--prj-dir', '/x')
-        # the StringIO stub_stdouts() installed
-        err = cast(io.StringIO, sys.stderr).getvalue()
-        self.assertIn('PRJ_DIR = /x differs from srt.conf', err)
+        self.assertIn('PRJ_DIR = /x differs from srt.conf', stderr_text())
         self.assertNotIn('PRJ_DIR', read(conf))
 
 
@@ -773,7 +742,7 @@ class TestQuiltChecks(TestQuiltBase):
         assert state is not None
         self.assertEqual(state['new_tag'], self.new_tag)
         self.assertIn('srt: warning: srt prep is not in the log',
-                      cast(io.StringIO, sys.stderr).getvalue())
+                      stderr_text())
 
     def test_queue_refuses_changes_after_commit(self):
         self.release_until('refresh')
@@ -1130,7 +1099,3 @@ class TestQuiltChecks(TestQuiltBase):
             self.run_step('refresh', 'n\n')
         self.assertIn('quilt push of upstreamed.patch failed',
                       str(e.exception))
-
-
-if __name__ == '__main__':
-    unittest.main()

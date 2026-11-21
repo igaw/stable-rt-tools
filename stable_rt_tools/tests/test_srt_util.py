@@ -33,12 +33,13 @@ from stable_rt_tools.tests.helpers import (
     generate_key,
     gnupg_config,
     gnupg_home,
+    temp_dir,
 )
 
 
 class TestUtil(TestCase):
     def setUp(self):
-        self.tdir = tempfile.mkdtemp()
+        self.tdir = temp_dir(self)
         self.stable_repo = self.tdir + '/stable-repo'
         self.rt_repo = self.tdir + '/rt-repo'
         self.work_tree = self.tdir + '/work-tree'
@@ -56,11 +57,6 @@ class TestUtil(TestCase):
             'NAME': 'Mighty Eagle'}
 
         self.setup_gpg()
-
-    def tearDown(self):
-        # don't leave the next test in a deleted directory
-        os.chdir(tempfile.gettempdir())
-        rmtree(self.tdir)
 
     def setup_gpg(self):
         self.gnupghome, key = gnupg_home(self)

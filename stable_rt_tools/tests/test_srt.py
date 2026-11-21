@@ -24,16 +24,11 @@
 
 
 import argparse
-import io
 import os
-import re
-import sys
-import tempfile
 import textwrap
 import unittest
 from logging import debug
 from pprint import pformat
-from shutil import rmtree
 from subprocess import DEVNULL, run
 from typing import cast
 from unittest import mock
@@ -48,90 +43,20 @@ from stable_rt_tools.srt_tag import tag
 from stable_rt_tools.srt_upload import upload
 from stable_rt_tools.srt_util import cmd, tag_exists
 from stable_rt_tools.srt_util_context import SrtContext
-from stable_rt_tools.tests.helpers import gnupg_home
+from stable_rt_tools.tests.helpers import (
+    find_string,
+    gnupg_home,
+    identity,
+    kernel_makefile,
+    make_args,
+    set_sublevel,
+    sort_steps,
+    stdout_text,
+    stub_stdin,
+    stub_stdouts,
+    temp_dir,
+)
 from stable_rt_tools.tests.inbox import add_mail
-
-
-def sort_steps(entries):
-    entries = list(filter(lambda x: x.startswith('step'), entries))
-    def convert(text): return int(text) if text.isdigit() else text
-    def key(key): return [convert(c) for c in re.split('([0-9]+)', key)]
-    return sorted(entries, key=key)
-
-
-def make_args(old_tag=None, new_tag=None):
-    return argparse.Namespace(OLD_TAG=old_tag, NEW_TAG=new_tag)
-
-
-class StringIO(io.StringIO):
-    """
-    A "safely" wrapped version
-    """
-
-    def __init__(self, value=''):
-        value = value.encode('utf8', 'backslashreplace').decode('utf8')
-        io.StringIO.__init__(self, value)
-
-    def write(self, msg):
-        io.StringIO.write(self, msg.encode('utf8',
-                                           'backslashreplace').decode('utf8'))
-
-
-def stub_stdin(testcase_inst, inputs):
-    stdin = sys.stdin
-
-    def cleanup():
-        sys.stdin = stdin
-
-    testcase_inst.addCleanup(cleanup)
-    sys.stdin = StringIO(inputs)
-
-
-def stub_stdouts(testcase_inst):
-    stderr = sys.stderr
-    stdout = sys.stdout
-
-    def cleanup():
-        sys.stderr = stderr
-        sys.stdout = stdout
-
-    testcase_inst.addCleanup(cleanup)
-    sys.stderr = StringIO()
-    sys.stdout = StringIO()
-
-
-def stdout_text():
-    """The output written to the StringIO stub_stdouts() installed."""
-    return cast(io.StringIO, sys.stdout).getvalue()
-
-
-def find_string(lines, token):
-    return any(line.strip() == token for line in lines.splitlines())
-
-
-def kernel_makefile(version):
-    """The top of a kernel Makefile, the version srt commit reads."""
-    major, minor, patch = version.split('.')
-    return ('# SPDX-License-Identifier: GPL-2.0\n'
-            f'VERSION = {major}\n'
-            f'PATCHLEVEL = {minor}\n'
-            f'SUBLEVEL = {patch}\n'
-            'EXTRAVERSION =\n'
-            'NAME = Fake Kernel\n'
-            '\n'
-            '# *DOCUMENTATION*\n'
-            '# no build, only the version\n'
-            '\n')
-
-
-def set_sublevel(version):
-    """A new stable release: SUBLEVEL of the Makefile in the cwd."""
-    with open('Makefile') as f:
-        text = f.read()
-    text = re.sub(r'(?m)^SUBLEVEL = .*$',
-                  f'SUBLEVEL = {version.split(".")[2]}', text)
-    with open('Makefile', 'w') as f:
-        f.write(text)
 
 
 class TestSrtBase(unittest.TestCase):
@@ -139,7 +64,7 @@ class TestSrtBase(unittest.TestCase):
         os.mkdir(self.stable_repo)
         os.chdir(self.stable_repo)
         cmd(['git', 'init', '--initial-branch=master'])
-        self.setup_git_tree('.')
+        identity('.')
         with open('Makefile', 'w') as f:
             f.write(kernel_makefile(version))
 
@@ -157,7 +82,7 @@ class TestSrtBase(unittest.TestCase):
     def setup_rt_repo(self):
         os.chdir(self.tdir)
         cmd(['git', 'clone', self.stable_repo, os.path.basename(self.rt_repo)])
-        self.setup_git_tree(self.rt_repo)
+        identity(self.rt_repo)
         os.chdir(self.rt_repo)
         with open('rt.patch', 'w') as f:
             f.write('adding magic rt feature\n')
@@ -174,13 +99,9 @@ class TestSrtBase(unittest.TestCase):
     def setup_work_tree(self):
         os.chdir(self.tdir)
         cmd(['git', 'clone', self.rt_repo, os.path.basename(self.work_tree)])
-        self.setup_git_tree(self.work_tree)
+        identity(self.work_tree)
         os.chdir(self.work_tree)
         cmd(['git', 'remote', 'add', 'stable', self.stable_repo])
-
-    def setup_git_tree(self, path):
-        cmd(['git', '-C', path, 'config', 'user.name', 'Mighty Eagle'])
-        cmd(['git', '-C', path, 'config', 'user.email', 'me@incredible.com'])
 
     def do_merge(self, version):
         os.chdir(self.work_tree)
@@ -194,7 +115,7 @@ class TestSrtBase(unittest.TestCase):
         self.config['GNUPGHOME'] = self.gnupghome
 
     def setUp(self):
-        self.tdir = tempfile.mkdtemp()
+        self.tdir = temp_dir(self)
         self.stable_repo = self.tdir + '/stable-repo'
         self.rt_repo = self.tdir + '/rt-repo'
         self.work_tree = self.tdir + '/work-tree'
@@ -217,11 +138,6 @@ class TestSrtBase(unittest.TestCase):
         self.setup_work_tree()
         self.setup_stable_new_release('4.4.14')
         self.do_merge('4.4.14')
-
-    def tearDown(self):
-        # don't leave the next test in a deleted directory
-        os.chdir(tempfile.gettempdir())
-        rmtree(self.tdir)
 
     def _steps(self):
         yield from sort_steps(dir(self))
@@ -971,9 +887,3 @@ class TestReleaseMergeConflict(TestReleaseCanditateMergeConflict):
         self.assertIn('+# rt\n', changes)
         self.assertNotIn('+# stable', changes)
         self.assertNotIn('+4.4.15', changes)
-
-
-if __name__ == '__main__':
-    import logging
-    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-    unittest.main()
