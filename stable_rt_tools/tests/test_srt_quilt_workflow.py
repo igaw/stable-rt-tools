@@ -51,7 +51,13 @@ from shutil import rmtree
 from typing import cast
 from unittest import mock
 
-from stable_rt_tools import srt_check, srt_quilt, srt_setup, srt_status
+from stable_rt_tools import (
+    srt_check,
+    srt_log,
+    srt_quilt,
+    srt_setup,
+    srt_status,
+)
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
@@ -483,6 +489,52 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertIn(f'+-{self.suffix}2\n', changes)
         self.assertNotIn('stable_line28', changes)
 
+    def step10_log(self):
+        events = srt_log.read_log(self.rt_dir)
+        # srt announce only printed the mail: not in the log
+        self.assertEqual([e['step'] for e in events], [
+            'prep', 'quilt refresh', 'quilt queue', 'quilt rebase',
+            'quilt merge', 'quilt release', 'create', 'sign'])
+        for e in events:
+            self.assertEqual(e['series'], self.series)
+            self.assertEqual(e['release'], self.new_tag)
+            self.assertEqual(e['old'], self.old_tag)
+            self.assertEqual(e['user'], 'Mighty Eagle')
+            self.assertTrue(e['time'].endswith('+00:00'))
+        steps = {e['step']: e for e in events}
+        self.assertEqual(steps['prep']['upstream'], 'v6.1.2')
+        self.assertEqual(steps['quilt refresh']['dropped'],
+                         ['upstreamed.patch'])
+        self.assertEqual(steps['quilt refresh']['added'], ['new-fix.patch'])
+        for step, tag, path in (
+                ('quilt queue', f'{self.new_tag}-patches', self.patches_dir),
+                ('quilt rebase', f'{self.new_tag}-rebase', self.rebase_dir),
+                ('quilt release', self.new_tag, self.rt_dir)):
+            self.assertEqual(steps[step]['tag'], tag)
+            self.assertEqual(steps[step]['commit'],
+                             git(path, 'rev-parse', tag + '^{commit}'))
+        self.assertEqual(steps['quilt merge']['merged'], 'v6.1.2')
+        self.assertEqual(steps['quilt merge']['applied'], ['new-fix.patch'])
+        v = self.new_tag[1:]
+        self.assertEqual(steps['sign']['files'],
+                         [f'patch-{v}.patch.sign', f'patches-{v}.tar.sign'])
+        # one log for all worktrees of the series, next to the state
+        log = srt_log.get_log_path(self.patches_dir)
+        self.assertEqual(log, srt_log.get_log_path(self.rt_dir))
+        self.assertEqual(log, os.path.join(
+            git(self.rt_dir, 'rev-parse', '--path-format=absolute',
+                '--git-common-dir'), 'srt', self.series + '.log'))
+
+        stub_stdouts(self)
+        srt_log.show_log(2)
+        lines = stdout_text().splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertIn(f'create         {self.new_tag} (from {self.old_tag})',
+                      lines[0])
+        self.assertIn(f'files=patch-{v}.patch.sign,patches-{v}.tar.sign',
+                      lines[1])
+        self.assertTrue(lines[1].endswith('by Mighty Eagle'))
+
     def test_release(self):
         for step in sort_steps(dir(self)):
             getattr(self, step)()
@@ -684,6 +736,18 @@ class TestQuiltChecks(TestQuiltBase):
         self.assertEqual(git(self.rt_dir, 'rev-parse', 'HEAD'), head)
         with self.assertRaises(SystemExit):
             self.run_step('refresh')
+        # the reruns changed nothing, the log has each step once
+        self.assertEqual([e['step'] for e in srt_log.read_log()],
+                         ['prep'] + [f'quilt {s}' for s in srt_quilt.STEPS])
+
+    def test_log_failure_does_not_fail_the_step(self):
+        os.makedirs(srt_log.get_log_path() or '')
+        self.prepare()
+        state = read_srt_state()
+        assert state is not None
+        self.assertEqual(state['new_tag'], self.new_tag)
+        self.assertIn('srt: warning: srt prep is not in the log',
+                      cast(io.StringIO, sys.stderr).getvalue())
 
     def test_queue_refuses_changes_after_commit(self):
         self.release_until('refresh')
@@ -900,6 +964,12 @@ class TestQuiltChecks(TestQuiltBase):
         self.assertIn('new-fix.patch', git(
             self.patches_dir, 'diff', '--cached', '--name-only'))
         self.assertIn('nothing to undo', self.run_step('undo', ''))
+        undo = srt_log.read_log()[-1]
+        self.assertEqual(undo['step'], 'quilt undo')
+        self.assertEqual(undo['deleted'], [
+            self.new_tag, f'{self.new_tag}-rebase', f'{self.new_tag}-patches'])
+        self.assertEqual(undo['reset'], f'stable-rt/{self.series}')
+        self.assertEqual(undo['queue_commit'], 'undone')
         for step in srt_quilt.STEPS:
             self.run_step(step)
         self.assertTrue(srt_quilt.Release().done('release'))

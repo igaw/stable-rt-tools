@@ -27,6 +27,7 @@ import argparse
 import os
 import shutil
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
@@ -90,6 +91,9 @@ def create(config: Config, ctx: SrtContext) -> None:
                           ctx.new.series_dir)
 
     create_tar_file(ctx.new.dir, ctx.new.tar_file)
+
+    log_step('create', ctx=ctx, dir=ctx.new.dir,
+             files=[os.path.basename(f) for f in ctx.new.files])
 
     print(f'Created the following files in {ctx.new.dir}')
     for f in ctx.new.files:

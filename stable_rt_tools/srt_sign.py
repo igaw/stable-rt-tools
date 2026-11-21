@@ -27,6 +27,7 @@ import argparse
 import os
 import sys
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
@@ -62,6 +63,10 @@ def sign(config: Config, ctx: SrtContext) -> None:
             sys.exit(f'Unable to read {f}, did you remember to create?')
         gpg_sign(config, f)
         print(f'signed {os.path.splitext(f)[0]}.sign')
+    log_step('sign', ctx=ctx, dir=ctx.new.dir,
+             files=[os.path.basename(os.path.splitext(f)[0]) + '.sign'
+                    for f in ctx.new.files],
+             key=require(config, 'GPG_KEY_ID'))
     next_step('srt upload')
 
 

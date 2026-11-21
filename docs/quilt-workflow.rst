@@ -280,7 +280,8 @@ The ``srt prep`` command stores release state in git metadata shared by the
 worktrees, one release per series: a work area with v6.12-rt and v6.18-rt
 can have a release prepared for each. ``srt quilt``, ``srt status``, ``srt create``, ``srt sign``,
 ``srt upload`` and ``srt push`` read this state automatically when tags are
-not provided explicitly. ``srt push`` clears the state after a successful push.
+not provided explicitly. ``srt push`` clears the state after a successful push;
+the history of the series, ``srt log``, stays (see :doc:`userguide`).
 If a workflow gets interrupted, clear it manually with ``srt prep --clear``.
 
 ``srt status`` shows the steps done, ``srt create`` and ``srt sign``

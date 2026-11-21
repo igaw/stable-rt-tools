@@ -229,6 +229,82 @@ settings (``GPG_KEY_ID``, ``GNUPGHOME``, ``SENDER``, ``NAME``) and settings
 which are the same in all groups move to ``[DEFAULT]``. srt prints what it
 changed. Comments are only kept in the backup.
 
+History of a series
+-------------------
+
+Every step which changes something adds a line to the history of its
+series when it succeeds: ``srt prep`` and ``srt prep --clear``, the
+``srt quilt`` steps (``refresh``, ``queue``, ``rebase``, ``merge``,
+``release``, ``undo``), ``srt commit``, ``srt tag``, ``srt create``,
+``srt sign``, ``srt upload``, ``srt push``, the review mails of a release
+candidate sent by ``srt announce`` and the announcement opened in the mail
+client by ``srt announce --mail``. Dry runs, drafts, ``srt status``,
+``srt check`` and a plain ``srt announce``, which only prints the mail,
+change nothing and leave no line. A step srt didn't do, e.g. a merge
+conflict you resolved by hand, isn't in it either.
+
+``srt log`` shows the history of the series of the current worktree, oldest
+first, the time in UTC; ``-n N`` only the last N steps, ``--json`` all
+fields for scripts:
+
+.. code-block:: console
+
+  $ srt log -n 2
+  2026-11-21 10:12  quilt release  v6.12.118-rt24 (from v6.12.117-rt23)  tag=v6.12.118-rt24  commit=3f1c0a9e2b7d  by Daniel Wagner
+  2026-11-21 11:40  create         v6.12.118-rt24 (from v6.12.117-rt23)  dir=...  files=patch-6.12.118-rt24.patch.xz,patches-6.12.118-rt24.tar.xz  by Daniel Wagner
+
+The history is for people to read: srt never looks at it to decide
+anything, where a release stands comes from the trees (``srt status``).
+It lives in the git directory shared by the worktrees, next to the
+prepared release, one file per series:
+``<git common dir>/srt/<series>.log``, e.g. ``linux/.git/srt/v6.12-rt.log``.
+It can't be recreated from the trees: keep it with the repository, e.g. in
+your backups. ``srt prep --clear`` and ``srt push`` forget the prepared
+release, not the history. If the history can't be written, srt warns and
+the step is done anyway.
+
+Each line is a JSON object (JSON Lines), easy to parse:
+
+``time``
+    When the step finished, ISO 8601 in UTC.
+``series``
+    The series, e.g. ``v6.12-rt``.
+``step``
+    The command, e.g. ``prep``, ``quilt queue``, ``tag``, ``push``,
+    ``announce --mail``.
+``release``
+    The release the step is about, e.g. ``v6.12.118-rt24`` (also for its
+    ``-rebase`` and ``-patches`` tags) or ``v6.12.118-rt24-rc1``.
+``old``
+    The release before it, if srt knows it (``srt commit`` and ``srt tag``
+    only after ``srt prep``).
+``srt``
+    The version of srt.
+``user``
+    Who ran the step: git's ``user.name``.
+
+and the details of the step, left out when empty:
+
+- ``prep``: ``workflow``, ``upstream`` (the upstream release).
+- ``quilt refresh``: ``upstream``, the ``dropped`` and ``added`` patches.
+- ``quilt queue``, ``quilt rebase``, ``quilt release``, ``tag``: ``tag``
+  and its ``commit``; ``commit``: ``commit``, ``branch`` and ``subject``.
+- ``quilt merge``: ``merged`` (the upstream release), the ``applied``
+  patches, ``commit``. Only when it changed something.
+- ``quilt undo``: the ``deleted`` tags, ``reset`` (the branch the series
+  was reset to), ``queue_commit``, ``removed`` (the directory of the
+  files).
+- ``create``, ``sign``: ``dir`` and ``files``; ``sign`` also ``key``.
+- ``upload``: ``dir`` on kernel.org (``PRJ_DIR``), the ``files``
+  uploaded and the ``removed`` ones of the previous release.
+- ``push``: ``remote`` and ``refs`` (the arguments of ``git push``),
+  ``force`` for a release candidate.
+- ``announce``: ``result``, the number of ``mails``, ``to`` and the
+  ``message_id`` of the cover letter, as far as git send-email reports it;
+  ``announce --mail``: ``result`` (``mail opened``: whether it was sent is
+  up to you and the mail client), ``mailer``, ``mail`` (the file) and
+  ``message_id``.
+
 Troubleshooting
 ---------------
 

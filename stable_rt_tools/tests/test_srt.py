@@ -40,6 +40,7 @@ from typing import cast
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_commit import commit
 from stable_rt_tools.srt_create import create
+from stable_rt_tools.srt_log import read_log
 from stable_rt_tools.srt_push import push
 from stable_rt_tools.srt_sign import sign
 from stable_rt_tools.srt_tag import tag
@@ -385,6 +386,30 @@ class TestRelease(TestSrtBase):
         # the delta: the localversion, not the stable update
         self.assertIn('+-rt4\n', changes)
         self.assertNotIn('+4.4.14', changes)
+
+    def step10_log(self):
+        events = read_log(self.work_tree)
+        # the upload was declined, the announcement only printed
+        self.assertEqual([e['step'] for e in events], [
+            'commit', 'tag', 'commit', 'tag', 'create', 'sign', 'push'])
+        self.assertTrue(all(e['release'] == 'v4.4.14-rt4' and
+                            e['series'] == 'v4.4-rt' for e in events))
+        commit1, tag1, commit2, tag2 = events[:4]
+        self.assertEqual(commit1['branch'], 'v4.4-rt')
+        self.assertEqual(commit2['branch'], 'v4.4-rt-rebase')
+        self.assertEqual(commit2['subject'], 'Linux 4.4.14-rt4 REBASE')
+        self.assertEqual(tag1['tag'], 'v4.4.14-rt4')
+        self.assertEqual(tag2['tag'], 'v4.4.14-rt4-rebase')
+        self.assertEqual(tag2['commit'], cmd(
+            ['git', 'rev-parse', 'v4.4.14-rt4-rebase^{commit}']))
+        # without srt prep only the steps after the tag know the old one
+        self.assertNotIn('old', commit1)
+        push_ = events[-1]
+        self.assertEqual(push_['old'], 'v4.4.13-rt3')
+        self.assertEqual(push_['remote'], self.rt_repo)
+        self.assertIn('tag', push_['refs'])
+        self.assertIn('v4.4.14-rt4-rebase', push_['refs'])
+        self.assertNotIn('force', push_)
 
 
 class TestReleaseCanditate(TestSrtBase):

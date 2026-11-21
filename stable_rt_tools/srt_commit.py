@@ -28,6 +28,7 @@ import os
 import re
 import sys
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
@@ -143,6 +144,8 @@ def commit(config: Config, rc: int | None) -> None:
         cmd(['git', 'add', localversion])
         cmd(['git', 'commit', '-s', '-m', msg],
             env=get_gpg_env(config))
+        log_step('commit', f'v{version}', branch=branch_name,
+                 commit=cmd(['git', 'rev-parse', 'HEAD']), subject=msg)
         next_step(f'srt tag -r {rc}' if rc else 'srt tag')
     else:
         cmd(['git', 'reset', '--hard', old_head])

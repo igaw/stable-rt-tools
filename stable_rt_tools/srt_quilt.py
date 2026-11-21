@@ -51,8 +51,10 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from subprocess import CalledProcessError
 from time import gmtime, strftime
+from typing import Any
 
 from stable_rt_tools.srt_commit import localversion_set
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_prep import worktree_dirs
 from stable_rt_tools.srt_util import (
     Config,
@@ -278,6 +280,11 @@ class Release:
         git(path, 'tag', '-s', '-u', require(self.config, 'GPG_KEY_ID'),
             '-m', msg, tag, env=get_gpg_env(self.config))
 
+    def log(self, step: str, **details: Any) -> None:
+        """Put the step into the log of the series."""
+        log_step('quilt ' + step, self.release_tag, self.old,
+                 path=self.rt_dir, **details)
+
     def done(self, step: str) -> bool:
         if step == 'refresh':
             return self.state.get('refreshed') == self.release_tag
@@ -374,6 +381,7 @@ def refresh(rel: Release) -> None:
     update_srt_state({'refreshed': rel.release_tag}, rel.rt_dir)
 
     dropped, added = rel.series_changes()
+    rel.log('refresh', upstream=rel.base, dropped=dropped, added=added)
     for p in dropped:
         print(f'dropped: {p}')
     for p in added:
@@ -446,6 +454,8 @@ def queue(rel: Release, edit: bool = True,
 
     rel.tag(rel.patches_dir, rel.queue_tag,
             'Patch queue for ' + str(rel.new))
+    rel.log('queue', tag=rel.queue_tag,
+            commit=rev(rel.patches_dir, rel.queue_tag))
     next_step('srt quilt rebase')
 
 
@@ -472,6 +482,8 @@ def rebase(rel: Release) -> None:
     git(rel.rebase_dir, 'reset', '--hard', rel.base)
     git(rel.rebase_dir, 'quiltimport', '--patches', rel.quilt_patches)
     rel.tag(rel.rebase_dir, rel.rebase_tag, rel.rebase_tag)
+    rel.log('rebase', tag=rel.rebase_tag,
+            commit=rev(rel.rebase_dir, rel.rebase_tag))
     next_step('srt quilt merge')
 
 
@@ -486,6 +498,8 @@ def merge(rel: Release) -> None:
     if op:
         sys.exit(f'{rel.rt_dir}: {op} in progress, finish it first')
     require_clean(rel.rt_dir)
+    head = rev(rel.rt_dir, 'HEAD')
+    merged = None
 
     if not is_ancestor(rel.rt_dir, rel.base):
         print(f'merge {rel.base}')
@@ -494,11 +508,13 @@ def merge(rel: Release) -> None:
             # lines in the message, --cleanup=strip drops them
             git(rel.rt_dir, 'merge', '--no-edit', '--cleanup=strip',
                 '--signoff', rel.base, env=get_gpg_env(rel.config))
+            merged = rel.base
         except CalledProcessError:
             sys.exit('merge conflict: resolve it (the result has to match '
                      f'{rel.rebase_tag}), "git commit -s" and rerun '
                      '"srt quilt merge"')
-    for name in rel.missing_patches():
+    applied = rel.missing_patches()
+    for name in applied:
         print(f'apply {name}')
         try:
             git(rel.rt_dir, 'am', '-3', '-s',
@@ -507,6 +523,9 @@ def merge(rel: Release) -> None:
         except CalledProcessError:
             sys.exit(f'git am {name} failed: resolve it, "git am --continue" '
                      'and rerun "srt quilt merge"')
+    if rev(rel.rt_dir, 'HEAD') != head:
+        rel.log('merge', merged=merged, applied=applied,
+                commit=rev(rel.rt_dir, 'HEAD'))
     next_step('srt quilt release')
 
 
@@ -544,6 +563,8 @@ def release(rel: Release) -> None:
         git(rel.rt_dir, 'commit', '-s', '-m', rel.release_tag,
             env=get_gpg_env(rel.config))
     rel.tag(rel.rt_dir, rel.release_tag, rel.release_tag)
+    rel.log('release', tag=rel.release_tag,
+            commit=rev(rel.rt_dir, rel.release_tag))
     next_step(RELEASE_NEXT)
 
 
@@ -620,6 +641,10 @@ def undo(rel: Release) -> None:
     if files:
         shutil.rmtree(files)
     update_srt_state({'refreshed': None}, rel.rt_dir)
+    rel.log('undo', deleted=existing,
+            reset=rt_upstream if dropped else None,
+            queue_commit='undone' if queue_commit else None,
+            removed=files or None)
     next_step('fix the patch queue, then srt quilt refresh')
 
 

@@ -92,13 +92,18 @@ class TestMailer(unittest.TestCase):
                 patch.object(tempfile, 'tempdir', None), \
                 patch.object(srt_announce, 'announcement',
                              return_value=MAIL), \
-                patch.object(srt_announce, 'run') as run:
+                patch.object(srt_announce, 'run') as run, \
+                patch.object(srt_announce, 'log_step') as log:
             run.return_value.returncode = 0
             srt_announce.mail_announcement(
                 {'MAILER': 'mutt -H {mail}'}, ctx)  # type: ignore
             (path,), _ = run.call_args
             self.assertEqual(path[:2], ['mutt', '-H'])
             mail = path[2]
+            # the log has the Message-ID of the mail opened
+            log.assert_called_once_with(
+                'announce --mail', ctx=ctx, result='mail opened',
+                mailer='mutt', mail=mail, message_id='<1@example.org>')
             self.assertEqual(os.path.basename(mail), 'announce-v6.12.118-rt24')
             self.assertEqual(os.path.dirname(os.path.dirname(mail)), d)
             with open(mail) as f:

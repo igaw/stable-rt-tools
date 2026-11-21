@@ -29,6 +29,7 @@ import sys
 from pprint import pformat
 from subprocess import CalledProcessError
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
@@ -79,6 +80,9 @@ def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
             print(f'kup failed with error code {e.returncode}',
                   file=sys.stderr)
             sys.exit(e.returncode)
+        log_step('upload', ctx=ctx, dir=path,
+                 files=[os.path.basename(f) for f in ctx.new.files],
+                 removed=[os.path.basename(f) for f in ctx.old.files])
         next_step('srt push')
 
 

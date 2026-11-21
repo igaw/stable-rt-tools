@@ -34,6 +34,7 @@ from email.utils import make_msgid
 from subprocess import DEVNULL, PIPE, run
 from time import gmtime, strftime
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_review import announce_rc
 from stable_rt_tools.srt_util import (
     Config,
@@ -202,6 +203,10 @@ def mail_announcement(config: Config, ctx: SrtContext) -> None:
     if p.returncode != 0:
         sys.exit(f'MAILER {argv[0]} failed with exit code {p.returncode}, '
                  f'the mail is in {path}')
+    # opened, whether it was sent is up to the mail client
+    headers = message_from_string(mail.partition('\n\n')[0] + '\n\n')
+    log_step('announce --mail', ctx=ctx, result='mail opened',
+             mailer=argv[0], mail=path, message_id=headers.get('Message-ID'))
 
 
 def announce(config: Config, ctx: SrtContext,

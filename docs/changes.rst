@@ -35,6 +35,14 @@ New
   review them), ``-rebase`` against the queue, the stable merge message,
   the release against ``-rebase``, the delta of the release, the files of
   ``srt create`` against the tags and the signatures.
+- ``srt log`` shows the history of a series: each step which changes
+  something (``srt prep``, the ``srt quilt`` steps, ``srt commit``,
+  ``srt tag``, ``srt create``, ``srt sign``, ``srt upload``, ``srt push``,
+  the mails of ``srt announce``) adds a line with the time, the release,
+  who ran it and what it did, e.g. tag and commit, files, pushed refs or
+  the Message-ID, to ``<git common dir>/srt/<series>.log`` (JSON Lines).
+  It is for people to read, srt doesn't rely on it; ``--json`` prints
+  it for scripts, the MCP tool ``log`` for agents.
 - ``srt mcp`` serves the release steps to an agent as MCP server, with
   upload and push as dry runs unless it runs with ``--allow-publish``. The
   repository has a Claude Code skill for making a release. The Agents

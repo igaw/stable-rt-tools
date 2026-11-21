@@ -24,6 +24,7 @@
 
 import argparse
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
@@ -73,6 +74,8 @@ def push(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
 
     if confirm('OK to push?'):
         cmd(gcp + args)
+        log_step('push', ctx=ctx, remote=args[0], refs=args[1:],
+                 force=ctx.is_rc or None)
         clear_srt_state()
         if not ctx.is_rc:
             offer_announcement(config, ctx)

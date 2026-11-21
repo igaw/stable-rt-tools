@@ -29,6 +29,7 @@ import re
 import sys
 from subprocess import CalledProcessError
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SrtState,
@@ -134,6 +135,9 @@ def prep(config: Config, pull: bool = True) -> None:
         state['patches_dir'] = dirs['patches_dir']
         state['rebase_dir'] = dirs['rebase_dir']
     write_srt_state(state)
+    log_step('prep', new_tag, old_tag,
+             workflow='quilt' if quilt_workflow else 'git',
+             upstream=next_stable)
 
     print(f"OLD_TAG={old_tag}")
     print(f"NEW_TAG={new_tag}")
@@ -155,8 +159,11 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
 
 def execute(args: argparse.Namespace) -> None:
     if getattr(args, 'clear', False):
-        if read_srt_state():
+        state = read_srt_state()
+        if state:
             clear_srt_state()
+            log_step('prep --clear', state.get('new_tag'),
+                     state.get('old_tag'))
             print('cleared the prepared release')
         else:
             print('no release prepared')

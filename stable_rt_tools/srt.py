@@ -33,6 +33,7 @@ from stable_rt_tools import (
     srt_check,
     srt_commit,
     srt_create,
+    srt_log,
     srt_mcp,
     srt_prep,
     srt_push,
@@ -58,6 +59,7 @@ sub_cmd = {
     'announce': srt_announce,
     'quilt': srt_quilt,
     'status': srt_status,
+    'log': srt_log,
     'check': srt_check,
     'mcp': srt_mcp,
 }

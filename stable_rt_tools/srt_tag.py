@@ -26,6 +26,7 @@
 import argparse
 import sys
 
+from stable_rt_tools.srt_log import log_step
 from stable_rt_tools.srt_util import (
     Config,
     SubParsers,
@@ -65,6 +66,8 @@ def tag(config: Config, rc: int | None) -> None:
         cmd(['git', 'tag', '-s', '-u', require(config, 'GPG_KEY_ID'),
              '-m', msg, name],
             env=get_gpg_env(config))
+        log_step('tag', name.removesuffix('-rebase'), tag=name,
+                 commit=cmd(['git', 'rev-parse', 'HEAD']))
         next_step(tag_next_step(name))
 
 
