@@ -33,7 +33,7 @@ from configparser import ConfigParser
 from datetime import UTC, datetime
 from importlib.resources import files
 from logging import debug, error
-from subprocess import DEVNULL, PIPE, CalledProcessError, Popen, run
+from subprocess import PIPE, CalledProcessError, Popen, run
 from typing import IO, TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
@@ -76,12 +76,20 @@ class SrtState(TypedDict, total=False):
 def cmd(args: Sequence[str], verbose: bool = False,
         env: Mapping[str, str] | None = None,
         cwd: str | None = None) -> str:
+    """Run args and return its output without the trailing newlines.
+
+    A failure raises CalledProcessError. Unless verbose shows it, the
+    error output of the command is captured: it is the stderr of the
+    exception, srt prints it when the command fails.
+    """
     if verbose:
         print(' '.join(args))
     debug('run: ' + ' '.join(args) + (f' (in {cwd})' if cwd else ''))
     p = run(args, check=True, stdout=PIPE,
-            stderr=None if verbose else DEVNULL, env=env, cwd=cwd)
-    r = p.stdout.decode('utf-8').strip()
+            stderr=None if verbose else PIPE, env=env, cwd=cwd)
+    # only the trailing newlines: the first line can be indented, e.g.
+    # in a diffstat
+    r = p.stdout.decode('utf-8').rstrip('\n')
     debug('     ' + r)
     return r
 

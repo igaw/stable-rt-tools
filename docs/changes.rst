@@ -78,6 +78,13 @@ Fixed
   release which isn't tagged (e.g. left over by the ``srt quilt undo`` of
   srt 2.1) make ``srt status`` warn and ``srt check`` fail, and don't
   count as ``srt create`` and ``srt sign`` done.
+- A failing git (or other) command ended srt with a Python traceback,
+  and the error message of the command was lost. srt prints the command,
+  its exit code and its error message now (``srt -d`` keeps the
+  traceback), and Ctrl-C ends srt without a traceback.
+- ``srt quilt release`` refused a changed, not yet added localversion
+  file as uncommitted change ``ocalversion-rt``: the first letter of the
+  first changed file was cut off.
 
 2.1
 ---

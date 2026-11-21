@@ -25,6 +25,7 @@
 import argparse
 import logging
 import sys
+from subprocess import CalledProcessError
 
 from stable_rt_tools import (
     about,
@@ -114,8 +115,33 @@ def main() -> None:
     if args.cmd not in sub_cmd:
         parser.print_help(sys.stderr)
         sys.exit(2)
-    convert_config_files()
-    sub_cmd[args.cmd].execute(args)
+    try:
+        convert_config_files()
+        sub_cmd[args.cmd].execute(args)
+    except CalledProcessError as e:
+        if args.debug:
+            raise
+        sys.exit(command_failed(e))
+    except KeyboardInterrupt:
+        if args.debug:
+            raise
+        sys.exit(130)
+
+
+def command_failed(e: CalledProcessError) -> str:
+    """The message for a command which failed: what failed and its
+    error output, instead of a traceback."""
+    command = e.cmd if isinstance(e.cmd, str) else ' '.join(e.cmd)
+    if e.returncode < 0:
+        msg = f'srt: {command} was killed by signal {-e.returncode}'
+    else:
+        msg = f'srt: {command} failed (exit {e.returncode})'
+    err = e.stderr
+    if isinstance(err, bytes):
+        err = err.decode('utf-8', errors='replace')
+    if err and err.strip():
+        msg += '\n' + err.strip()
+    return msg
 
 
 if __name__ == "__main__":

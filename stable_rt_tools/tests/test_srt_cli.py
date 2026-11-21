@@ -23,7 +23,9 @@
 # SOFTWARE
 
 import io
+import sys
 import unittest
+from subprocess import CalledProcessError
 from unittest import mock
 
 from stable_rt_tools import srt_util
@@ -56,6 +58,73 @@ class TestYes(unittest.TestCase):
                 mock.patch('sys.stdout', out):
             self.assertTrue(srt_util.confirm('OK to push?'))
         self.assertEqual(out.getvalue(), 'OK to push? (y/n): y (--yes)\n')
+
+
+class TestCmd(unittest.TestCase):
+
+    def test_keeps_the_indentation(self):
+        out = srt_util.cmd([sys.executable, '-c',
+                            'print(" a | 1 +"); print(" 1 file")'])
+        self.assertEqual(out, ' a | 1 +\n 1 file')
+
+    def test_stderr_of_a_failed_command(self):
+        with self.assertRaises(CalledProcessError) as cm:
+            srt_util.cmd([sys.executable, '-c',
+                          'import sys; sys.exit("fatal: bad ref")'])
+        self.assertEqual(cm.exception.returncode, 1)
+        self.assertIn(b'fatal: bad ref', cm.exception.stderr)
+
+    def test_dirty_files(self):
+        import os
+        import tempfile
+
+        from stable_rt_tools.srt_quilt import dirty_files, git
+
+        with tempfile.TemporaryDirectory() as path:
+            git(path, 'init', '-q')
+            with open(os.path.join(path, 'localversion-rt'), 'w') as f:
+                f.write('-rt1\n')
+            git(path, 'add', 'localversion-rt')
+            git(path, '-c', 'user.name=a', '-c', 'user.email=a@b',
+                'commit', '-q', '-m', 'x')
+            with open(os.path.join(path, 'localversion-rt'), 'w') as f:
+                f.write('-rt2\n')
+            # ' M localversion-rt', the first column is a space
+            self.assertEqual(dirty_files(path), ['localversion-rt'])
+
+
+class TestMain(unittest.TestCase):
+
+    def run_main(self, *argv, error=None):
+        from stable_rt_tools import srt
+
+        error = error or CalledProcessError(
+            128, ['git', 'describe'], stderr=b'fatal: No names found\n')
+        err = io.StringIO()
+        with mock.patch('sys.argv', ['srt', *argv]), \
+                mock.patch('sys.stderr', err), \
+                mock.patch.object(srt, 'convert_config_files'), \
+                mock.patch('stable_rt_tools.srt_status.execute',
+                           side_effect=error):
+            srt.main()
+        return err.getvalue()
+
+    def test_failed_command(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.run_main('status')
+        # sys.exit(message): on stderr, exit code 1
+        self.assertEqual(cm.exception.code,
+                         'srt: git describe failed (exit 128)\n'
+                         'fatal: No names found')
+
+    def test_failed_command_debug(self):
+        with self.assertRaises(CalledProcessError):
+            self.run_main('-d', 'status')
+
+    def test_interrupt(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.run_main('status', error=KeyboardInterrupt())
+        self.assertEqual(cm.exception.code, 130)
 
 
 class TestNextStep(unittest.TestCase):

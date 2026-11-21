@@ -124,7 +124,7 @@ def series_summary(ref: str, commits: list[str]) -> str:
         # a merge with conflicts has a mail of its own
         return text + 'The diffstat is left out, it would contain the ' \
             'stable update.\n'
-    return text + ' ' + cmd(['git', 'diff', '--stat', f'{ref}..']) + '\n'
+    return text + cmd(['git', 'diff', '--stat', f'{ref}..']) + '\n'
 
 
 def rewrite_cover(cover: str, prefix: str, total: int, summary: str) -> None:
@@ -311,18 +311,12 @@ def changes(ctx: SrtContext) -> str:
     new = str(ctx.new_tag)
     base = delta_base(ctx)
 
-    def git(*args: str) -> str:
-        # not cmd(): it strips the indentation of the first line too,
-        # e.g. of the diffstat
-        return run(['git', '--no-pager', *args], check=True, stdout=PIPE,
-                   encoding='utf-8').stdout.rstrip('\n')
-
     return '\n'.join([
-        git('shortlog', '--first-parent', f'{ctx.old_tag}..{new}'),
+        cmd(['git', 'shortlog', '--first-parent', f'{ctx.old_tag}..{new}']),
         '---',
-        git('diff', '--stat', base, new),
+        cmd(['git', 'diff', '--stat', base, new]),
         '---',
-        git('diff', base, new)])
+        cmd(['git', 'diff', base, new])])
 
 
 def quilt_announcement(ctx: SrtContext) -> str:

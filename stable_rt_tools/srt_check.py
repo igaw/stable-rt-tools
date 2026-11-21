@@ -133,7 +133,8 @@ def check_queue(rel: srt_quilt.Release) -> Check:
             new = _show(rel.patches_dir, rel.queue_tag, f'patches/{name}')
         else:
             with open(os.path.join(rel.quilt_patches, name)) as f:
-                new = f.read().strip()
+                # as _show() reads the queued one
+                new = f.read().rstrip('\n')
         # the localversion patch changes with every release
         old = old.replace(f'+{old_lv}\n', f'+{new_lv}\n')
         if old.endswith(f'+{old_lv}'):
