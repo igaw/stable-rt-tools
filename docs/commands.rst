@@ -798,8 +798,13 @@ where the history is kept.
 .. code-block:: console
 
   $ srt log -n 2
-  2026-11-21 10:12  quilt release  v6.12.118-rt24 (from v6.12.117-rt23)  tag=v6.12.118-rt24  commit=3f1c0a9e2b7d  by Daniel Wagner
-  2026-11-21 11:40  create         v6.12.118-rt24 (from v6.12.117-rt23)  dir=...  files=patch-6.12.118-rt24.patch.xz,patches-6.12.118-rt24.tar.xz  by Daniel Wagner
+  2026-11-21 10:12  quilt release  v6.12.118-rt24 (from v6.12.117-rt23)  by Daniel Wagner
+      tag     v6.12.118-rt24
+      commit  3f1c0a9e2b7d
+
+  2026-11-21 11:40  create         v6.12.118-rt24 (from v6.12.117-rt23)  by Daniel Wagner
+      dir     .../rt/v6.12-rt/patches/v6.12.118-rt24
+      files   patch-6.12.118-rt24.patch.xz patches-6.12.118-rt24.tar.xz
 
 .. _cmd-mcp:
 

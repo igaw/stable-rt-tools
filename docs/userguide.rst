@@ -258,14 +258,20 @@ of the mailing list (``INBOX``). A step srt didn't do, e.g. a merge
 conflict you resolved by hand, isn't in it either.
 
 ``srt log`` shows the history of the series of the current worktree, oldest
-first, the time in UTC; ``-n N`` only the last N steps, ``--json`` all
-fields for scripts:
+first, the time in UTC: a line with the step, the release and who, its
+details below; ``-n N`` only the last N steps, ``--json`` all fields for
+scripts:
 
 .. code-block:: console
 
   $ srt log -n 2
-  2026-11-21 10:12  quilt release  v6.12.118-rt24 (from v6.12.117-rt23)  tag=v6.12.118-rt24  commit=3f1c0a9e2b7d  by Daniel Wagner
-  2026-11-21 11:40  create         v6.12.118-rt24 (from v6.12.117-rt23)  dir=...  files=patch-6.12.118-rt24.patch.xz,patches-6.12.118-rt24.tar.xz  by Daniel Wagner
+  2026-11-21 10:12  quilt release  v6.12.118-rt24 (from v6.12.117-rt23)  by Daniel Wagner
+      tag     v6.12.118-rt24
+      commit  3f1c0a9e2b7d
+
+  2026-11-21 11:40  create         v6.12.118-rt24 (from v6.12.117-rt23)  by Daniel Wagner
+      dir     .../rt/v6.12-rt/patches/v6.12.118-rt24
+      files   patch-6.12.118-rt24.patch.xz patches-6.12.118-rt24.tar.xz
 
 The history is for people to read: where a release stands comes from
 the trees (``srt status``). The one exception: ``srt status`` takes an

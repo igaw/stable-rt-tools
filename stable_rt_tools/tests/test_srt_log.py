@@ -111,15 +111,23 @@ class TestLog(unittest.TestCase):
             f.write('{"cut off\n')
         srt_log.log_step('quilt release', 'v6.12.118-rt24',
                          tag='v6.12.118-rt24', commit=COMMIT)
-        lines = self.output('log').splitlines()
-        self.assertEqual(len(lines), 2)
-        self.assertRegex(lines[0], r'^\d{4}-\d\d-\d\d \d\d:\d\d  prep  ')
-        self.assertIn('prep           v6.12.118-rt24 (from v6.12.117-rt23)'
-                      '  workflow=quilt  by Mighty Eagle', lines[0])
-        self.assertIn('quilt release  v6.12.118-rt24  tag=v6.12.118-rt24  '
-                      f'commit={COMMIT[:12]}  by Mighty Eagle', lines[1])
+        out = self.output('log')
+        # an event: its line, the details indented below; a blank line
+        # between the events
+        first, second = out.split('\n\n')
+        self.assertRegex(first, r'^\d{4}-\d\d-\d\d \d\d:\d\d  prep  ')
+        self.assertEqual(first.splitlines()[0][16:],
+                         '  prep           v6.12.118-rt24 '
+                         '(from v6.12.117-rt23)  by Mighty Eagle')
+        self.assertEqual(first.splitlines()[1:], ['    workflow  quilt'])
+        self.assertEqual(second.splitlines()[0][16:],
+                         '  quilt release  v6.12.118-rt24  by Mighty Eagle')
+        self.assertEqual(second.splitlines()[1:],
+                         ['    tag     v6.12.118-rt24',
+                          f'    commit  {COMMIT[:12]}'])
+        self.assertTrue(out.endswith('\n') and not out.endswith('\n\n'))
         last = self.output('log', '-n', '1')
-        self.assertEqual(last.splitlines(), lines[1:])
+        self.assertEqual(last, second)
         events = json.loads(self.output('log', '--json', '-n', '1'))
         self.assertEqual([e['step'] for e in events], ['quilt release'])
         self.assertEqual(events[0]['commit'], COMMIT)

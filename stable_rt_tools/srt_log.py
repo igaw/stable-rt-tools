@@ -164,7 +164,8 @@ def read_log(path: str | None = None) -> list[dict[str, Any]]:
 
 def _value(value: Any) -> str:
     if isinstance(value, list):
-        return ','.join(_value(v) for v in value) or '-'
+        # files, refs (a refspec list reads as git push takes it)
+        return ' '.join(_value(v) for v in value) or '-'
     text = str(value)
     if len(text) == 40 and all(c in '0123456789abcdef' for c in text):
         # a commit
@@ -173,17 +174,20 @@ def _value(value: Any) -> str:
 
 
 def format_event(event: Mapping[str, Any]) -> str:
-    """An event in one line: time (UTC), step, release, details, user."""
+    """An event for people: a line with the time (UTC), the step, the
+    release and who, then the details of the step, one per line,
+    indented."""
     time = str(event.get('time', '?'))[:16].replace('T', ' ')
     head = f"{time}  {event.get('step', '?'):<14} " \
         f"{event.get('release', '-')}"
     if event.get('old'):
         head += f" (from {event['old']})"
-    details = [f'{k}={_value(v)}' for k, v in event.items()
-               if k not in FIELDS]
     if event.get('user'):
-        details.append(f"by {event['user']}")
-    return '  '.join([head] + details)
+        head += f"  by {event['user']}"
+    details = [(k, _value(v)) for k, v in event.items() if k not in FIELDS]
+    width = max((len(k) for k, _ in details), default=0)
+    return '\n'.join([head] + [f'    {k:<{width}}  {v}'
+                                for k, v in details])
 
 
 def show_log(count: int | None = None, as_json: bool = False) -> None:
@@ -196,8 +200,8 @@ def show_log(count: int | None = None, as_json: bool = False) -> None:
     if not events:
         print(f'no history of {get_series()} yet')
         return
-    for event in events:
-        print(format_event(event))
+    # a blank line between the events: most have details below
+    print('\n\n'.join(format_event(e) for e in events))
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

@@ -646,16 +646,18 @@ class TestQuiltRelease(TestQuiltBase):
 
         stub_stdouts(self)
         srt_log.show_log(5)
-        lines = stdout_text().splitlines()
-        self.assertEqual(len(lines), 5)
-        self.assertIn(f'create         {self.new_tag} (from {self.old_tag})',
-                      lines[0])
-        self.assertIn(f'files=patch-{v}.patch.sign,patches-{v}.tar.sign',
-                      lines[1])
-        self.assertTrue(lines[1].endswith('by Mighty Eagle'))
-        self.assertIn(f'upload         {self.new_tag}', lines[2])
-        self.assertIn(f'push           {self.new_tag}', lines[3])
-        self.assertIn(f'remote=stable-rt  url={self.rt_repo}', lines[3])
+        shown = stdout_text().rstrip('\n').split('\n\n')
+        self.assertEqual(len(shown), 5)
+        heads = [e.splitlines()[0] for e in shown]
+        self.assertIn(f'create         {self.new_tag} (from {self.old_tag})'
+                      '  by Mighty Eagle', heads[0])
+        self.assertIn(f'    files  patch-{v}.patch.sign patches-{v}.tar.sign',
+                      shown[1].splitlines())
+        self.assertIn(f'upload         {self.new_tag}', heads[2])
+        self.assertIn(f'push           {self.new_tag}', heads[3])
+        push_lines = shown[3].splitlines()
+        self.assertIn('    remote  stable-rt', push_lines)
+        self.assertIn(f'    url     {self.rt_repo}', push_lines)
 
     def test_release(self):
         for step in sort_steps(dir(self)):
