@@ -28,6 +28,7 @@ import os
 import re
 import shlex
 import sys
+import tempfile
 from datetime import date, timedelta
 from email import message_from_string
 from email.utils import make_msgid
@@ -362,8 +363,12 @@ def announcement(config: Config, ctx: SrtContext) -> str:
 
 
 def announce_path(ctx: SrtContext) -> str:
-    """Where srt announce --mail writes the mail: next to the worktree."""
-    return os.path.join('..', f'announce-{ctx.new_tag}')
+    """Where srt announce --mail writes the mail: a new directory in the
+    temporary directory ($TMPDIR, /tmp). It is kept: a mail client which
+    is running already (thunderbird -compose) reads the files after srt
+    is done."""
+    return os.path.join(tempfile.mkdtemp(prefix='srt-announce-'),
+                        f'announce-{ctx.new_tag}')
 
 
 def mailer_command(mailer: str, mail_path: str, mail: str) -> list[str]:
@@ -455,7 +460,7 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs.add_argument('--suppress-cc', '-s', action="store_true", default=False,
                      help='Don''t auto-cc anyone (for testing)')
     prs.add_argument('--mail', '-m', action='store_true',
-                     help='write the announcement to ../announce-<tag> and '
+                     help='write the announcement to a temporary file and '
                      'open it in the mail client MAILER (srt.conf)')
     return prs
 

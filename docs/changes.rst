@@ -7,8 +7,8 @@ Changes
 New
 ~~~
 
-- ``srt announce --mail`` writes the announcement to
-  ``../announce-<tag>`` and opens it in your mail client, the new
+- ``srt announce --mail`` writes the announcement to a temporary file
+  and opens it in your mail client, the new
   ``MAILER`` setting (e.g. ``mutt -H {mail}`` or Thunderbird's
   ``-compose``). With ``MAILER`` set, ``srt push`` offers to do it right
   after the push.

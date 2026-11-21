@@ -142,7 +142,9 @@ The settings:
     and ``srt push`` offers after the push. Your client for all series,
     so set it in ``[DEFAULT]``. The command line is split like a shell
     splits it (no shell runs it), then in each word ``{mail}`` is
-    replaced with the file with the whole mail (``../announce-<tag>``),
+    replaced with the file with the whole mail (``announce-<tag>`` in a
+    new directory in ``$TMPDIR`` or ``/tmp``, kept for clients which read
+    it after srt is done),
     ``{body}`` with a file with only the body, ``{from}``, ``{to}``,
     ``{cc}`` and ``{subject}`` with the headers. For example:
 

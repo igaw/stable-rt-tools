@@ -87,24 +87,22 @@ class TestMailer(unittest.TestCase):
     def test_mail_announcement(self):
         from stable_rt_tools import srt_announce
         ctx = SimpleNamespace(new_tag='v6.12.118-rt24')
-        with tempfile.TemporaryDirectory() as d:
-            os.mkdir(os.path.join(d, 'tree'))
-            cwd = os.getcwd()
-            os.chdir(os.path.join(d, 'tree'))
-            try:
-                with patch.object(srt_announce, 'announcement',
-                                  return_value=MAIL), \
-                        patch.object(srt_announce, 'run') as run:
-                    run.return_value.returncode = 0
-                    srt_announce.mail_announcement(
-                        {'MAILER': 'mutt -H {mail}'}, ctx)  # type: ignore
-                path = os.path.join(d, 'announce-v6.12.118-rt24')
-                run.assert_called_once_with(
-                    ['mutt', '-H', os.path.realpath(path)])
-                with open(path) as f:
-                    self.assertEqual(f.read(), MAIL)
-            finally:
-                os.chdir(cwd)
+        with tempfile.TemporaryDirectory() as d, \
+                patch.dict(os.environ, {'TMPDIR': d}), \
+                patch.object(tempfile, 'tempdir', None), \
+                patch.object(srt_announce, 'announcement',
+                             return_value=MAIL), \
+                patch.object(srt_announce, 'run') as run:
+            run.return_value.returncode = 0
+            srt_announce.mail_announcement(
+                {'MAILER': 'mutt -H {mail}'}, ctx)  # type: ignore
+            (path,), _ = run.call_args
+            self.assertEqual(path[:2], ['mutt', '-H'])
+            mail = path[2]
+            self.assertEqual(os.path.basename(mail), 'announce-v6.12.118-rt24')
+            self.assertEqual(os.path.dirname(os.path.dirname(mail)), d)
+            with open(mail) as f:
+                self.assertEqual(f.read(), MAIL)
 
     def test_mail_needs_mailer(self):
         from stable_rt_tools import srt_announce
