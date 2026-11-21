@@ -51,7 +51,6 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from subprocess import CalledProcessError
 from time import gmtime, strftime
-from typing import cast
 
 from stable_rt_tools.srt_announce import cover_letter_replacements
 from stable_rt_tools.srt_commit import localversion_set
@@ -73,7 +72,6 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_context import (
     SrtContext,
     release_dir,
-    release_files,
 )
 from stable_rt_tools.srt_util_tag import Tag
 
@@ -85,12 +83,8 @@ QUILT_DIFF_OPTS = '-F ^[[:alpha:]$_].*[^:]$'
 
 STEPS = ['refresh', 'queue', 'rebase', 'merge', 'release']
 
-# a release like v6.12.116-rt22 and the upstream release it is made on
-RELEASE_TAG = re.compile(r'v\d+\.\d+\.\d+-[a-z]+\d+')
-UPSTREAM_TAG = re.compile(r'v\d+\.\d+\.\d+')
-
 # nothing has left the machine yet: the time to test the release
-RELEASE_NEXT = 'next: test the release, then srt create'
+RELEASE_NEXT = 'test the release, then srt create'
 
 
 #
@@ -532,7 +526,7 @@ def merge(rel: Release) -> None:
 def release(rel: Release) -> None:
     if rel.done('release'):
         print(f'{rel.release_tag} already tagged')
-        print(RELEASE_NEXT)
+        print('next: ' + RELEASE_NEXT)
         return
     if not rel.done('merge'):
         sys.exit('run "srt quilt merge" first')
@@ -559,14 +553,14 @@ def release(rel: Release) -> None:
         git(rel.rt_dir, 'commit', '-s', '-m', rel.release_tag,
             env=get_gpg_env(rel.config))
     rel.tag(rel.rt_dir, rel.release_tag, rel.release_tag)
-    print(RELEASE_NEXT)
+    print('next: ' + RELEASE_NEXT)
 
 
 #
 # undo
 #
 
-def _upstream(path: str) -> str | None:
+def upstream(path: str) -> str | None:
     try:
         return git(path, 'rev-parse', '--abbrev-ref', '--symbolic-full-name',
                    '@{u}')
@@ -574,9 +568,9 @@ def _upstream(path: str) -> str | None:
         return None
 
 
-def _pushed(path: str, ref: str) -> bool:
-    upstream = _upstream(path)
-    return upstream is not None and is_ancestor(path, ref, upstream)
+def pushed(path: str, ref: str) -> bool:
+    branch = upstream(path)
+    return branch is not None and is_ancestor(path, ref, branch)
 
 
 def undo(rel: Release) -> None:
@@ -585,21 +579,21 @@ def undo(rel: Release) -> None:
             (rel.patches_dir, rel.queue_tag)]
     for path, tag in tags:
         ref = rev(path, 'refs/tags/' + tag)
-        if ref and _pushed(path, ref):
+        if ref and pushed(path, ref):
             sys.exit(f'{tag} is pushed already, it cannot be undone')
     op = in_progress(rel.rt_dir)
     if op:
         sys.exit(f'{rel.rt_dir}: {op} in progress, abort it first')
     require_clean(rel.rt_dir)
 
-    rt_upstream = _upstream(rel.rt_dir)
+    rt_upstream = upstream(rel.rt_dir)
     if not rt_upstream:
         sys.exit(f'{rel.rt_dir} has no upstream branch')
     dropped = git(rel.rt_dir, 'log', '--oneline', '--first-parent',
                   f'{rt_upstream}..HEAD')
     queue_commit = git(rel.patches_dir, 'log', '-1', '--format=%s') \
         .endswith(str(rel.new)[1:])
-    if queue_commit and _pushed(rel.patches_dir, 'HEAD'):
+    if queue_commit and pushed(rel.patches_dir, 'HEAD'):
         sys.exit(f'the queue commit of {rel.new} is pushed already')
     existing = [tag for path, tag in tags
                 if rev(path, 'refs/tags/' + tag)]
@@ -636,110 +630,6 @@ def undo(rel: Release) -> None:
         shutil.rmtree(files)
     update_srt_state({'refreshed': None}, rel.rt_dir)
     print('next: fix the patch queue, then srt quilt refresh')
-
-
-#
-# status
-#
-
-def _last_tag(path: str) -> str | None:
-    """The last tag on the upstream branch of the worktree."""
-    try:
-        return git(path, 'describe', '--tags', '--abbrev=0', '@{u}')
-    except CalledProcessError:
-        return None
-
-
-def published(path: str, tag: str) -> bool:
-    """True if the tag exists and its branch upstream contains it."""
-    ref = rev(path, 'refs/tags/' + tag)
-    return ref is not None and _pushed(path, ref)
-
-
-def stale_warnings(path: str, old: str, new: str) -> list[str]:
-    """Why the prepared release old -> new doesn't fit the upstream branch
-    of the worktree path (anymore)."""
-    if published(path, new):
-        return [f'{new} is published already, on {_upstream(path)}: run '
-                '"srt prep --clear" and "srt prep" for the next release']
-    last = _last_tag(path)
-    if last is not None and RELEASE_TAG.fullmatch(last) and \
-            last not in (old, new):
-        return [f'{_upstream(path)} is at {last}, the release was prepared '
-                f'on top of {old}: run "srt prep --clear" and "srt prep"']
-    return []
-
-
-def file_steps(path: str, tag: str,
-               tagged: bool) -> list[tuple[str, bool]]:
-    """srt create and srt sign, done when the release is tagged and
-    their files are there."""
-    files = release_files(path, tag)
-    created = tagged and all(os.path.isfile(f) for f in files)
-    signed = created and all(os.path.isfile(os.path.splitext(f)[0] +
-                                            '.sign') for f in files)
-    return [('srt create', created), ('srt sign', signed)]
-
-
-def leftover_warnings(path: str, tag: str, tagged: bool) -> list[str]:
-    """Files of the release before it is tagged, e.g. of a release made
-    and undone with srt 2.1: they must not be uploaded."""
-    d = release_dir(path, tag)
-    if tagged or not os.path.isdir(d) or not os.listdir(d):
-        return []
-    return [f'{d} holds files but {tag} is not tagged: remove them, srt '
-            'create makes them after the release']
-
-
-def status_info(rel: Release) -> dict[str, object]:
-    """The prepared release, its steps and the next one."""
-    dropped, added = rel.series_changes()
-    steps = [(f'srt quilt {step}', rel.done(step)) for step in STEPS]
-    steps += file_steps(rel.rt_dir, rel.release_tag, rel.done('release'))
-    warnings = stale_warnings(rel.rt_dir, str(rel.old), rel.release_tag)
-    warnings += leftover_warnings(rel.rt_dir, rel.release_tag,
-                                  rel.done('release'))
-    last_stable = _last_tag(rel.stable_dir)
-    if not rel.done('refresh') and last_stable and \
-            UPSTREAM_TAG.fullmatch(last_stable) and last_stable != rel.base:
-        warnings.append(f'upstream is at {last_stable}, the release was '
-                        f'prepared for {rel.base}: run "srt prep" again')
-
-    nxt = next((name for name, done in steps if not done), None)
-    if warnings and warnings[0].startswith(rel.release_tag):
-        nxt = 'srt prep --clear, then srt prep'
-    elif nxt == 'srt create':
-        nxt = 'test the release, then srt create'
-    elif nxt is None:
-        nxt = 'srt upload, srt push, srt announce'
-    return {
-        'prepared': True,
-        'workflow': 'quilt',
-        'old_tag': str(rel.old),
-        'new_tag': rel.release_tag,
-        'dropped': dropped,
-        'added': added,
-        'steps': [{'step': name, 'done': done} for name, done in steps],
-        'warnings': warnings,
-        'next': nxt,
-    }
-
-
-def print_status(info: Mapping[str, object]) -> None:
-    print(f"{info['old_tag']} -> {info['new_tag']}")
-    for p in cast(list[str], info.get('dropped', [])):
-        print(f'  dropped: {p}')
-    for p in cast(list[str], info.get('added', [])):
-        print(f'  added:   {p}')
-    for step in cast(list[dict[str, object]], info['steps']):
-        print('  [{}] {}'.format('x' if step['done'] else ' ', step['step']))
-    for w in cast(list[str], info['warnings']):
-        print(f'warning: {w}')
-    print(f"next: {info['next']}")
-
-
-def status(rel: Release) -> None:
-    print_status(status_info(rel))
 
 
 COMMANDS = {

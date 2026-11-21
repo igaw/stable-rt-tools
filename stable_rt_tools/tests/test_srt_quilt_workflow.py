@@ -389,7 +389,7 @@ class TestQuiltRelease(TestQuiltBase):
 
     def step7_status(self):
         stub_stdouts(self)
-        srt_quilt.status(srt_quilt.Release())
+        srt_status.status()
         out = stdout_text()
         self.assertIn(f'{self.old_tag} -> {self.new_tag}', out)
         for step in srt_quilt.STEPS:
