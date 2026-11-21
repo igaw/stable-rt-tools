@@ -136,7 +136,7 @@ of the last release:
 .. code-block:: console
 
   $ git -C v6.12-rt verify-tag --raw v6.12.117-rt23 2>&1 | grep -E 'SIG '
-  $ GNUPGHOME=... gpg --fingerprint <GPG_KEY_ID of the server's srt.conf>
+  $ GNUPGHOME=... gpg --fingerprint <GPG_KEY_ID in the srt.conf of the server>
 
 The release key changes only when you decide so (and then it's in
 pgpkeys.git), never because an agent ran with another configuration.
