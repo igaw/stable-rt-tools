@@ -56,7 +56,7 @@ from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
 from stable_rt_tools.srt_prep import prep
 from stable_rt_tools.srt_sign import sign
-from stable_rt_tools.srt_util import cmd, read_srt_state
+from stable_rt_tools.srt_util import clear_srt_state, cmd, read_srt_state
 from stable_rt_tools.srt_util_context import SrtContext
 from stable_rt_tools.tests.test_srt import (
     gnupg_config,
@@ -254,10 +254,11 @@ class TestQuiltBase(unittest.TestCase):
         self.setup_work_area()
         self.setup_stable_new_release()
 
-        patcher = mock.patch('stable_rt_tools.srt_quilt.get_config',
-                             return_value=self.config)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for module in ('srt_quilt', 'srt_check'):
+            patcher = mock.patch(f'stable_rt_tools.{module}.get_config',
+                                 return_value=self.config)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         env = mock.patch.dict(os.environ, {'GIT_EDITOR': 'true'})
         env.start()
         self.addCleanup(env.stop)
@@ -440,6 +441,24 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertEqual(checks['queue'].details,
                          ['dropped upstreamed.patch', 'added new-fix.patch'])
         self.assertIn('0 changed beyond hunk offsets', checks['queue'].text)
+
+    def step8c_check_without_state(self):
+        # like after srt push, which clears the state: the release is
+        # found in the history, or given as OLD_TAG NEW_TAG
+        with_state = {n: c.result for n, c in
+                      self.checks_of(path=self.rt_dir).items()}
+        clear_srt_state(self.rt_dir)
+        self.assertEqual({n: c.result for n, c in
+                          self.checks_of(path=self.rt_dir).items()},
+                         with_state)
+        tags = Namespace(OLD_TAG=self.old_tag, NEW_TAG=self.new_tag)
+        self.assertEqual({n: c.result for n, c in
+                          self.checks_of(tags, self.rt_dir).items()},
+                         with_state)
+
+    @staticmethod
+    def checks_of(args=None, path=None):
+        return {c.name: c for c in srt_check.run_checks(args, path)}
 
     def step9_announce(self):
         ctx = SrtContext(None, path=self.rt_dir)

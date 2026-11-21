@@ -48,6 +48,11 @@ New
 Fixed
 ~~~~~
 
+- ``srt check`` needed the state of ``srt prep``: after ``srt push``
+  (which clears it) it stopped with "No release prepared". It finds the
+  release like the other commands now, from ``OLD_TAG NEW_TAG``, the
+  environment, the state or the history, and checks the stable merge of
+  the release tag instead of HEAD.
 - A setting missing in ``srt.conf`` (e.g. ``PRJ_DIR`` for ``srt upload``
   or ``MAIL_TO`` for ``srt announce``) ended the command with a Python
   traceback (``KeyError``). It names the setting and the group of

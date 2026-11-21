@@ -41,12 +41,17 @@ from subprocess import CalledProcessError
 
 from stable_rt_tools import srt_quilt
 from stable_rt_tools.srt_announce import delta_base
+from stable_rt_tools.srt_prep import worktree_dirs
 from stable_rt_tools.srt_util import (
     Config,
+    SrtState,
     SubParsers,
     cmd,
     get_config,
     get_gnupghome,
+    get_remote_branch_name,
+    get_suffix,
+    get_workflow_branch,
     is_quilt_workflow,
     read_srt_state,
 )
@@ -166,10 +171,13 @@ def check_rebase(rel: srt_quilt.Release) -> Check:
 def check_merge(rel: srt_quilt.Release) -> Check:
     """The stable merge on the series: a clean message, as committed by
     srt quilt merge."""
-    if not srt_quilt.is_ancestor(rel.rt_dir, rel.base):
+    # the release, once tagged: also when it isn't HEAD (srt check
+    # OLD_TAG NEW_TAG of an older release)
+    head = rel.release_tag if rel.done('release') else 'HEAD'
+    if not srt_quilt.is_ancestor(rel.rt_dir, rel.base, head):
         return Check('merge', SKIP, f'{rel.base} is not merged yet')
     merges = _git(rel.rt_dir, 'log', '--merges', '--first-parent',
-                  '--format=%H', f'{rel.old}..HEAD').splitlines()
+                  '--format=%H', f'{rel.old}..{head}').splitlines()
     for m in merges:
         body = _git(rel.rt_dir, 'log', '-1', '--format=%B', m)
         comments = [line for line in body.splitlines()
@@ -283,11 +291,45 @@ def check_signatures(path: str, ctx: SrtContext, config: Config) -> Check:
     return Check('signatures', OK, 'the signatures are good')
 
 
-def run_checks(state_path: str | None = None) -> list[Check]:
-    state = read_srt_state(state_path)
-    if not state or not state.get('new_tag'):
-        sys.exit('No release prepared: run "srt prep" in the worktree of '
-                 'the series first')
+def release_state(args: argparse.Namespace | None = None,
+                  path: str | None = None) -> SrtState:
+    """The release to check, like the other commands find it: the tags
+    from the command line, OLD_TAG/NEW_TAG, the state of srt prep or the
+    history (SrtContext). Without the state of srt prep (srt push clears
+    it), the rest comes from the configuration and the worktrees."""
+    path = path or os.getcwd()
+    ctx = SrtContext(args, path=path)
+    old, new = str(ctx.old_tag), str(ctx.new_tag)
+    state = read_srt_state(path)
+    if state and (state.get('old_tag'), state.get('new_tag')) == (old, new):
+        return state
+
+    config = get_config(path)
+    suffix = get_suffix(config)
+    quilt = is_quilt_workflow(config)
+    state = SrtState(
+        old_tag=old, new_tag=new, suffix=suffix, quilt_workflow=quilt,
+        workflow_branch=get_workflow_branch(
+            get_remote_branch_name(path=path)))
+    if quilt:
+        dirs = worktree_dirs(path, suffix)
+        state['rt_dir'] = dirs['rt_dir']
+        state['stable_dir'] = dirs['stable_dir']
+        state['patches_dir'] = dirs['patches_dir']
+        state['rebase_dir'] = dirs['rebase_dir']
+        state['quilt_patches'] = os.path.join(dirs['patches_dir'],
+                                              'patches')
+        # refreshed: srt prep's state only knows it; a tagged queue was
+        if srt_quilt.rev(dirs['patches_dir'],
+                         f'refs/tags/{new}-patches') is not None:
+            state['refreshed'] = new
+    return state
+
+
+def run_checks(args: argparse.Namespace | None = None,
+               path: str | None = None) -> list[Check]:
+    path = path or os.getcwd()
+    state = release_state(args, path)
     if state.get('quilt_workflow'):
         rel = srt_quilt.Release(state)
         path = rel.rt_dir
@@ -297,11 +339,12 @@ def run_checks(state_path: str | None = None) -> list[Check]:
             lambda: check_rebase(rel), lambda: check_merge(rel),
             lambda: check_release(rel)]
     else:
-        path = os.getcwd()
-        config = get_config()
+        config = get_config(path)
         new = state['new_tag']
         checks = [lambda: check_trees(path, new, new + '-rebase')]
-    ctx = SrtContext(None, path=path)
+    ctx = SrtContext(argparse.Namespace(OLD_TAG=state['old_tag'],
+                                        NEW_TAG=state['new_tag']),
+                     path=path)
     quilt = is_quilt_workflow(config)
     checks += [lambda: check_delta(path, ctx),
                lambda: check_files(path, ctx, quilt),
@@ -318,15 +361,18 @@ def print_checks(checks: list[Check]) -> None:
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
     prs = parser.add_parser('check',
-                            help='sanity checks between the trees of the '
-                            'prepared release')
+                            help='sanity checks between the trees of a '
+                            'release (the prepared one, the last tagged or '
+                            'OLD_TAG NEW_TAG)')
+    prs.add_argument('OLD_TAG', nargs='?')
+    prs.add_argument('NEW_TAG', nargs='?')
     prs.add_argument('--json', action='store_true',
                      help='print the checks as JSON, for scripts')
     return prs
 
 
 def execute(args: argparse.Namespace) -> None:
-    checks = run_checks()
+    checks = run_checks(args)
     if args.json:
         print(json.dumps([asdict(c) for c in checks], indent=2))
     else:
