@@ -313,8 +313,9 @@ The steps are found in the trees, the state only names the release:
   maintainer.
 - ``srt announce``: the archive of the mailing list (``INBOX``, see
   :doc:`userguide`) has the mail ``[ANNOUNCE] 6.12.118-rt24`` (or
-  ``v6.12.118-rt24``, as srt wrote it before 2.2), replies don't count. srt looks in a local clone of
-  the archive, once the release is pushed, and fetches it at most every
+  ``v6.12.118-rt24``, as srt wrote it before 2.2), replies don't count.
+  srt looks in a local clone of the archive, once the release is
+  pushed, and fetches it at most every
   10 minutes while the announcement isn't there; unknown (``[?]``) when
   the fetch fails or with ``--offline``. Once found, the history of the
   series has it (``announced``) and srt doesn't look again.

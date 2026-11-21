@@ -69,6 +69,23 @@ The release suffix without a prepared release
     ``get_config()`` right after it) and use it in
     ``get_last_release()``.
 
+Release candidates in the status without a prepared release
+    Without the state of ``srt prep`` ``srt status`` works out the
+    release from the trees (``tree_status_info()`` in
+    ``srt_status.py``): the release after the last one on the branch if
+    one of its steps is done, else the last release. It doesn't look for
+    release candidates (``-rcN`` on the ``-next`` branch of the git
+    workflow), so an rc in progress isn't shown: ``srt status`` then
+    describes the last release. Only the git workflow has release
+    candidates, and it is not in use at the moment (the quilt workflow has
+    none).
+
+    If it is needed: give ``OLD_TAG``/``NEW_TAG`` or keep the state of
+    ``srt prep``. The fix would be to look for an rc tag of the next
+    release on the ``-next`` branch (``get_last_release(rc=True)``) in
+    ``tree_status_info()``, with the steps of the git workflow for an rc
+    (commit -r, tag -r, announce = the review mails, push to -next).
+
 Community Resources
 -------------------
 

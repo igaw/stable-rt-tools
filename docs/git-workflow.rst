@@ -94,6 +94,11 @@ mailing list and do the proper release after a week or so.
   OK to push? (y/n): y
   [...]
 
+``srt status`` follows a release candidate only with the state of ``srt
+prep`` or ``OLD_TAG``/``NEW_TAG``: without them it finds the releases in
+the trees, not the release candidates (see :doc:`devguide`, known
+limitations).
+
 The review mails contain everything added to the series since the last
 release, in commit order: the patches before and after the stable merge,
 the release commit and, if the stable merge had conflicts, the merge with
