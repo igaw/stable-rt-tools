@@ -35,9 +35,11 @@ from stable_rt_tools.srt_prep import worktree_dirs
 from stable_rt_tools.srt_quilt import (
     drop_from_series,
     parse_series,
+    patch_adds,
     patch_subject,
     rt_localversion,
     series_changes,
+    series_localversion,
 )
 from stable_rt_tools.srt_util import SrtState
 
@@ -53,6 +55,19 @@ SERIES = """\
 # RT release version
 Add_localversion_for_-RT_release.patch
 """
+
+LOCALVERSION_PATCH = '''\
+Subject: Add localversion for -RT release
+
+---
+ localversion-rt | 1 +
+ 1 file changed, 1 insertion(+)
+
+--- /dev/null
++++ b/localversion-rt
+@@ -0,0 +1 @@
++-rt24
+'''
 
 
 class TestHelpers(unittest.TestCase):
@@ -213,6 +228,37 @@ class TestSetupHelpers(unittest.TestCase):
                     'stable/linux.git', 'git@example.com:foo/linux',
                     '/srv/git/linux/'):
             self.assertEqual(_repo_name(url), 'linux', url)
+
+
+class TestLocalversion(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tdir = tempfile.mkdtemp()
+
+    def tearDown(self) -> None:
+        rmtree(self.tdir)
+
+    def write(self, name: str, text: str) -> None:
+        with open(os.path.join(self.tdir, name), 'w') as f:
+            f.write(text)
+
+    def test_patch_adds(self) -> None:
+        self.assertEqual(patch_adds(LOCALVERSION_PATCH, 'localversion-rt'),
+                         '-rt24')
+        self.assertIsNone(patch_adds(LOCALVERSION_PATCH, 'localversion'))
+        # a change of the file
+        change = LOCALVERSION_PATCH.replace(
+            '--- /dev/null', '--- a/localversion-rt').replace(
+            '@@ -0,0 +1 @@\n', '@@ -1 +1 @@\n--rt23\n')
+        self.assertEqual(patch_adds(change, 'localversion-rt'), '-rt24')
+
+    def test_series_localversion(self) -> None:
+        self.assertIsNone(series_localversion(self.tdir, 'localversion-rt'))
+        self.write('series', '# RT\nfeature.patch\n\nlocalversion.patch\n')
+        self.write('feature.patch',
+                   '--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n')
+        self.write('localversion.patch', LOCALVERSION_PATCH)
+        self.assertEqual(series_localversion(self.tdir, 'localversion-rt'),
+                         '-rt24')
 
 
 if __name__ == '__main__':

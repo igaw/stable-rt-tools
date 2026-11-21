@@ -61,6 +61,11 @@ Fixed
   release like the other commands now, from ``OLD_TAG NEW_TAG``, the
   environment, the state or the history, and checks the stable merge of
   the release tag instead of HEAD.
+- ``srt quilt refresh`` was done only by the state of ``srt prep``:
+  without it (e.g. after ``srt prep --clear``) a refreshed queue had to be
+  refreshed again. The refresh is done when the localversion patch of the
+  queue sets the localversion of the release or the ``-patches`` tag
+  exists.
 - A setting missing in ``srt.conf`` (e.g. ``PRJ_DIR`` for ``srt upload``
   or ``MAIL_TO`` for ``srt announce``) ended the command with a Python
   traceback (``KeyError``). It names the setting and the group of

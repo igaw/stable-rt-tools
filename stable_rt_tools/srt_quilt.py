@@ -129,6 +129,45 @@ def patch_subject(text: str) -> str | None:
     return None
 
 
+def series_localversion(patches_dir: str, localversion: str) -> str | None:
+    """The localversion the patch queue in patches_dir sets, e.g. -rt22:
+    the line the last patch of the series changing the file localversion
+    adds. srt quilt refresh writes it into the topmost patch, the
+    localversion patch. None if no patch changes the file."""
+    try:
+        with open(os.path.join(patches_dir, 'series')) as f:
+            names = parse_series(f.read())
+    except OSError:
+        return None
+    value = None
+    for name in names:
+        try:
+            with open(os.path.join(patches_dir, name)) as f:
+                text = f.read()
+        except OSError:
+            continue
+        found = patch_adds(text, localversion)
+        if found is not None:
+            value = found
+    return value
+
+
+def patch_adds(text: str, name: str) -> str | None:
+    """The last line the patch text adds to the file name, None if it
+    doesn't change the file."""
+    value = None
+    in_file = False
+    for line in text.splitlines():
+        if line.startswith('+++ '):
+            target = line[4:].split('\t')[0].strip()
+            in_file = target in (name, 'b/' + name)
+        elif line.startswith('--- ') or line.startswith('diff '):
+            in_file = False
+        elif in_file and line.startswith('+'):
+            value = line[1:].strip()
+    return value
+
+
 def rt_localversion(tag: object) -> str:
     """'v6.12.116-rt22' -> '-rt22'"""
     return Tag(str(tag)).localversion
@@ -257,6 +296,10 @@ class Release:
                                 self.old_queue_tag + ':patches/series'))
 
     def new_series(self) -> list[str]:
+        if self.done('queue'):
+            # the queue as tagged, whatever happens in the worktree since
+            return parse_series(git(self.patches_dir, 'show',
+                                    self.queue_tag + ':patches/series'))
         with open(os.path.join(self.quilt_patches, 'series')) as f:
             return parse_series(f.read())
 
@@ -285,16 +328,35 @@ class Release:
         log_step('quilt ' + step, self.release_tag, self.old,
                  path=self.rt_dir, **details)
 
+    def refreshed(self) -> bool:
+        """The queue is refreshed for the release: its localversion patch
+        sets the localversion of the release (srt quilt refresh writes it
+        last) or the queue is tagged. The state of srt prep caches it: srt
+        quilt undo keeps the refreshed patches but sets refreshed to None,
+        they need a refresh again."""
+        if self.has_tag(self.patches_dir, self.queue_tag):
+            return True
+        if 'refreshed' in self.state:
+            cached = self.state['refreshed']
+            if cached is None:
+                return False
+            if cached == self.release_tag:
+                return True
+        return series_localversion(self.quilt_patches, self.localversion) \
+            == rt_localversion(self.new)
+
     def done(self, step: str) -> bool:
         if step == 'refresh':
-            return self.state.get('refreshed') == self.release_tag
+            return self.refreshed()
         if step == 'queue':
             return self.has_tag(self.patches_dir, self.queue_tag)
         if step == 'rebase':
             return self.has_tag(self.rebase_dir, self.rebase_tag)
         if step == 'merge':
-            return is_ancestor(self.rt_dir, self.base) and \
-                not self.missing_patches()
+            # the release is made of the merge
+            return self.done('release') or \
+                (is_ancestor(self.rt_dir, self.base) and
+                 not self.missing_patches())
         if step == 'release':
             return self.has_tag(self.rt_dir, self.release_tag)
         raise ValueError(step)

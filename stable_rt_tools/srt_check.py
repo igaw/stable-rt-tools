@@ -319,10 +319,6 @@ def release_state(args: argparse.Namespace | None = None,
         state['rebase_dir'] = dirs['rebase_dir']
         state['quilt_patches'] = os.path.join(dirs['patches_dir'],
                                               'patches')
-        # refreshed: srt prep's state only knows it; a tagged queue was
-        if srt_quilt.rev(dirs['patches_dir'],
-                         f'refs/tags/{new}-patches') is not None:
-            state['refreshed'] = new
     return state
 
 
