@@ -39,6 +39,31 @@ The version is set in ``stable_rt_tools/about.py``. Pushing a ``v*`` tag
 publishes the package on PyPI.
 
 
+Known limitations
+-----------------
+
+Open questions, kept here so a problem that shows up has its background.
+
+The release suffix without a prepared release
+    Without the state of ``srt prep`` (e.g. after ``srt push``, which
+    clears it) ``SrtContext`` finds the tags in the history of HEAD
+    (``get_last_release()``, ``get_previous_release()``) and accepts any
+    release suffix: ``SrtContext`` has no configuration, so it doesn't
+    know ``SUFFIX``. It takes the suffix from the tag it finds.
+    ``srt prep`` and ``srt commit`` use ``SUFFIX``.
+
+    This can go wrong on a branch whose first-parent history holds
+    releases of another series with another suffix, e.g. a series made
+    on top of another one (``v4.4.144-cip13-rt134``: the nearest tag
+    could be a ``-cip`` release). srt would then announce or upload the
+    wrong release. Not seen so far.
+
+    If it happens: give the tags (``srt announce OLD_TAG NEW_TAG``) or
+    set ``OLD_TAG``/``NEW_TAG``. The fix would be to pass the suffix of
+    the configuration to ``SrtContext`` (most commands call
+    ``get_config()`` right after it) and use it in
+    ``get_last_release()``.
+
 Community Resources
 -------------------
 
