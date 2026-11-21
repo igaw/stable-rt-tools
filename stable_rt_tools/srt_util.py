@@ -191,7 +191,11 @@ def get_last_release(rev: str = 'HEAD', suffix: str | None = None,
     try:
         _ = Tag(tag).number
     except (TagParseError, TagBaseError):
-        sys.exit(f'{tag}, the last tag on {rev}, is no release tag')
+        # with any suffix the pattern also matches a mainline release
+        # candidate deep in the history (v2.6.39-rc7), e.g. on a -rebase
+        # branch which has no releases of its own on its first parents
+        debug(f'{tag}, the last tag on {rev}, is no release tag')
+        return None
     return tag
 
 

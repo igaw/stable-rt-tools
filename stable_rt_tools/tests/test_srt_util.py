@@ -585,6 +585,17 @@ class TestReleaseTags(TestCase):
         with self.assertRaises(SystemExit):
             get_previous_release('v6.1.1-rt1')
 
+    def test_no_release_on_a_branch_without_one(self):
+        from stable_rt_tools.srt_util import get_last_release
+
+        # like a -rebase branch: only upstream history on the first
+        # parents, with an old mainline release candidate in it
+        self.git(self.stable, 'tag', '-a', '-m', 'old', 'v2.6.39-rc7',
+                 'v6.1.1')
+        self.assertIsNone(get_last_release('v6.1.3', rc=True,
+                                           path=self.stable))
+        self.assertIsNone(get_last_release('v6.1.3', path=self.stable))
+
     def test_prep_finds_the_old_release_locally(self):
         from unittest import mock
 
