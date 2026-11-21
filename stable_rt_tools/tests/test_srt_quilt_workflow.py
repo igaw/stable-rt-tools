@@ -512,6 +512,7 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertIn('Message-ID: <', headers)
         self.assertIn('To: Foo Bar <foo@bar.barf>', headers)
         # the announcement of the queue commit, without its trailers
+        self.assertIn(f'\nChanges from {self.old_tag}:\n---\n', body)
         text, _, changes = body.partition('\n---\n')
         self.assertIn('added new-fix.patch', text)
         self.assertIn(f'The delta patch against {self.old_tag[1:]} is '

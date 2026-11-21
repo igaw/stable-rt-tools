@@ -129,6 +129,8 @@ def announcement(config: Config, ctx: SrtContext) -> str:
             '',
             quilt_announcement(ctx),
             '',
+            # like the git workflow template (announce-srt.txt)
+            f'Changes from v{ctx.old.short}:',
             '---',
             changes(ctx)]) + '\n'
 
