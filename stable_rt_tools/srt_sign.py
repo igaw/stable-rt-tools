@@ -26,7 +26,6 @@
 import argparse
 import os
 import sys
-from logging import error
 
 from stable_rt_tools.srt_util import (
     Config,
@@ -60,8 +59,7 @@ def gpg_sign(config: Config, filename: str) -> None:
 def sign(config: Config, ctx: SrtContext) -> None:
     for f in ctx.get_files():
         if not os.path.isfile(f):
-            error(f'Unable to read {f}, did you remember to create?')
-            sys.exit(1)
+            sys.exit(f'Unable to read {f}, did you remember to create?')
         gpg_sign(config, f)
         print(f'signed {os.path.splitext(f)[0]}.sign')
     next_step('srt upload')

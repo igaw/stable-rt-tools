@@ -32,7 +32,7 @@ from collections.abc import Mapping, Sequence
 from configparser import ConfigParser
 from datetime import UTC, datetime
 from importlib.resources import files
-from logging import debug, error
+from logging import debug
 from subprocess import PIPE, CalledProcessError, Popen, run
 from typing import IO, TYPE_CHECKING, Any, TypedDict
 
@@ -171,9 +171,8 @@ def get_last_release_number(branch_name: str, suffix: str,
     last_tag = get_last_tag(branch_name, postfix)
     m = re.search(rf'-{re.escape(suffix)}([0-9]+)$', last_tag)
     if not m:
-        print(f'Last tag {last_tag} does not end in -{suffix}[0-9]+ on '
-              f'{branch_name}', file=sys.stderr)
-        sys.exit(1)
+        sys.exit(f'Last tag {last_tag} does not end in -{suffix}[0-9]+ on '
+                 f'{branch_name}')
     return int(m.group(1))
 
 
@@ -436,10 +435,9 @@ def get_config() -> Config:
         repo_name = get_remote_repo_name()
         branch_name = get_remote_branch_name(short=False)
     except CalledProcessError:
-        error('Could not determine configuration group: check that the '
-              'remote "origin" exists and the current branch tracks an '
-              'upstream branch (git branch -vv)')
-        sys.exit(1)
+        sys.exit('Could not determine configuration group: check that the '
+                 'remote "origin" exists and the current branch tracks an '
+                 'upstream branch (git branch -vv)')
 
     config = read_config()
     # the -patches, -rebase and -next branches of a series can share the
@@ -450,9 +448,8 @@ def get_config() -> Config:
         if config.has_section(config_name):
             debug(f'Using configuration {config_name}')
             return with_defaults(config[config_name])
-    error('Could not retrieve configuration [{}] from srt.conf'.format(
+    sys.exit('Could not retrieve configuration [{}] from srt.conf'.format(
         '] or ['.join(dict.fromkeys(names))))
-    sys.exit(1)
 
 
 def is_quilt_workflow(config: Mapping[str, Any]) -> bool:

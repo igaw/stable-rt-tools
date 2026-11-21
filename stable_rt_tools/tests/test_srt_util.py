@@ -137,10 +137,9 @@ class TestUtil(TestCase):
                                   return_value='linux'), \
                 mock.patch.object(srt_util, 'get_remote_branch_name',
                                   return_value='stable-rt/v6.12-rt'), \
-                self.assertLogs(level='ERROR') as log, \
-                self.assertRaises(SystemExit):
+                self.assertRaises(SystemExit) as cm:
             srt_util.get_config()
-        self.assertIn('[linux/stable-rt/v6.12-rt]', log.output[0])
+        self.assertIn('[linux/stable-rt/v6.12-rt]', str(cm.exception.code))
 
     def test_get_config_no_upstream(self):
         from subprocess import CalledProcessError
@@ -153,10 +152,9 @@ class TestUtil(TestCase):
                 mock.patch.object(
                     srt_util, 'get_remote_branch_name',
                     side_effect=CalledProcessError(128, 'git')), \
-                self.assertLogs(level='ERROR') as log, \
-                self.assertRaises(SystemExit):
+                self.assertRaises(SystemExit) as cm:
             srt_util.get_config()
-        self.assertIn('upstream', log.output[0])
+        self.assertIn('upstream', str(cm.exception.code))
 
     def test_get_gpg_env_keeps_environment(self):
         import os

@@ -85,6 +85,9 @@ Fixed
 - ``srt quilt release`` refused a changed, not yet added localversion
   file as uncommitted change ``ocalversion-rt``: the first letter of the
   first changed file was cut off.
+- Errors all go to stderr now: ``srt upload`` printed a missing file of
+  ``srt create`` on stdout, ``srt sign`` and a missing configuration
+  group came as ``ERROR:root:`` log lines.
 
 2.1
 ---

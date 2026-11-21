@@ -45,8 +45,7 @@ from stable_rt_tools.srt_util_context import SrtContext
 def upload(config: Config, ctx: SrtContext, dry_run: bool = False) -> None:
     for f in ctx.get_files():
         if not os.path.isfile(f):
-            print(f'Unable to read {f}, did you remember to create?')
-            sys.exit(1)
+            sys.exit(f'Unable to read {f}, did you remember to create?')
 
     path = require(config, 'PRJ_DIR')
     older_path = path + '/' + 'older'

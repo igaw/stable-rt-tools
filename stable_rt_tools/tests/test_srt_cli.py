@@ -127,6 +127,22 @@ class TestMain(unittest.TestCase):
         self.assertEqual(cm.exception.code, 130)
 
 
+class TestUpload(unittest.TestCase):
+
+    def test_missing_file(self):
+        from stable_rt_tools.srt_upload import upload
+
+        ctx = mock.Mock()
+        ctx.get_files.return_value = ['/nonexistent/patch-6.12-rt1.patch.xz']
+        out = io.StringIO()
+        with mock.patch('sys.stdout', out), \
+                self.assertRaises(SystemExit) as cm:
+            upload({}, ctx)
+        self.assertEqual(out.getvalue(), '')
+        self.assertIn('Unable to read /nonexistent/patch-6.12-rt1.patch.xz',
+                      str(cm.exception.code))
+
+
 class TestNextStep(unittest.TestCase):
 
     def test_git_workflow_tags(self):
