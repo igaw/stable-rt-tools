@@ -172,6 +172,16 @@ def _clip(text: str) -> str:
     return text[:MAX_OUTPUT] + f'\n[{len(text) - MAX_OUTPUT} more characters]'
 
 
+def _test_result(status: Any) -> Any:
+    """The result srt test recorded (SRT_TEST_RESULT), from the status."""
+    if not isinstance(status, dict):
+        return None
+    for step in status.get('steps') or []:
+        if isinstance(step, dict) and step.get('step') == 'srt test':
+            return step.get('result')
+    return None
+
+
 def _next(text: str) -> str | None:
     for line in reversed(text.splitlines()):
         if line.startswith('next: '):
@@ -495,12 +505,14 @@ class Server:
         # a failed test is a result, not an error of the tool
         r = self._srt(path, ['-y', 'test'], ok=tuple(range(256)))
         output = r.stdout + r.stderr
+        status = self._status_of(path)
         return {
             'command': 'srt -y test',
             'exit': r.exit_code,
+            'result': _test_result(status),
             'output': _clip(output),
             'next': _next(output),
-            'status': self._status_of(path),
+            'status': status,
         }
 
     # --- protocol -----------------------------------------------------------

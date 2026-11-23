@@ -104,7 +104,8 @@ return its output, the next step and the status afterwards:
 ``test``
     A dry run: the command ``srt test`` would run (``TEST_COMMAND``). It
     runs it only if the server runs with ``--allow-test`` and the call
-    asks for it; it returns the output and the exit code. It uses your
+    asks for it; it returns the output, the exit code and the result the
+    command wrote to ``SRT_TEST_RESULT``, if it did. It uses your
     test lab: an agent runs it only when you ask. Like every tool it
     stops after an hour, so a ``TEST_COMMAND`` which waits for long
     tests is better run by hand.

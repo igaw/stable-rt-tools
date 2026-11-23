@@ -30,7 +30,11 @@ New
   of ``srt.conf``, your lab's shell command with placeholders for the
   release (``{tag}``, ``{old_tag}``, ``{upstream}``, ``{series}``,
   ``{worktree}``, and as ``SRT_*`` in the environment), after asking,
-  and notes in the history that it ran and its exit code. ``srt quilt
+  and notes in the history that it ran and its exit code. A script
+  reads the release as JSON from ``SRT_RELEASE`` and may write its
+  result to ``SRT_TEST_RESULT`` (``status``, ``summary``, ``url``, more
+  keys as they are), which the history, ``srt status`` and the MCP tool
+  show; the exit code still decides. ``srt quilt
   release`` and ``srt tag -r N`` print the command and ``next: srt test,
   then srt create``; ``srt status`` shows ``srt test`` as an optional
   step. ``srt mcp`` has a ``test`` tool, for real only with

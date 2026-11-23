@@ -31,6 +31,7 @@ import tempfile
 import unittest
 from shutil import rmtree
 from typing import Any
+from unittest import mock
 
 from stable_rt_tools.srt_mcp import Options, Result, Server
 
@@ -252,9 +253,14 @@ class TestMcpServer(unittest.TestCase):
                                 run=self.srt))
         self.srt.answers[('-y', 'test')] = \
             Result(1, 'the test of v6.12.118-rt24 exited with 1\n', '')
-        out = self.ok('test', server, series='v6.12-rt', dry_run=False)
+        result = {'status': 'fail', 'summary': '3 jobs failed'}
+        status = dict(STATUS, steps=[{'step': 'srt test', 'done': True,
+                                      'exit': 1, 'result': result}])
+        with mock.patch(f'{__name__}.STATUS', status):
+            out = self.ok('test', server, series='v6.12-rt', dry_run=False)
         # a failed test is its result, not an error
-        self.assertEqual((out['command'], out['exit']), ('srt -y test', 1))
+        self.assertEqual((out['command'], out['exit'], out['result']),
+                         ('srt -y test', 1, result))
         self.assertIn('exited with 1', out['output'])
         self.assertIn('dry_run', self.error('test', server,
                                             series='v6.12-rt', dry_run=1))

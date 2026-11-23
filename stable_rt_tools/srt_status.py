@@ -326,7 +326,10 @@ def test_step(path: str, tag: str) -> tuple[Step, dict[str, object]]:
         events = []
     if not events:
         return ('srt test', False), {}
-    return ('srt test', True), {'exit': events[-1].get('exit')}
+    detail: dict[str, object] = {'exit': events[-1].get('exit')}
+    if events[-1].get('result'):
+        detail['result'] = events[-1]['result']
+    return ('srt test', True), detail
 
 
 def release_next(tag: str, steps: Sequence[Step],
@@ -622,6 +625,14 @@ def print_status(info: Mapping[str, object]) -> None:
         if 'unknown' in step:
             line += f" (unknown: {step['unknown']})"
         print(line)
+        result = cast(dict[str, object] | None, step.get('result'))
+        if result:
+            line = ' - '.join(str(result[k]) for k in ('status', 'summary')
+                              if result.get(k))
+            if line:
+                print(f'      {line}')
+            if result.get('url'):
+                print(f"      {result['url']}")
         mail = cast(dict[str, object] | None, step.get('mail'))
         if mail:
             print(f"      {mail['date']} {mail['sender']}")

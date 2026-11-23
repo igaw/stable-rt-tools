@@ -528,9 +528,13 @@ shows the command and asks ``OK to run? (y/n)``; ``--dry-run`` only
 shows it. Then it runs the command with ``sh -c`` in the worktree of the
 series, with ``SRT_TAG``, ``SRT_OLD_TAG``, ``SRT_UPSTREAM``,
 ``SRT_SERIES`` and ``SRT_WORKTREE`` in the environment, its output goes
-to the terminal. srt test exits with the exit code of the command and
-adds ``test`` with the exit code to the history: ``srt status`` shows
-``srt test`` as done once it ran, whatever came out. Whether the release
+to the terminal. ``SRT_RELEASE`` is a JSON file with the release, and
+the command may write its result as JSON to ``SRT_TEST_RESULT``
+(``status``, ``summary``, ``url``, see ``TEST_COMMAND`` in
+:doc:`userguide`). srt test exits with the exit code of the command and
+adds ``test`` with the exit code and the result to the history: ``srt
+status`` shows ``srt test`` as done once it ran, whatever came out, with
+the result's status, summary and url below it. Whether the release
 passed is for you to judge. srt test is optional: ``srt create`` doesn't
 need it, and without ``TEST_COMMAND`` srt test only says to set it.
 
@@ -548,6 +552,8 @@ tests.
   OK to run? (y/n): y
   ...
   the test of v6.12.118-rt24 exited with 0
+  result: pass - 54 jobs, no regressions
+          https://lab.example/round/25
 
 .. _cmd-create:
 

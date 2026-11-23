@@ -197,7 +197,28 @@ The settings:
     as ``SRT_TAG``, ``SRT_OLD_TAG``, ``SRT_UPSTREAM``, ``SRT_SERIES`` and
     ``SRT_WORKTREE`` in the environment. Whether the command only submits
     the tests or waits for them is up to you: ``srt test`` runs as long
-    as the command. Several lines are fine, indent
+    as the command.
+
+    For scripts there is a small contract next to the shell command.
+    ``SRT_RELEASE`` is the path of a JSON file with the release:
+    ``tag``, ``old_tag``, ``upstream``, ``series``, ``worktree``,
+    ``workflow`` (``quilt`` or ``git``) and ``rc`` (``true`` for a
+    release candidate). ``SRT_TEST_RESULT`` is the path of an empty file
+    the command may write its result to, a JSON object with the optional
+    fields ``status`` (``pass``, ``fail`` or another word), ``summary``
+    (one line) and ``url``, and any other keys, which srt keeps as they
+    are. srt notes the result in the history, ``srt status`` shows its
+    status, summary and url below ``srt test``. Nothing written: only
+    the exit code, as without the contract; no JSON: a warning. The exit
+    code decides either way; srt warns when ``status`` says otherwise.
+    srt removes both files afterwards. A script of your lab could end
+    with:
+
+    .. code-block:: sh
+
+       echo '{"status": "pass", "summary": "54 jobs, no regressions",
+              "url": "https://lab.example/round/25"}' > "$SRT_TEST_RESULT"
+ Several lines are fine, indent
     the lines after the first; write ``%`` as ``%%``. One lab for all
     series goes into ``[DEFAULT]``, a group can have its own. For
     example, with srt-build and LAVA:

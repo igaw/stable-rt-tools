@@ -30,12 +30,22 @@ placeholders for the release ({tag}, {old_tag}, {upstream}, {series},
 with sh in the worktree of the series. Whether the release passed is
 for the maintainer to judge: srt only records that the test ran and its
 exit code.
+
+A small contract next to the shell command, for scripts: SRT_RELEASE is
+a JSON file with the release, SRT_TEST_RESULT an empty file the command
+may write its result to as JSON (status, summary, url and any other
+keys). srt keeps the result in the history and srt status shows it; the
+exit code still decides.
 """
 
 import argparse
+import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
+from typing import Any
 
 from stable_rt_tools import srt_status
 from stable_rt_tools.srt_log import log_step
@@ -47,6 +57,7 @@ from stable_rt_tools.srt_util import (
     get_config,
     get_last_release,
     get_suffix,
+    is_quilt_workflow,
     print_test,
     release_test_values,
     release_testing_command,
@@ -87,6 +98,52 @@ def release_to_test(path: str, config: Config) -> tuple[str, str | None]:
     return str(info['new_tag']), None if old is None else str(old)
 
 
+def release_json(config: Config, values: dict[str, str]) -> dict[str, Any]:
+    """The release, as SRT_RELEASE has it."""
+    return {**values,
+            'old_tag': values['old_tag'] or None,
+            'workflow': 'quilt' if is_quilt_workflow(config) else 'git',
+            'rc': Tag(values['tag']).is_rc}
+
+
+def read_result(path: str, code: int) -> dict[str, Any] | None:
+    """The result the command wrote to SRT_TEST_RESULT: None if it wrote
+    nothing or no JSON object (a warning). A status which contradicts the
+    exit code is warned about; the exit code decides."""
+    try:
+        with open(path) as f:
+            text = f.read()
+    except OSError:
+        return None
+    if not text.strip():
+        return None
+    try:
+        result = json.loads(text)
+    except ValueError as err:
+        print(f'srt: warning: SRT_TEST_RESULT is no JSON ({err}), the '
+              'exit code decides', file=sys.stderr)
+        return None
+    if not isinstance(result, dict):
+        print('srt: warning: SRT_TEST_RESULT is no JSON object, the exit '
+              'code decides', file=sys.stderr)
+        return None
+    status = result.get('status')
+    if (status == 'pass' and code != 0) or (status == 'fail' and code == 0):
+        print(f'srt: warning: the result says {status}, the command exited '
+              f'with {code}: the exit code decides', file=sys.stderr)
+    return result
+
+
+def print_result(result: dict[str, Any]) -> None:
+    """The result's status, summary and url, as far as it has them."""
+    line = ' - '.join(str(result[k]) for k in ('status', 'summary')
+                      if result.get(k))
+    if line:
+        print(f'result: {line}')
+    if result.get('url'):
+        print(f"        {result['url']}")
+
+
 def run_test(config: Config, dry_run: bool = False) -> int:
     """Run TEST_COMMAND for the release; its exit code."""
     path = srt_status.series_dir(os.getcwd())
@@ -105,10 +162,25 @@ def run_test(config: Config, dry_run: bool = False) -> int:
         sys.exit('not run')
     values = release_test_values(tag, old, path)
     env = dict(os.environ, **{TEST_ENV[k]: v for k, v in values.items()})
-    sys.stdout.flush()
-    code = subprocess.run(['sh', '-c', text], cwd=path, env=env).returncode
-    log_step('test', tag, old, path=path, exit=code, command=text)
+    tmp = tempfile.mkdtemp(prefix='srt-test-')
+    try:
+        env['SRT_RELEASE'] = os.path.join(tmp, 'release.json')
+        with open(env['SRT_RELEASE'], 'w') as f:
+            json.dump(release_json(config, values), f, indent=2)
+            f.write('\n')
+        env['SRT_TEST_RESULT'] = os.path.join(tmp, 'result.json')
+        open(env['SRT_TEST_RESULT'], 'w').close()
+        sys.stdout.flush()
+        code = subprocess.run(['sh', '-c', text], cwd=path,
+                              env=env).returncode
+        result = read_result(env['SRT_TEST_RESULT'], code)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    log_step('test', tag, old, path=path, exit=code, command=text,
+             result=result)
     print(f'the test of {tag} exited with {code}')
+    if result:
+        print_result(result)
     return code
 
 

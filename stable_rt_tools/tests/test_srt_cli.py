@@ -24,6 +24,7 @@
 
 import argparse
 import io
+import os
 import sys
 import unittest
 from subprocess import CalledProcessError
@@ -255,3 +256,85 @@ class TestSrtTest(unittest.TestCase):
         with mock.patch.object(srt_testrun, 'get_config', return_value={}), \
                 mock.patch.object(srt_testrun, 'run_test', return_value=0):
             srt_testrun.execute(args)
+
+
+class TestSrtTestResult(unittest.TestCase):
+    """SRT_RELEASE in, SRT_TEST_RESULT out."""
+
+    def setUp(self):
+        import tempfile
+        from shutil import rmtree
+
+        self.dir = os.path.realpath(tempfile.mkdtemp())
+        self.addCleanup(rmtree, self.dir)
+        cwd = os.getcwd()
+        os.chdir(self.dir)
+        self.addCleanup(os.chdir, cwd)
+
+    def run_test(self, command, workflow='quilt'):
+        from stable_rt_tools import srt_testrun
+
+        config = {'TEST_COMMAND': command, 'WORKFLOW': workflow}
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(srt_testrun, 'release_to_test', return_value=(
+                'v6.12.119-rt25', 'v6.12.118-rt24')), \
+                mock.patch.object(srt_testrun, 'confirm', return_value=True), \
+                mock.patch.object(srt_testrun, 'log_step') as log, \
+                mock.patch('sys.stdout', out), mock.patch('sys.stderr', err):
+            code = srt_testrun.run_test(config)
+        return code, log.call_args.kwargs['result'], out.getvalue(), \
+            err.getvalue()
+
+    def test_release_in_result_out(self):
+        script = os.path.join(self.dir, 'lab.py')
+        with open(script, 'w') as f:
+            f.write(
+                'import json, os\n'
+                'r = json.load(open(os.environ["SRT_RELEASE"]))\n'
+                'json.dump({"status": "pass", "summary": f"{r[\'tag\']} '
+                '{r[\'old_tag\']} {r[\'upstream\']} {r[\'series\']} '
+                '{r[\'workflow\']} {r[\'rc\']}", "url": "http://lab/1", '
+                '"jobs": 54}, open(os.environ["SRT_TEST_RESULT"], "w"))\n'
+                'open("paths", "w").write(os.environ["SRT_RELEASE"] + "\\n" '
+                '+ os.environ["SRT_TEST_RESULT"])\n')
+        code, result, out, err = self.run_test(
+            f'{sys.executable} {script}')
+        self.assertEqual(code, 0)
+        self.assertEqual(result, {
+            'status': 'pass',
+            'summary': 'v6.12.119-rt25 v6.12.118-rt24 v6.12.119 v6.12-rt '
+                       'quilt False',
+            'url': 'http://lab/1', 'jobs': 54})
+        self.assertIn('result: pass - v6.12.119-rt25', out)
+        self.assertIn('        http://lab/1\n', out)
+        self.assertEqual(err, '')
+        # the temporary files are gone
+        with open(os.path.join(self.dir, 'paths')) as f:
+            for path in f.read().splitlines():
+                self.assertFalse(os.path.exists(path), path)
+
+    def test_no_result(self):
+        code, result, out, err = self.run_test('exit 2', workflow='git')
+        self.assertEqual((code, result, err), (2, None, ''))
+        self.assertNotIn('result:', out)
+
+    def test_invalid_result(self):
+        for text in ('no json', '[1, 2]'):
+            code, result, _, err = self.run_test(
+                f"echo '{text}' > \"$SRT_TEST_RESULT\"")
+            self.assertEqual((code, result), (0, None))
+            self.assertIn('the exit code decides', err)
+
+    def test_status_against_exit_code(self):
+        _, result, _, err = self.run_test(
+            'echo \'{"status": "fail"}\' > "$SRT_TEST_RESULT"')
+        self.assertEqual(result, {'status': 'fail'})
+        self.assertIn('the result says fail, the command exited with 0', err)
+        code, _, _, err = self.run_test(
+            'echo \'{"status": "pass"}\' > "$SRT_TEST_RESULT"; exit 1')
+        self.assertEqual(code, 1)
+        self.assertIn('the result says pass', err)
+        # another status: no opinion about it
+        _, _, _, err = self.run_test(
+            'echo \'{"status": "flaky"}\' > "$SRT_TEST_RESULT"; exit 1')
+        self.assertEqual(err, '')

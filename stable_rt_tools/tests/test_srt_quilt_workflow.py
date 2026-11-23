@@ -425,6 +425,8 @@ class TestQuiltRelease(TestQuiltBase):
             f'echo "{{tag}} $SRT_TAG $SRT_OLD_TAG $SRT_UPSTREAM $SRT_SERIES"'
             f' > {out_file}\n'
             f'pwd >> {out_file}\n'
+            'echo \'{"status": "fail", "summary": "3 jobs failed", '
+            '"url": "http://lab/7"}\' > "$SRT_TEST_RESULT"\n'
             'exit 3')
         # a dry run and a no run nothing
         stub_stdouts(self)
@@ -447,16 +449,23 @@ class TestQuiltRelease(TestQuiltBase):
             f'{self.new_tag} {self.new_tag} {self.old_tag} v6.1.2 '
             f'{self.series}', os.path.realpath(self.rt_dir)])
         event = srt_log.read_log(self.rt_dir)[-1]
+        result = {'status': 'fail', 'summary': '3 jobs failed',
+                  'url': 'http://lab/7'}
         self.assertEqual((event['step'], event['release'], event['old'],
-                          event['exit']),
-                         ('test', self.new_tag, self.old_tag, 3))
+                          event['exit'], event['result']),
+                         ('test', self.new_tag, self.old_tag, 3, result))
         # ran, whatever came out: done, srt create next
         info = srt_status.status_info()
         steps = cast(list[dict[str, object]], info['steps'])
         self.assertEqual(steps[5], {'step': 'srt test', 'done': True,
-                                    'exit': 3})
+                                    'exit': 3, 'result': result})
         self.assertEqual(info['next'], 'srt create')
         self.assertNotIn('test', info)
+        stub_stdouts(self)
+        srt_status.status()
+        self.assertIn('  [x] srt test\n      fail - 3 jobs failed\n'
+                      '      http://lab/7\n  [ ] srt create\n',
+                      stdout_text())
         self.config['TEST_COMMAND'] = command
 
     def step8_create_sign(self):
