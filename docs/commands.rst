@@ -548,12 +548,13 @@ tests.
   testing v6.12.118-rt24 (after v6.12.117-rt23) in .../rt/v6.12-rt
   test with:
       cd /home/wagi/rt/v6.12-rt
-      srt-build round start --notes "v6.12.118-rt24"
+      $HOME/rt/srt-build/srt-build round start --notes "v6.12.118-rt24" --yes
+      $HOME/rt/srt-build/srt-build round wait --report
+      $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
   OK to run? (y/n): y
   ...
   the test of v6.12.118-rt24 exited with 0
-  result: pass - 54 jobs, no regressions
-          https://lab.example/round/25
+  result: pass - round 15 (v6.12.118-rt24) against 13: 54 jobs, no regressions
 
 .. _cmd-create:
 

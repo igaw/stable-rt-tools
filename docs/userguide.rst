@@ -184,20 +184,59 @@ The settings:
 ``TEST_COMMAND``
     How you test a release in your test lab, a shell command:
     ``srt test`` runs it with ``sh -c`` in the worktree of the series
-    (:ref:`cmd-test`). srt prints it when it is time to test, after
+    (:ref:`cmd-test`). srt also prints it when it is time to test, after
     ``srt quilt release`` and ``srt tag -r N`` (a release candidate of
     the git workflow), and ``srt status`` shows it while testing is the
-    next step. In it
-    ``{tag}`` is replaced with the release (``v6.12.119-rt25``, or
+    next step.
+
+    srt replaces ``{tag}`` with the release (``v6.12.119-rt25``, or
     ``v4.19.291-rt127-rc1``), ``{old_tag}`` with the release before it,
     ``{upstream}`` with the upstream release it is made on
     (``v6.12.119``), ``{series}`` with the series (``v6.12-rt``) and
     ``{worktree}`` with the worktree of the series; other braces, e.g. a
-    shell's ``${VAR}``, stay as they are. A script gets the same values
-    as ``SRT_TAG``, ``SRT_OLD_TAG``, ``SRT_UPSTREAM``, ``SRT_SERIES`` and
-    ``SRT_WORKTREE`` in the environment. Whether the command only submits
-    the tests or waits for them is up to you: ``srt test`` runs as long
-    as the command.
+    shell's ``${VAR}``, stay as they are. The command gets the same
+    values as ``SRT_TAG``, ``SRT_OLD_TAG``, ``SRT_UPSTREAM``,
+    ``SRT_SERIES`` and ``SRT_WORKTREE`` in the environment.
+
+    Several lines are fine: indent the lines after the first. ``sh`` runs
+    them one after the other without ``set -e``, so the exit code is the
+    one of the last line. Write ``%`` as ``%%`` (``srt.conf`` is read with
+    Python's configparser); ``$HOME`` and ``$VAR`` need nothing. A lab
+    for all series goes into ``[DEFAULT]``, one for a series into its
+    group. Whether the command only submits the tests or waits for them
+    is up to you: ``srt test`` runs as long as the command, for a whole
+    test round hours, so run it in ``tmux`` or ``screen``.
+
+    With `srt-build <https://github.com/igaw/srt-build>`_ and LAVA (its
+    ``docs/release-testing.rst``, "With srt test"), srt-build in a
+    checkout of its own rather than on ``PATH``:
+
+    .. code-block:: ini
+
+       [linux/stable-rt/v6.12-rt]
+       PRJ_DIR = /pub/linux/kernel/projects/rt/6.12
+       WORKFLOW = quilt
+       TEST_COMMAND =
+           cd {worktree}
+           $HOME/rt/srt-build/srt-build round start --notes "{tag}" --yes
+           $HOME/rt/srt-build/srt-build round wait --report
+           $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
+
+    It builds, installs and submits the release round, waits for it and
+    fetches it, and compares it with the release round before:
+    ``round compare --check`` exits with 1 only for a latency at least
+    40 % and 20 us longer than before or a job that didn't complete,
+    and decides the test (``round wait --report`` exits with 1 for known
+    problems too, but it isn't the last line). Check the entry without
+    running anything, in the worktree of the series::
+
+       $ srt test --dry-run
+       testing v6.12.118-rt24 (after v6.12.117-rt23) in .../rt/v6.12-rt
+       test with:
+           cd /home/wagi/rt/v6.12-rt
+           $HOME/rt/srt-build/srt-build round start --notes "v6.12.118-rt24" --yes
+           $HOME/rt/srt-build/srt-build round wait --report
+           $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
 
     For scripts there is a small contract next to the shell command.
     ``SRT_RELEASE`` is the path of a JSON file with the release:
@@ -207,36 +246,18 @@ The settings:
     the command may write its result to, a JSON object with the optional
     fields ``status`` (``pass``, ``fail`` or another word), ``summary``
     (one line) and ``url``, and any other keys, which srt keeps as they
-    are. srt notes the result in the history, ``srt status`` shows its
-    status, summary and url below ``srt test``. Nothing written: only
-    the exit code, as without the contract; no JSON: a warning. The exit
-    code decides either way; srt warns when ``status`` says otherwise.
-    srt removes both files afterwards. A script of your lab could end
-    with:
+    are; srt-build's ``round compare --result`` writes it. srt notes the
+    result in the history, ``srt status`` shows its status, summary and
+    url below ``srt test``. Nothing written: only the exit code counts,
+    as without the contract; no JSON: a warning. The exit code decides
+    either way; srt warns when ``status`` says otherwise. srt removes
+    both files afterwards. A script of your own lab could end with:
 
     .. code-block:: sh
 
        echo '{"status": "pass", "summary": "54 jobs, no regressions",
               "url": "https://lab.example/round/25"}' > "$SRT_TEST_RESULT"
- Several lines are fine, indent
-    the lines after the first; write ``%`` as ``%%``. One lab for all
-    series goes into ``[DEFAULT]``, a group can have its own. For
-    example, with srt-build and LAVA:
 
-    .. code-block:: ini
-
-       TEST_COMMAND =
-           cd {worktree}
-           srt-build round start --notes "{tag}"
-           srt-build round wait --report
-
-    and srt prints::
-
-       test with:
-           cd /home/wagi/rt/v6.12-rt
-           srt-build round start --notes "v6.12.119-rt25"
-           srt-build round wait --report
-       next: srt test, then srt create
 ``ANNOUNCE``, ``RC_TEXT``, ``COMMIT_TMPL``
     Own templates for the announcement, the review mails and the patch
     queue commit, instead of the ones srt ships.

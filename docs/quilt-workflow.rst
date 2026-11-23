@@ -220,11 +220,22 @@ the tags are local, the tarballs are not created and nothing is pushed.
 
 Build and boot ``v6.12-rt`` with your test setup and run the RT tests on
 the target boards, e.g. with `srt-build <https://github.com/igaw/srt-build>`_
-and LAVA, from within the ``v6.12-rt`` worktree. srt itself doesn't run
-tests itself, but it runs your lab's: set ``TEST_COMMAND`` in
-``srt.conf`` (:doc:`userguide`) to its commands, and ``srt test`` runs
-them for the release (:ref:`cmd-test`); ``srt quilt release`` and ``srt
-status`` show them.
+and LAVA, from within the ``v6.12-rt`` worktree. srt has no tests of its
+own, but it runs your lab's: set ``TEST_COMMAND`` in ``srt.conf``
+(:doc:`userguide`, with an srt-build example) to its commands, and
+``srt test`` runs them for the release (:ref:`cmd-test`); ``srt quilt
+release`` and ``srt status`` show them.
+
+.. code-block:: console
+
+  $ srt quilt release
+  ...
+  next: srt test, then srt create
+  $ srt test --dry-run      # check what it would run
+  $ srt test                # in tmux: a whole test round takes hours
+  ...
+  result: pass - round 20 (v6.12.119-rt25) against 19: 54 jobs, no regressions
+  $ srt create
 
 If a test fails, undo the release with ``srt quilt undo``, fix the patch
 queue and redo the release:
