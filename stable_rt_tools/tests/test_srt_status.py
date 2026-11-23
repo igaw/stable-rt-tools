@@ -174,6 +174,33 @@ class TestNext(unittest.TestCase):
 REAL_INBOX = os.environ.get('SRT_TEST_INBOX', '')
 
 
+class TestSkipped(unittest.TestCase):
+
+    def test_optional_step_skipped(self) -> None:
+        # a release created without srt test: skipped, not open
+        steps = [('srt quilt release', True), ('srt test', False),
+                 ('srt create', True), ('srt sign', False)]
+        details: dict[str, dict[str, object]] = {}
+        srt_status.mark_skipped(steps, details)
+        self.assertEqual(details, {'srt test': {'skipped': True}})
+        # still to do: open
+        details = {}
+        srt_status.mark_skipped([('srt test', False), ('srt create', False)],
+                                details)
+        self.assertEqual(details, {})
+
+    def test_printed(self) -> None:
+        info = {'old_tag': 'v6.12.117-rt23', 'new_tag': 'v6.12.118-rt24',
+                'steps': [{'step': 'srt test', 'done': False,
+                           'skipped': True},
+                          {'step': 'srt create', 'done': True}],
+                'warnings': [], 'next': 'srt prep'}
+        with mock.patch('sys.stdout') as out:
+            srt_status.print_status(info)
+        text = ''.join(c.args[0] for c in out.write.call_args_list)
+        self.assertIn('  [-] srt test (skipped)\n  [x] srt create', text)
+
+
 class TestInbox(unittest.TestCase):
     """srt announce: the announcement in the local clone of a fake
     inbox, a local repository as remote."""

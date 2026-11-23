@@ -303,6 +303,15 @@ def leftover_warnings(path: str, tag: str, tagged: bool) -> list[str]:
 OPTIONAL_STEPS = ('srt test',)
 
 
+def mark_skipped(steps: Sequence[Step], details: StepDetails) -> None:
+    """An optional step not done when a later one is: skipped (e.g. srt
+    test of a release created without it), not open."""
+    for i, (name, done) in enumerate(steps):
+        if name in OPTIONAL_STEPS and done is not True and \
+                any(d is True for _, d in steps[i + 1:]):
+            details.setdefault(name, {})['skipped'] = True
+
+
 def first_open(steps: Sequence[Step]) -> Step | None:
     """The first step not done. An unknown step followed by a done one
     counts as done: srt upload comes before srt push. So does an optional
@@ -455,6 +464,7 @@ def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
         overrides = {'srt test': srt_quilt.TEST_NEXT if goes_on is None
                      else f'srt test (goes on: {goes_on}), then srt create'}
     steps += publish
+    mark_skipped(steps, details)
     warnings = stale_warnings(rel.rt_dir, str(rel.old), rel.release_tag,
                               from_state)
     warnings += leftover_warnings(rel.rt_dir, rel.release_tag, tagged)
@@ -673,7 +683,10 @@ def print_status(info: Mapping[str, object]) -> None:
     for p in cast(list[str], info.get('added', [])):
         print(f'  added:   {p}')
     for step in cast(list[dict[str, object]], info['steps']):
-        line = f"  [{_mark(step['done'])}] {step['step']}"
+        mark = '-' if step.get('skipped') else _mark(step['done'])
+        line = f"  [{mark}] {step['step']}"
+        if step.get('skipped'):
+            line += ' (skipped)'
         if 'phase' in step:
             line += f" ({step['phase']})"
         if 'unknown' in step:
