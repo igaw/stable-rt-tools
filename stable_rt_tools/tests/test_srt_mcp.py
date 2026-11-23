@@ -265,6 +265,29 @@ class TestMcpServer(unittest.TestCase):
         self.assertIn('dry_run', self.error('test', server,
                                             series='v6.12-rt', dry_run=1))
 
+    def test_test_phases(self) -> None:
+        server = Server(Options(root=self.root, allow_test=True,
+                                run=self.srt))
+        self.ok('test', series='v6.12-rt', only='check')
+        self.ok('test', series='v6.12-rt', again=True)
+        self.srt.answers[('-y', 'test', '--check')] = \
+            Result(0, 'the test of v6.12.118-rt24 exited with 0\n', '')
+        out = self.ok('test', server, series='v6.12-rt', dry_run=False,
+                      only='check')
+        self.assertEqual(out['command'], 'srt -y test --check')
+        self.srt.answers[('-y', 'test', '--again')] = Result(0, '', '')
+        out = self.ok('test', server, series='v6.12-rt', dry_run=False,
+                      again=True)
+        self.assertEqual(out['command'], 'srt -y test --again')
+        self.assertIn('not both', self.error('test', server, series='v6.12-rt',
+                                             again=True, only='wait'))
+        self.assertIn('wait or check', self.error('test', server,
+                                                  series='v6.12-rt',
+                                                  only='submit'))
+        self.assertEqual(self.srt.commands()[:2], [
+            ['test', '--check', '--dry-run'],
+            ['test', '--again', '--dry-run']])
+
     def test_queue_draft(self) -> None:
         self.srt.answers[('quilt', 'queue', '--draft')] = \
             Result(0, '[ANNOUNCE] 6.12.118-rt24\n', '')

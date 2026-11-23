@@ -274,14 +274,17 @@ class TestSrtTestResult(unittest.TestCase):
     def run_test(self, command, workflow='quilt'):
         from stable_rt_tools import srt_testrun
 
-        config = {'TEST_COMMAND': command, 'WORKFLOW': workflow}
+        # the check writes the result (srt test --check: only the check)
+        config = {'TEST_COMMAND': 'true', 'TEST_CHECK': command,
+                  'WORKFLOW': workflow}
         out, err = io.StringIO(), io.StringIO()
         with mock.patch.object(srt_testrun, 'release_to_test', return_value=(
                 'v6.12.119-rt25', 'v6.12.118-rt24')), \
                 mock.patch.object(srt_testrun, 'confirm', return_value=True), \
                 mock.patch.object(srt_testrun, 'log_step') as log, \
                 mock.patch('sys.stdout', out), mock.patch('sys.stderr', err):
-            code = srt_testrun.run_test(config)
+            code = srt_testrun.run_test(config, only='check')
+        self.assertEqual(log.call_args.args[0], 'test-check')
         return code, log.call_args.kwargs['result'], out.getvalue(), \
             err.getvalue()
 

@@ -555,20 +555,60 @@ def release_test_values(tag: str, old_tag: str | None = None,
     }
 
 
-def release_testing_command(config: Mapping[str, str], tag: str,
-                            old_tag: str | None = None,
-                            worktree: str | None = None) -> str | None:
-    """TEST_COMMAND of srt.conf for the release tag, the placeholders
-    replaced: {tag} (e.g. v6.12.119-rt25, or its -rc1), {old_tag} (the
-    release before it), {upstream} (v6.12.119), {series} (v6.12-rt) and
-    {worktree} (the worktree of the series). None when it is unset."""
-    text = config.get('TEST_COMMAND')
-    if not text or not text.strip():
-        return None
-    values = release_test_values(tag, old_tag, worktree)
+# The phases of srt test and the settings with their commands: submit
+# the tests (TEST_COMMAND, needed), wait for them, check the outcome.
+TEST_PHASES = (('submit', 'TEST_COMMAND'), ('wait', 'TEST_WAIT'),
+               ('check', 'TEST_CHECK'))
+
+
+def fill_placeholders(text: str, values: Mapping[str, str]) -> str:
+    """text with TEST_PLACEHOLDERS replaced by values."""
     names = '|'.join(TEST_PLACEHOLDERS)
     return re.sub(r'\{(' + names + r')\}', lambda m: values[m[1]],
                   text.strip('\n'))
+
+
+def release_test_phases(config: Mapping[str, str], tag: str,
+                        old_tag: str | None = None,
+                        worktree: str | None = None) -> list[tuple[str, str]]:
+    """[(phase, command)] of the phases srt.conf sets, in order, the
+    placeholders filled in; [] without TEST_COMMAND (TEST_WAIT and
+    TEST_CHECK alone are no test)."""
+    if not (config.get('TEST_COMMAND') or '').strip():
+        return []
+    values = release_test_values(tag, old_tag, worktree)
+    return [(phase, fill_placeholders(str(config[key]), values))
+            for phase, key in TEST_PHASES
+            if (config.get(key) or '').strip()]
+
+
+def phases_text(phases: Sequence[tuple[str, str]],
+                label: bool | None = None) -> str:
+    """The commands of the phases as one text: a lone TEST_COMMAND as it
+    is, several each below its phase ('submit:', 'wait:', 'check:');
+    label says whether to name them (default: when there are several)."""
+    if label is None:
+        label = len(phases) > 1
+    if not label:
+        return '\n'.join(text for _, text in phases)
+    lines = []
+    for phase, text in phases:
+        lines.append(f'{phase}:')
+        lines += [f'    {line}' for line in text.splitlines()]
+    return '\n'.join(lines)
+
+
+def release_testing_command(config: Mapping[str, str], tag: str,
+                            old_tag: str | None = None,
+                            worktree: str | None = None) -> str | None:
+    """TEST_COMMAND (and TEST_WAIT, TEST_CHECK) of srt.conf for the
+    release tag, the placeholders replaced: {tag} (e.g. v6.12.119-rt25,
+    or its -rc1), {old_tag} (the release before it), {upstream}
+    (v6.12.119), {series} (v6.12-rt) and {worktree} (the worktree of the
+    series). Several phases each below its name. None when TEST_COMMAND
+    is unset."""
+    phases = release_test_phases(config, tag, old_tag, worktree)
+    return phases_text(phases) if phases else None
 
 
 def print_test_command(config: Mapping[str, str], tag: str,

@@ -295,13 +295,18 @@ class Server:
                  'patches.', destructive=True),
             Tool('test',
                  "Test the release in the maintainer's lab: srt test runs "
-                 'TEST_COMMAND of srt.conf in the worktree of the series. '
-                 'A dry run shows the command; the real run only when the '
-                 'maintainer asks for it, the server runs with --allow-test '
-                 'and dry_run is false. It returns the output and the exit '
-                 'code; whether the release passed is for the maintainer to '
-                 'judge.',
-                 self._publish_schema(series), self._test,
+                 'the phases of srt.conf in the worktree of the series: '
+                 'TEST_COMMAND submits the tests, TEST_WAIT waits for them, '
+                 'TEST_CHECK judges them; run again it goes on where it '
+                 'stopped. A dry run shows the commands; the real run only '
+                 'when the maintainer asks for it, the server runs with '
+                 '--allow-test and dry_run is false. again submits anew, '
+                 'only runs the wait (and check) or only the check. A run '
+                 'is stopped after an hour: wait for a test round by hand, '
+                 'or submit here (a setup without TEST_WAIT) and check '
+                 'later. It returns the output and the exit code; whether '
+                 'the release passed is for the maintainer to judge.',
+                 self._test_schema(series), self._test,
                  destructive=True, open_world=True),
             step('create', ['create'],
                  'Write the patch and the tarball of the release.'),
@@ -322,6 +327,19 @@ class Server:
                  self._publish_schema(series), lambda a: self._publish(
                      a, 'push'), destructive=True, open_world=True),
         ]
+
+    @classmethod
+    def _test_schema(cls, series: dict[str, Any]) -> dict[str, Any]:
+        schema = cls._publish_schema(series)
+        schema['properties'] = {
+            **schema['properties'],
+            'again': {'type': 'boolean', 'default': False,
+                      'description': 'submit again, also if it was '
+                      'submitted already (srt test --again)'},
+            'only': {'type': 'string', 'enum': ['wait', 'check'],
+                     'description': 'only the wait and the check, or only '
+                     'the check (srt test --wait, --check)'}}
+        return schema
 
     @staticmethod
     def _publish_schema(series: dict[str, Any]) -> dict[str, Any]:
@@ -494,8 +512,18 @@ class Server:
         dry_run = args.get('dry_run', True)
         if not isinstance(dry_run, bool):
             raise ToolError('dry_run must be a boolean')
+        again = args.get('again', False)
+        if not isinstance(again, bool):
+            raise ToolError('again must be a boolean')
+        only = args.get('only')
+        if only not in (None, 'wait', 'check'):
+            raise ToolError('only must be wait or check')
+        if again and only:
+            raise ToolError('again or only, not both')
+        options = (['--again'] if again else []) + \
+            ([f'--{only}'] if only else [])
         if dry_run:
-            return self._step(args, ['test', '--dry-run'])
+            return self._step(args, ['test', *options, '--dry-run'])
         if not self.opts.allow_test:
             raise ToolError('srt test is not allowed: the server runs '
                             'without --allow-test. Ask the maintainer to '
@@ -503,11 +531,11 @@ class Server:
                             '--allow-test.')
         path = self._worktree(args)
         # a failed test is a result, not an error of the tool
-        r = self._srt(path, ['-y', 'test'], ok=tuple(range(256)))
+        r = self._srt(path, ['-y', 'test', *options], ok=tuple(range(256)))
         output = r.stdout + r.stderr
         status = self._status_of(path)
         return {
-            'command': 'srt -y test',
+            'command': ' '.join(['srt', '-y', 'test', *options]),
             'exit': r.exit_code,
             'result': _test_result(status),
             'output': _clip(output),

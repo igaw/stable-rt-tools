@@ -45,13 +45,15 @@ import json
 import os
 import subprocess
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from subprocess import CalledProcessError
-from typing import cast
+from typing import Any, cast
 
 from stable_rt_tools import srt_inbox, srt_log, srt_quilt
 from stable_rt_tools.srt_prep import get_next_stable_version, worktree_dirs
 from stable_rt_tools.srt_quilt import git, pushed, rev, upstream
 from stable_rt_tools.srt_util import (
+    TEST_PHASES,
     Config,
     SrtState,
     SubParsers,
@@ -316,20 +318,68 @@ def first_open(steps: Sequence[Step]) -> Step | None:
     return None
 
 
-def test_step(path: str, tag: str) -> tuple[Step, dict[str, object]]:
-    """srt test of the release tag: done once the history has it ran
-    (whatever its exit code), and the exit code of the last run."""
+def test_phase_events(path: str, tag: str) -> dict[str, dict[str, Any]]:
+    """The last run of each phase of srt test (submit, wait, check) of
+    the release tag, from the history: only those since the last
+    successful submit (srt test --again starts the test anew)."""
     try:
         events = [e for e in srt_log.read_log(path)
-                  if e.get('step') == 'test' and e.get('release') == tag]
-    except (OSError, SystemExit):
-        events = []
-    if not events:
-        return ('srt test', False), {}
-    detail: dict[str, object] = {'exit': events[-1].get('exit')}
-    if events[-1].get('result'):
-        detail['result'] = events[-1]['result']
-    return ('srt test', True), detail
+                  if e.get('release') == tag and
+                  str(e.get('step', '')).startswith('test-')]
+    except (OSError, SystemExit, CalledProcessError):
+        return {}
+    for i in range(len(events) - 1, -1, -1):
+        if events[i]['step'] == 'test-submit' and events[i].get('exit') == 0:
+            events = events[i:]
+            break
+    return {e['step'][len('test-'):]: e for e in events}
+
+
+def local_time(event: Mapping[str, Any]) -> str:
+    """The time of an event of the history, local: '2026-11-24 09:12'."""
+    try:
+        t = datetime.fromisoformat(str(event['time']))
+        return t.astimezone().strftime('%Y-%m-%d %H:%M')
+    except (KeyError, ValueError):
+        return str(event.get('time', '?'))
+
+
+def test_step(path: str, tag: str, config: Mapping[str, str]) -> \
+        tuple[Step, dict[str, object], str | None]:
+    """srt test of the release tag: done once its last phase (the check
+    if TEST_CHECK is set, else the wait, else the submit) ran, whatever
+    its exit code. The details: each phase's exit code and time, the
+    result of the check, while not done how far it got; and the phase
+    srt test goes on with, if it was started."""
+    phases = [p for p, key in TEST_PHASES if (config.get(key) or '').strip()]
+    events = test_phase_events(path, tag)
+    detail: dict[str, object] = {}
+    if events:
+        detail['phases'] = {p: {'exit': e.get('exit'), 'time': e.get('time')}
+                            for p, e in events.items()}
+    last = phases[-1]
+    if last in events:
+        detail['exit'] = events[last].get('exit')
+        result = events.get('check', {}).get('result')
+        if result:
+            detail['result'] = result
+        return ('srt test', True), detail, None
+    submit = events.get('submit')
+    if submit is None:
+        return ('srt test', False), detail, None
+    if submit.get('exit') != 0:
+        detail['phase'] = f"submit failed (exit {submit.get('exit')})"
+        return ('srt test', False), detail, None
+    nxt = 'wait' if 'wait' in phases and 'wait' not in events else 'check'
+    text = f'submitted {local_time(submit)}'
+    if nxt == 'wait':
+        text += ', waiting'
+    else:
+        if 'wait' in events:
+            text += f", waited (exit {events['wait'].get('exit')})"
+        text += ', check open'
+    detail['phase'] = text
+    return ('srt test', False), detail, nxt
 
 
 def release_next(tag: str, steps: Sequence[Step],
@@ -397,11 +447,13 @@ def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
                                      offline, rel.config, str(rel.old))
     overrides = {'srt create': srt_quilt.RELEASE_NEXT}
     if rel.config.get('TEST_COMMAND'):
-        tested, detail = test_step(rel.rt_dir, rel.release_tag)
+        tested, detail, goes_on = test_step(rel.rt_dir, rel.release_tag,
+                                            rel.config)
         steps.append(tested)
         if detail:
             details['srt test'] = detail
-        overrides = {'srt test': srt_quilt.TEST_NEXT}
+        overrides = {'srt test': srt_quilt.TEST_NEXT if goes_on is None
+                     else f'srt test (goes on: {goes_on}), then srt create'}
     steps += publish
     warnings = stale_warnings(rel.rt_dir, str(rel.old), rel.release_tag,
                               from_state)
@@ -578,9 +630,9 @@ def status_info(offline: bool = False) -> dict[str, object]:
 def with_test(info: dict[str, object]) -> dict[str, object]:
     """info with 'test', the test command (TEST_COMMAND), when testing
     the release is the next step."""
-    if not info.get('prepared') or \
-            info.get('next') not in (srt_quilt.RELEASE_NEXT,
-                                     srt_quilt.TEST_NEXT):
+    nxt = str(info.get('next'))
+    if not info.get('prepared') or not (nxt == srt_quilt.RELEASE_NEXT or
+                                        nxt.startswith('srt test')):
         return info
     path = series_dir(os.getcwd())
     try:
@@ -622,6 +674,8 @@ def print_status(info: Mapping[str, object]) -> None:
         print(f'  added:   {p}')
     for step in cast(list[dict[str, object]], info['steps']):
         line = f"  [{_mark(step['done'])}] {step['step']}"
+        if 'phase' in step:
+            line += f" ({step['phase']})"
         if 'unknown' in step:
             line += f" (unknown: {step['unknown']})"
         print(line)

@@ -417,49 +417,80 @@ class TestQuiltRelease(TestQuiltBase):
             srt_testrun.run_test(self.config)
         self.assertIn('TEST_COMMAND is not set', str(e.exception))
 
+    def run_srt_test(self, answer='y', **kw):
+        stub_stdin(self, answer + '\n')
+        stub_stdouts(self)
+        code = srt_testrun.run_test(self.config, **kw)
+        return code, stdout_text()
+
+    def srt_test_step(self):
+        info = srt_status.status_info()
+        steps = cast(list[dict[str, object]], info['steps'])
+        self.assertEqual(steps[5]['step'], 'srt test')
+        return steps[5], info
+
     def check_srt_test(self):
-        """srt test runs TEST_COMMAND in the worktree of the series."""
-        out_file = os.path.join(self.tdir, 'tested')
+        """srt test runs the phases in the worktree of the series and goes
+        on where it stopped."""
+        log = os.path.join(self.tdir, 'phases')
         command = self.config['TEST_COMMAND']
         self.config['TEST_COMMAND'] = (
-            f'echo "{{tag}} $SRT_TAG $SRT_OLD_TAG $SRT_UPSTREAM $SRT_SERIES"'
-            f' > {out_file}\n'
-            f'pwd >> {out_file}\n'
+            f'echo "submit {{tag}} $SRT_TAG $SRT_OLD_TAG $SRT_UPSTREAM '
+            f'$SRT_SERIES" >> {log}\n'
+            f'pwd >> {log}')
+        # srt-build's round wait --report: exit 1 for known problems
+        self.config['TEST_WAIT'] = (
+            f'echo "wait [$SRT_TEST_RESULT]" >> {log}; exit 1')
+        self.config['TEST_CHECK'] = (
+            f'echo check >> {log}\n'
             'echo \'{"status": "fail", "summary": "3 jobs failed", '
             '"url": "http://lab/7"}\' > "$SRT_TEST_RESULT"\n'
             'exit 3')
-        # a dry run and a no run nothing
-        stub_stdouts(self)
-        self.assertEqual(srt_testrun.run_test(self.config, dry_run=True), 0)
-        self.assertIn(f'testing {self.new_tag} (after {self.old_tag})',
-                      stdout_text())
-        stub_stdin(self, 'n\n')
+
+        def ran():
+            lines = read(log).splitlines() if os.path.exists(log) else []
+            return [line.split()[0] for line in lines
+                    if not line.startswith('/')]
+
+        # a dry run and a no run nothing; the phases are named
+        code, out = self.run_srt_test(dry_run=True)
+        self.assertEqual(code, 0)
+        self.assertIn(f'testing {self.new_tag} (after {self.old_tag})', out)
+        self.assertIn('test with:\n    submit:\n        echo "submit', out)
+        self.assertIn('\n    wait:\n        echo "wait', out)
+        self.assertIn('\n    check:\n        echo check >> ', out)
         with self.assertRaises(SystemExit):
-            srt_testrun.run_test(self.config)
-        self.assertFalse(os.path.exists(out_file))
-        # from the -patches worktree too: it runs in the series
+            self.run_srt_test('n')
+        self.assertEqual(ran(), [])
+        # from the -patches worktree too: it runs in the series; the
+        # failing wait doesn't stop the check, which decides
         os.chdir(self.patches_dir)
-        stub_stdin(self, 'y\n')
-        stub_stdouts(self)
-        self.assertEqual(srt_testrun.run_test(self.config), 3)
+        code, out = self.run_srt_test()
         os.chdir(self.rt_dir)
-        out = stdout_text()
-        self.assertIn('started ', out)
-        self.assertIn(f'the test of {self.new_tag} exited with 3 after ', out)
-        self.assertEqual(read(out_file).splitlines(), [
-            f'{self.new_tag} {self.new_tag} {self.old_tag} v6.1.2 '
-            f'{self.series}', os.path.realpath(self.rt_dir)])
-        event = srt_log.read_log(self.rt_dir)[-1]
+        self.assertEqual(code, 3)
+        self.assertEqual(read(log).splitlines(), [
+            f'submit {self.new_tag} {self.new_tag} {self.old_tag} v6.1.2 '
+            f'{self.series}', os.path.realpath(self.rt_dir), 'wait []',
+            'check'])
+        self.assertIn('submit: started ', out)
+        self.assertIn('submit: exit 0 after ', out)
+        self.assertIn('wait exited with 1: the check decides', out)
+        self.assertIn(f'the test of {self.new_tag} exited with 3\n', out)
+        self.assertIn('result: fail - 3 jobs failed', out)
         result = {'status': 'fail', 'summary': '3 jobs failed',
                   'url': 'http://lab/7'}
-        self.assertEqual((event['step'], event['release'], event['old'],
-                          event['exit'], event['result']),
-                         ('test', self.new_tag, self.old_tag, 3, result))
-        # ran, whatever came out: done, srt create next
-        info = srt_status.status_info()
-        steps = cast(list[dict[str, object]], info['steps'])
-        self.assertEqual(steps[5], {'step': 'srt test', 'done': True,
-                                    'exit': 3, 'result': result})
+        events = srt_log.read_log(self.rt_dir)[-3:]
+        self.assertEqual([(e['step'], e['release'], e['old'], e['exit'],
+                           e.get('result')) for e in events], [
+            ('test-submit', self.new_tag, self.old_tag, 0, None),
+            ('test-wait', self.new_tag, self.old_tag, 1, None),
+            ('test-check', self.new_tag, self.old_tag, 3, result)])
+        # the check ran, whatever came out: done, srt create next
+        step, info = self.srt_test_step()
+        self.assertEqual((step['done'], step['exit'], step['result']),
+                         (True, 3, result))
+        self.assertEqual(sorted(cast(dict[str, object], step['phases'])),
+                         ['check', 'submit', 'wait'])
         self.assertEqual(info['next'], 'srt create')
         self.assertNotIn('test', info)
         stub_stdouts(self)
@@ -467,6 +498,54 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertIn('  [x] srt test\n      fail - 3 jobs failed\n'
                       '      http://lab/7\n  [ ] srt create\n',
                       stdout_text())
+        # again: submitted already, the wait failed, so wait and check
+        code, out = self.run_srt_test()
+        self.assertEqual(code, 3)
+        self.assertIn('submitted already on ', out)
+        self.assertIn('(srt test --again submits again)', out)
+        self.assertEqual(ran(), ['submit', 'wait', 'check', 'wait', 'check'])
+        # --check: only the check; --wait: wait and check
+        self.assertEqual(self.run_srt_test(only='check')[0], 3)
+        self.assertEqual(ran()[5:], ['check'])
+        self.run_srt_test(only='wait')
+        self.assertEqual(ran()[6:], ['wait', 'check'])
+        # --again: submits again
+        self.run_srt_test(again=True)
+        self.assertEqual(ran()[8:], ['submit', 'wait', 'check'])
+        # without TEST_WAIT the submit returns, srt test goes on later
+        del self.config['TEST_WAIT']
+        code, out = self.run_srt_test(again=True)
+        self.assertEqual(code, 0)
+        self.assertEqual(ran()[11:], ['submit'])
+        self.assertIn('submitted: run srt test again when the tests are '
+                      'done, it goes on with the check', out)
+        self.assertNotIn('the test of', out)
+        step, info = self.srt_test_step()
+        self.assertFalse(step['done'])
+        self.assertRegex(str(step['phase']),
+                         r'^submitted \d{4}-\d\d-\d\d \d\d:\d\d, check open$')
+        self.assertEqual(info['next'],
+                         'srt test (goes on: check), then srt create')
+        self.assertIn('check:', cast(str, info['test']))
+        stub_stdouts(self)
+        srt_status.status()
+        self.assertIn('  [ ] srt test (submitted ', stdout_text())
+        code, out = self.run_srt_test()
+        self.assertEqual((code, ran()[12:]), (3, ['check']))
+        # a lone TEST_COMMAND: it decides, and once done it's done
+        del self.config['TEST_CHECK']
+        code, out = self.run_srt_test(again=True)
+        self.assertEqual(code, 0)
+        self.assertIn('test with:\n    echo "submit', out)
+        self.assertIn(f'the test of {self.new_tag} exited with 0', out)
+        step, _ = self.srt_test_step()
+        self.assertEqual((step['done'], step['exit']), (True, 0))
+        code, out = self.run_srt_test()
+        self.assertEqual(code, 0)
+        self.assertIn('ran already, exit 0', out)
+        with self.assertRaises(SystemExit) as e:
+            self.run_srt_test(only='check')
+        self.assertIn('TEST_CHECK is not set', str(e.exception))
         self.config['TEST_COMMAND'] = command
 
     def step8_create_sign(self):
@@ -687,10 +766,23 @@ class TestQuiltRelease(TestQuiltBase):
     def step10_log(self):
         events = srt_log.read_log(self.rt_dir)
         # srt announce only printed the mail, srt status found it
-        self.assertEqual([e['step'] for e in events], [
+        # the srt test phases of check_srt_test, between release and create
+        names = [e['step'] for e in events]
+        tests = [st for st in names if st.startswith('test-')]
+        self.assertEqual(tests, [
+            'test-submit', 'test-wait', 'test-check',    # srt test
+            'test-wait', 'test-check',                   # again
+            'test-check',                                # --check
+            'test-wait', 'test-check',                   # --wait
+            'test-submit', 'test-wait', 'test-check',    # --again
+            'test-submit',                               # no TEST_WAIT
+            'test-check',                                # goes on
+            'test-submit'])                              # TEST_COMMAND
+        self.assertEqual([st for st in names if not st.startswith('test-')], [
             'prep', 'quilt refresh', 'quilt queue', 'quilt rebase',
-            'quilt merge', 'quilt release', 'test', 'create', 'sign',
+            'quilt merge', 'quilt release', 'create', 'sign',
             'upload', 'push', 'announced'])
+        self.assertEqual(names[6:6 + len(tests)], tests)
         for e in events:
             self.assertEqual(e['series'], self.series)
             self.assertEqual(e['release'], self.new_tag)
