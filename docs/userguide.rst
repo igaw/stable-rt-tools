@@ -181,31 +181,42 @@ The settings:
     minutes, never with ``srt status --offline``; it never uses the search
     or the web pages of the archive. The same for all series, so set it in
     ``[DEFAULT]``; empty turns the step off (unknown).
-``TEST_COMMAND``
-    How you test a release in your test lab, a shell command:
-    ``srt test`` runs it with ``sh -c`` in the worktree of the series
-    (:ref:`cmd-test`). srt also prints it when it is time to test, after
-    ``srt quilt release`` and ``srt tag -r N`` (a release candidate of
-    the git workflow), and ``srt status`` shows it while testing is the
-    next step.
+``TEST_COMMAND``, ``TEST_WAIT``, ``TEST_CHECK``
+    How you test a release in your test lab, in up to three phases,
+    each a shell command: ``TEST_COMMAND`` submits the tests (it is what
+    makes ``srt test`` work), ``TEST_WAIT`` waits for them and
+    ``TEST_CHECK`` judges them; the last two are optional. ``srt test``
+    runs them one after the other with ``sh -c`` in the worktree of the
+    series (:ref:`cmd-test`). srt also prints them when it is time to
+    test, after ``srt quilt release`` and ``srt tag -r N`` (a release
+    candidate of the git workflow), and ``srt status`` shows them while
+    testing is the next step.
 
     srt replaces ``{tag}`` with the release (``v6.12.119-rt25``, or
     ``v4.19.291-rt127-rc1``), ``{old_tag}`` with the release before it,
     ``{upstream}`` with the upstream release it is made on
     (``v6.12.119``), ``{series}`` with the series (``v6.12-rt``) and
     ``{worktree}`` with the worktree of the series; other braces, e.g. a
-    shell's ``${VAR}``, stay as they are. The command gets the same
+    shell's ``${VAR}``, stay as they are. The commands get the same
     values as ``SRT_TAG``, ``SRT_OLD_TAG``, ``SRT_UPSTREAM``,
     ``SRT_SERIES`` and ``SRT_WORKTREE`` in the environment.
 
-    Several lines are fine: indent the lines after the first. ``sh`` runs
-    them one after the other without ``set -e``, so the exit code is the
-    one of the last line. Write ``%`` as ``%%`` (``srt.conf`` is read with
-    Python's configparser); ``$HOME`` and ``$VAR`` need nothing. A lab
-    for all series goes into ``[DEFAULT]``, one for a series into its
-    group. Whether the command only submits the tests or waits for them
-    is up to you: ``srt test`` runs as long as the command, for a whole
-    test round hours, so run it in ``tmux`` or ``screen``.
+    Why phases: a test round takes hours. srt notes each phase in the
+    history, and ``srt test`` run again goes on where it stopped: after
+    a dead terminal or a reboot it doesn't submit a second round, it
+    waits again. A check alone (``srt test --check``) judges again after
+    a job was run again. The check decides: ``srt test`` exits with its
+    exit code (without ``TEST_CHECK`` the wait's, without that the
+    submit's); a wait that exits with an error doesn't stop the check.
+    Without ``TEST_WAIT``, ``srt test`` returns after the submit, and run
+    again when the tests are done, it goes on with the check.
+
+    Several lines in a phase are fine: indent the lines after the first.
+    Write ``%`` as ``%%`` (``srt.conf`` is read with Python's
+    configparser); ``$HOME`` and ``$VAR`` need nothing. A lab for all
+    series goes into ``[DEFAULT]``, one for a series into its group.
+    ``srt test`` runs as long as its phases, for a whole test round
+    hours, so run it in ``tmux`` or ``screen``.
 
     With `srt-build <https://github.com/igaw/srt-build>`_ and LAVA (its
     ``docs/release-testing.rst``, "With srt test"), srt-build in a
@@ -219,39 +230,53 @@ The settings:
        TEST_COMMAND =
            cd {worktree}
            $HOME/rt/srt-build/srt-build round start --notes "{tag}" --yes
-           $HOME/rt/srt-build/srt-build round wait --report
-           $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
+       TEST_WAIT = $HOME/rt/srt-build/srt-build round wait --report
+       TEST_CHECK = $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
 
-    It builds, installs and submits the release round, waits for it and
-    fetches it, and compares it with the release round before:
-    ``round compare --check`` exits with 1 only for a latency at least
-    40 % and 20 us longer than before or a job that didn't complete,
-    and decides the test (``round wait --report`` exits with 1 for known
-    problems too, but it isn't the last line). Check the entry without
-    running anything, in the worktree of the series::
+    ``round start`` builds, installs and submits the release round,
+    ``round wait --report`` waits for it and fetches it (and exits with
+    1 for known problems too: that doesn't decide), and ``round compare
+    --check`` compares it with the release round before: it fails only
+    for a latency at least 40 % and 20 us longer than before or a job
+    that didn't complete. Check the entry without running anything, in
+    the worktree of the series::
 
        $ srt test --dry-run
        testing v6.12.118-rt24 (after v6.12.117-rt23) in .../rt/v6.12-rt
        test with:
-           cd /home/wagi/rt/v6.12-rt
-           $HOME/rt/srt-build/srt-build round start --notes "v6.12.118-rt24" --yes
-           $HOME/rt/srt-build/srt-build round wait --report
-           $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
+           submit:
+               cd /home/wagi/rt/v6.12-rt
+               $HOME/rt/srt-build/srt-build round start --notes "v6.12.118-rt24" --yes
+           wait:
+               $HOME/rt/srt-build/srt-build round wait --report
+           check:
+               $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
 
-    For scripts there is a small contract next to the shell command.
+    Building and testing on another machine: the release steps stay
+    where the release is made, the phases can run anywhere ``ssh``
+    reaches. The release's tags are local until ``srt push``, so give
+    the build machine the release first through a remote of its own,
+    e.g. ``TEST_COMMAND = git push builder refs/tags/{tag} && ssh
+    builder "cd rt/v6.12-rt && git checkout {tag} && srt-build round
+    start --notes {tag} --yes"``. A private remote is fine before the
+    release is published; never push to the public one before ``srt
+    push``.
+
+    For scripts there is a small contract next to the shell commands.
     ``SRT_RELEASE`` is the path of a JSON file with the release:
     ``tag``, ``old_tag``, ``upstream``, ``series``, ``worktree``,
     ``workflow`` (``quilt`` or ``git``) and ``rc`` (``true`` for a
-    release candidate). ``SRT_TEST_RESULT`` is the path of an empty file
-    the command may write its result to, a JSON object with the optional
-    fields ``status`` (``pass``, ``fail`` or another word), ``summary``
-    (one line) and ``url``, and any other keys, which srt keeps as they
-    are; srt-build's ``round compare --result`` writes it. srt notes the
-    result in the history, ``srt status`` shows its status, summary and
-    url below ``srt test``. Nothing written: only the exit code counts,
-    as without the contract; no JSON: a warning. The exit code decides
-    either way; srt warns when ``status`` says otherwise. srt removes
-    both files afterwards. A script of your own lab could end with:
+    release candidate). The check gets ``SRT_TEST_RESULT``, the path of
+    an empty file it may write its result to, a JSON object with the
+    optional fields ``status`` (``pass``, ``fail`` or another word),
+    ``summary`` (one line) and ``url``, and any other keys, which srt
+    keeps as they are; srt-build's ``round compare --result`` writes it.
+    srt notes the result in the history, ``srt status`` shows its
+    status, summary and url below ``srt test``. Nothing written: only
+    the exit code counts, as without the contract; no JSON: a warning.
+    The exit code decides either way; srt warns when ``status`` says
+    otherwise. srt removes both files afterwards. A check of your own
+    lab could end with:
 
     .. code-block:: sh
 

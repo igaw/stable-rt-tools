@@ -82,9 +82,11 @@ an upstream update lists "- none" as changes, as srt generates it; then
 queue without message. Don't propose new wording.
 
 Then STOP: the maintainer tests the release (status has "test", the
-commands of their lab, when TEST_COMMAND is set). test runs them (srt
-test) only when the maintainer asks and the server allows it: it uses
-their lab. Then create, sign, check,
+commands of their lab, when TEST_COMMAND is set: submit, and with
+TEST_WAIT and TEST_CHECK wait and check). test runs them (srt test) only
+when the maintainer asks and the server allows it: it uses their lab;
+run again it goes on where it stopped, again submits a second round.
+Then create, sign, check,
 upload and push (dry runs; the real ones only with the maintainer's OK and
 when the server allows them) and announce, which returns the mail for the
 maintainer to send. undo takes a release back as long as nothing is

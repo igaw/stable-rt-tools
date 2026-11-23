@@ -102,13 +102,15 @@ return its output, the next step and the status afterwards:
     Dry runs. They upload and push only if the server runs with
     ``--allow-publish`` and the call asks for it (``dry_run`` false).
 ``test``
-    A dry run: the command ``srt test`` would run (``TEST_COMMAND``). It
-    runs it only if the server runs with ``--allow-test`` and the call
-    asks for it; it returns the output, the exit code and the result the
-    command wrote to ``SRT_TEST_RESULT``, if it did. It uses your
-    test lab: an agent runs it only when you ask. Like every tool it
-    stops after an hour, so a ``TEST_COMMAND`` which waits for long
-    tests is better run by hand.
+    A dry run: the phases ``srt test`` would run (``TEST_COMMAND``,
+    ``TEST_WAIT``, ``TEST_CHECK``). It runs them only if the server runs
+    with ``--allow-test`` and the call asks for it (``again``, or
+    ``only`` the ``wait`` or the ``check``); it returns the output, the
+    exit code and the result the check wrote to ``SRT_TEST_RESULT``, if
+    it did. It uses your test lab: an agent runs it only when you ask.
+    Like every tool it stops after an hour: run a ``TEST_WAIT`` which
+    waits for a test round by hand, or, without ``TEST_WAIT``, let the
+    agent submit and check later.
 
 The server needs what srt needs: the configuration (``SRT_CONF`` or
 ``~/.config/srt.conf``) and, for ``sign`` and the tags, a GPG agent which

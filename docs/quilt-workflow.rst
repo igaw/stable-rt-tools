@@ -222,9 +222,11 @@ Build and boot ``v6.12-rt`` with your test setup and run the RT tests on
 the target boards, e.g. with `srt-build <https://github.com/igaw/srt-build>`_
 and LAVA, from within the ``v6.12-rt`` worktree. srt has no tests of its
 own, but it runs your lab's: set ``TEST_COMMAND`` in ``srt.conf``
-(:doc:`userguide`, with an srt-build example) to its commands, and
-``srt test`` runs them for the release (:ref:`cmd-test`); ``srt quilt
-release`` and ``srt status`` show them.
+(:doc:`userguide`, with an srt-build example) to its commands, in up
+to three phases (submit, wait, check), and ``srt test`` runs them for
+the release (:ref:`cmd-test`); ``srt quilt release`` and ``srt status``
+show them. Interrupted, ``srt test`` goes on where it stopped and
+doesn't submit the tests again.
 
 .. code-block:: console
 
@@ -234,6 +236,7 @@ release`` and ``srt status`` show them.
   $ srt test --dry-run      # check what it would run
   $ srt test                # in tmux: a whole test round takes hours
   ...
+  the test of v6.12.119-rt25 exited with 0
   result: pass - round 20 (v6.12.119-rt25) against 19: 54 jobs, no regressions
   $ srt create
 

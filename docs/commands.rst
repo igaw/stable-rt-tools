@@ -517,47 +517,76 @@ release candidate testing, ``srt announce`` and ``srt push``.
 srt test
 --------
 
-Tests the release in your test lab, with the commands ``TEST_COMMAND``
-of ``srt.conf`` has (:doc:`userguide`): between ``srt quilt release``
-and ``srt create``, in the git workflow for a release candidate after
-``srt tag -r N``. It runs in any worktree of the series.
+Tests the release in your test lab, with the phases of ``srt.conf``
+(:doc:`userguide`): ``TEST_COMMAND`` submits the tests, ``TEST_WAIT``
+waits for them, ``TEST_CHECK`` judges them; the last two are optional.
+Between ``srt quilt release`` and ``srt create``, in the git workflow
+for a release candidate after ``srt tag -r N``. It runs in any worktree
+of the series.
 
 The release is a release candidate tagged at ``HEAD`` (git workflow),
 else the release ``srt status`` shows. srt fills in the placeholders,
-shows the command and asks ``OK to run? (y/n)``; ``--dry-run`` only
-shows it. Then it runs the command with ``sh -c`` in the worktree of the
-series, with ``SRT_TAG``, ``SRT_OLD_TAG``, ``SRT_UPSTREAM``,
-``SRT_SERIES`` and ``SRT_WORKTREE`` in the environment, its output goes
-to the terminal. ``SRT_RELEASE`` is a JSON file with the release, and
-the command may write its result as JSON to ``SRT_TEST_RESULT``
-(``status``, ``summary``, ``url``, see ``TEST_COMMAND`` in
-:doc:`userguide`). srt test exits with the exit code of the command and
-adds ``test`` with the exit code and the result to the history: ``srt
-status`` shows ``srt test`` as done once it ran, whatever came out, with
-the result's status, summary and url below it. Whether the release
-passed is for you to judge. srt test is optional: ``srt create`` doesn't
-need it, and without ``TEST_COMMAND`` srt test only says to set it.
+shows the commands of the phases it runs and asks ``OK to run?
+(y/n)``; ``--dry-run`` only shows them. Then it runs each with ``sh
+-c`` in the worktree of the series, with ``SRT_TAG``, ``SRT_OLD_TAG``,
+``SRT_UPSTREAM``, ``SRT_SERIES``, ``SRT_WORKTREE`` and ``SRT_RELEASE``
+in the environment, the check also with ``SRT_TEST_RESULT`` for its
+result (``status``, ``summary``, ``url``); their output goes to the
+terminal. Each phase says when it started and how long it took, and is
+in the history as ``test-submit``, ``test-wait`` or ``test-check`` with
+its exit code, duration and, for the check, the result.
 
-It runs as long as the command does: a command which only submits the
-jobs returns at once, one which waits for them takes as long as the
-tests. srt says when it started and, at the end, how long it took (in
-the history as ``seconds``); what happens in between is the command's
-output, e.g. srt-build's build and round progress. Ctrl-C stops the
-command and srt test, which notes exit code 130.
+A submit that fails stops srt test; a wait that fails doesn't stop the
+check. srt test exits with the exit code of the last phase set (the
+check, else the wait, else the submit); whether the release passed is
+for you to judge. Without ``TEST_WAIT`` it returns after the submit:
+run it again when the tests are done. Ctrl-C stops the phase and srt
+test, which notes exit code 130.
+
+Run again, srt test goes on where it stopped: a submit or a wait which
+succeeded since the last submit is not run again, the check always is.
+So a dead terminal or a reboot costs no second test round.
+
+``--again``
+    Start anew: submit again, also if it was submitted already.
+``--wait``
+    Only the wait and the check.
+``--check``
+    Only the check, e.g. after a job of the test round was run again.
+
+``srt status`` shows ``srt test`` as done once its last phase ran,
+whatever came out, with the result below it; before that how far it got
+(``submitted 2026-11-24 09:12, waiting``) and ``next: srt test (goes
+on: wait), then srt create``. srt test is optional: ``srt create``
+doesn't need it, and without ``TEST_COMMAND`` srt test only says to set
+it.
 
 .. code-block:: console
 
   $ srt test
   testing v6.12.118-rt24 (after v6.12.117-rt23) in .../rt/v6.12-rt
   test with:
-      cd /home/wagi/rt/v6.12-rt
-      $HOME/rt/srt-build/srt-build round start --notes "v6.12.118-rt24" --yes
-      $HOME/rt/srt-build/srt-build round wait --report
-      $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
+      submit:
+          cd /home/wagi/rt/v6.12-rt
+          $HOME/rt/srt-build/srt-build round start --notes "v6.12.118-rt24" --yes
+      wait:
+          $HOME/rt/srt-build/srt-build round wait --report
+      check:
+          $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
   OK to run? (y/n): y
-  started 2026-11-24 09:12: srt test runs as long as the command does, Ctrl-C stops both
+  submit: started 2026-11-24 09:12, runs as long as the command, Ctrl-C stops it
   ...
-  the test of v6.12.118-rt24 exited with 0 after 26h41m
+  submit: exit 0 after 1h02m
+  wait: started 2026-11-24 10:14, runs as long as the command, Ctrl-C stops it
+  ^C
+  wait: exit 130 after 3h40m
+  the test of v6.12.118-rt24 exited with 130
+  $ srt test          # later: goes on with the wait
+  testing v6.12.118-rt24 (after v6.12.117-rt23) in .../rt/v6.12-rt
+  submitted already on 2026-11-24 09:12 (srt test --again submits again)
+  ...
+  check: exit 0 after 4s
+  the test of v6.12.118-rt24 exited with 0
   result: pass - round 15 (v6.12.118-rt24) against 13: 54 jobs, no regressions
 
 .. _cmd-create:

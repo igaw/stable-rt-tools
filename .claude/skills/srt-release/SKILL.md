@@ -20,10 +20,12 @@ describe the steps in detail.
 - Don't test the kernel. Testing happens after `srt quilt release` (git
   workflow: after the tags) with the maintainer's own setup (e.g.
   srt-build and LAVA); stop there and let them test. With
-  `TEST_COMMAND` in srt.conf srt prints how (`test with:`, `srt status
-  --json`: `test`) and `srt test` runs it: it submits to the
-  maintainer's lab, so run it (MCP `test` with `dry_run` false) only
-  when they ask; otherwise pass the command on as printed. `srt test` is
+  `TEST_COMMAND` in srt.conf (and `TEST_WAIT`, `TEST_CHECK`, the
+  phases) srt prints how (`test with:`, `srt status --json`: `test`)
+  and `srt test` runs it: it submits to the maintainer's lab, so run it
+  (MCP `test` with `dry_run` false) only when they ask; otherwise pass
+  the commands on as printed. Run again it goes on where it stopped;
+  `again` submits a second test round: only on request. `srt test` is
   optional: `srt create` doesn't need it.
 - The linux-6.18.y-rt branches (Sebastian Andrzej Siewior) are the
   reference for how a release looks: merge messages, the queue commit as

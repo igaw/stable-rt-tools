@@ -47,8 +47,9 @@ Release candidate
 -----------------
 
 A release candidate is always created and pushed to the -next branch first.
-Publish this branch and do your local testing (``srt test`` runs
-``TEST_COMMAND`` of ``srt.conf`` for the release candidate, see
+Publish this branch and do your local testing (``srt test`` runs the
+test phases of ``srt.conf``, ``TEST_COMMAND`` and the optional
+``TEST_WAIT`` and ``TEST_CHECK``, for the release candidate, see
 :ref:`cmd-test`). Announce the candidate on the
 mailing list and do the proper release after a week or so.
 
