@@ -43,11 +43,13 @@ from stable_rt_tools.srt_util import (
 from stable_rt_tools.srt_util_tag import Tag, release_in_message
 
 
-def tag_next_step(tag: str) -> str:
-    """What follows the tag in the git workflow."""
+def tag_next_step(tag: str, test: bool = False) -> str:
+    """What follows the tag in the git workflow; test: srt test tests a
+    release candidate (TEST_COMMAND is set)."""
     t = Tag(tag)
     if t.is_rc:
-        return 'test it, then srt announce (the review mails) and srt push'
+        return (('srt test' if test else 'test it') +
+                ', then srt announce (the review mails) and srt push')
     if t.has('rebase'):
         return 'srt create, in the worktree of the series'
     return ('in the -rebase worktree: git rebase the upstream release, '
@@ -75,7 +77,7 @@ def tag(config: Config, rc: int | None) -> None:
     if Tag(name).is_rc and config.get('TEST_COMMAND'):
         print_test_command(config, name,
                            get_last_release('HEAD', get_suffix(config)))
-    next_step(tag_next_step(name))
+    next_step(tag_next_step(name, bool(config.get('TEST_COMMAND'))))
 
 
 def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:

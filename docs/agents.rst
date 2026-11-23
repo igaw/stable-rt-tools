@@ -101,11 +101,19 @@ return its output, the next step and the status afterwards:
 ``upload``, ``push``
     Dry runs. They upload and push only if the server runs with
     ``--allow-publish`` and the call asks for it (``dry_run`` false).
+``test``
+    A dry run: the command ``srt test`` would run (``TEST_COMMAND``). It
+    runs it only if the server runs with ``--allow-test`` and the call
+    asks for it; it returns the output and the exit code. It uses your
+    test lab: an agent runs it only when you ask. Like every tool it
+    stops after an hour, so a ``TEST_COMMAND`` which waits for long
+    tests is better run by hand.
 
 The server needs what srt needs: the configuration (``SRT_CONF`` or
 ``~/.config/srt.conf``) and, for ``sign`` and the tags, a GPG agent which
 has the key unlocked, there is no terminal for a passphrase. Testing the
-release stays with the maintainer, the server has no tool for it.
+release stays with the maintainer: ``test`` runs only with
+``--allow-test``.
 
 Signing keys
 ------------

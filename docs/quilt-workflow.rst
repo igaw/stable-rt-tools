@@ -125,7 +125,7 @@ step works on the right worktree itself, so all commands are run from
   $ srt quilt merge
   $ srt quilt release
 
-  [test the release, see below]
+  srt test                # with TEST_COMMAND; or test it your way, see below
 
   $ srt create
   $ srt sign
@@ -221,9 +221,10 @@ the tags are local, the tarballs are not created and nothing is pushed.
 Build and boot ``v6.12-rt`` with your test setup and run the RT tests on
 the target boards, e.g. with `srt-build <https://github.com/igaw/srt-build>`_
 and LAVA, from within the ``v6.12-rt`` worktree. srt itself doesn't run
-tests, but it tells you how: set ``TEST_COMMAND`` in ``srt.conf``
-(:doc:`userguide`) to your lab's commands, and ``srt quilt release`` and
-``srt status`` print them for the release.
+tests itself, but it runs your lab's: set ``TEST_COMMAND`` in
+``srt.conf`` (:doc:`userguide`) to its commands, and ``srt test`` runs
+them for the release (:ref:`cmd-test`); ``srt quilt release`` and ``srt
+status`` show them.
 
 If a test fails, undo the release with ``srt quilt undo``, fix the patch
 queue and redo the release:

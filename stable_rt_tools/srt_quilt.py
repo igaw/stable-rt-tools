@@ -89,6 +89,13 @@ STEPS = ['refresh', 'queue', 'rebase', 'merge', 'release']
 
 # nothing has left the machine yet: the time to test the release
 RELEASE_NEXT = 'test the release, then srt create'
+# the same with TEST_COMMAND: srt test tests it
+TEST_NEXT = 'srt test, then srt create'
+
+
+def release_next_step(config: Mapping[str, str]) -> str:
+    """The step after srt quilt release: srt test with TEST_COMMAND."""
+    return TEST_NEXT if config.get('TEST_COMMAND') else RELEASE_NEXT
 
 
 #
@@ -601,7 +608,7 @@ def release(rel: Release) -> None:
         print(f'{rel.release_tag} already tagged')
         print_test_command(rel.config, rel.release_tag, str(rel.old),
                            rel.rt_dir)
-        next_step(RELEASE_NEXT)
+        next_step(release_next_step(rel.config))
         return
     if not rel.done('merge'):
         sys.exit('run "srt quilt merge" first')
@@ -632,7 +639,7 @@ def release(rel: Release) -> None:
             commit=rev(rel.rt_dir, rel.release_tag))
     print_test_command(rel.config, rel.release_tag, str(rel.old),
                        rel.rt_dir)
-    next_step(RELEASE_NEXT)
+    next_step(release_next_step(rel.config))
 
 
 #

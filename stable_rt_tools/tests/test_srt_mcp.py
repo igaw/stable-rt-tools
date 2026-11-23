@@ -238,6 +238,27 @@ class TestMcpServer(unittest.TestCase):
         self.assertEqual(self.srt.commands(), [['-y', 'upload'],
                                                ['-y', 'push']])
 
+    def test_test_is_a_dry_run(self) -> None:
+        out = self.ok('test', series='v6.12-rt')
+        self.assertEqual(out['command'], 'srt test --dry-run')
+        # --allow-publish is not --allow-test: the lab is another matter
+        for server in (self.server, self.server_publishing()):
+            self.assertIn('--allow-test', self.error(
+                'test', server, series='v6.12-rt', dry_run=False))
+        self.assertEqual(self.srt.commands(), [['test', '--dry-run']])
+
+    def test_test_allowed(self) -> None:
+        server = Server(Options(root=self.root, allow_test=True,
+                                run=self.srt))
+        self.srt.answers[('-y', 'test')] = \
+            Result(1, 'the test of v6.12.118-rt24 exited with 1\n', '')
+        out = self.ok('test', server, series='v6.12-rt', dry_run=False)
+        # a failed test is its result, not an error
+        self.assertEqual((out['command'], out['exit']), ('srt -y test', 1))
+        self.assertIn('exited with 1', out['output'])
+        self.assertIn('dry_run', self.error('test', server,
+                                            series='v6.12-rt', dry_run=1))
+
     def test_queue_draft(self) -> None:
         self.srt.answers[('quilt', 'queue', '--draft')] = \
             Result(0, '[ANNOUNCE] 6.12.118-rt24\n', '')

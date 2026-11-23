@@ -61,9 +61,9 @@ Which command for which step
      - ``srt check``
      - no
    * - Test the release
-     - your test setup
-     - your test setup
-     - no
+     - ``srt test`` (``TEST_COMMAND``), or your test setup
+     - ``srt test`` (``TEST_COMMAND``), or your test setup
+     - your test lab
    * - Take the release back
      - ``srt quilt undo``
      - by hand (``git tag -d``, ``git reset``)
@@ -425,7 +425,7 @@ in ``srt.conf`` (:doc:`userguide`) srt prints how your lab tests it.
   test with:
       cd /home/wagi/rt/v6.12-rt
       srt-build round start --notes "v6.12.118-rt24"
-  next: test the release, then srt create
+  next: srt test, then srt create
 
 .. _cmd-quilt-undo:
 
@@ -511,6 +511,43 @@ asks ``OK to tag? (y/n):``. ``HEAD`` must be a release commit.
 
 After the ``-rebase`` tag the next step is ``srt create``, after a
 release candidate testing, ``srt announce`` and ``srt push``.
+
+.. _cmd-test:
+
+srt test
+--------
+
+Tests the release in your test lab, with the commands ``TEST_COMMAND``
+of ``srt.conf`` has (:doc:`userguide`): between ``srt quilt release``
+and ``srt create``, in the git workflow for a release candidate after
+``srt tag -r N``. It runs in any worktree of the series.
+
+The release is a release candidate tagged at ``HEAD`` (git workflow),
+else the release ``srt status`` shows. srt fills in the placeholders,
+shows the command and asks ``OK to run? (y/n)``; ``--dry-run`` only
+shows it. Then it runs the command with ``sh -c`` in the worktree of the
+series, with ``SRT_TAG``, ``SRT_OLD_TAG``, ``SRT_UPSTREAM``,
+``SRT_SERIES`` and ``SRT_WORKTREE`` in the environment, its output goes
+to the terminal. srt test exits with the exit code of the command and
+adds ``test`` with the exit code to the history: ``srt status`` shows
+``srt test`` as done once it ran, whatever came out. Whether the release
+passed is for you to judge. srt test is optional: ``srt create`` doesn't
+need it, and without ``TEST_COMMAND`` srt test only says to set it.
+
+It runs as long as the command does: a command which only submits the
+jobs returns at once, one which waits for them takes as long as the
+tests.
+
+.. code-block:: console
+
+  $ srt test
+  testing v6.12.118-rt24 (after v6.12.117-rt23) in .../rt/v6.12-rt
+  test with:
+      cd /home/wagi/rt/v6.12-rt
+      srt-build round start --notes "v6.12.118-rt24"
+  OK to run? (y/n): y
+  ...
+  the test of v6.12.118-rt24 exited with 0
 
 .. _cmd-create:
 
@@ -773,6 +810,7 @@ step is found.
     [x] srt quilt rebase
     [x] srt quilt merge
     [x] srt quilt release
+    [ ] srt test
     [ ] srt create
     [ ] srt sign
     [ ] srt upload
@@ -781,10 +819,12 @@ step is found.
   test with:
       cd /home/wagi/rt/v6.12-rt
       srt-build round start --notes "v6.12.118-rt24"
-  next: test the release, then srt create
+  next: srt test, then srt create
 
-``test with:`` and, in ``--json``, ``test`` are there while testing is
-the next step and ``TEST_COMMAND`` is set.
+With ``TEST_COMMAND`` set, ``srt test`` is a step (quilt workflow),
+done once it ran, with its exit code in ``--json``; it is optional, the
+next step after it is ``srt create`` either way. ``test with:`` and, in
+``--json``, ``test`` are there while testing is the next step.
 
 Without a release in progress it prints ``No release in progress, the
 last one:`` with the steps of the last release and ``next: srt prep``

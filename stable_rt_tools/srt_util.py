@@ -542,6 +542,19 @@ def get_gpg_fingerprint(config: Config) -> str:
 TEST_PLACEHOLDERS = ('tag', 'old_tag', 'upstream', 'series', 'worktree')
 
 
+def release_test_values(tag: str, old_tag: str | None = None,
+                        worktree: str | None = None) -> dict[str, str]:
+    """The values of TEST_COMMAND's placeholders for the release tag."""
+    t = Tag(tag)
+    return {
+        'tag': tag,
+        'old_tag': old_tag or '',
+        'upstream': t.base,
+        'series': f'v{t.major}.{t.minor}-{t.suffix}',
+        'worktree': os.path.abspath(worktree or os.getcwd()),
+    }
+
+
 def release_testing_command(config: Mapping[str, str], tag: str,
                             old_tag: str | None = None,
                             worktree: str | None = None) -> str | None:
@@ -552,14 +565,7 @@ def release_testing_command(config: Mapping[str, str], tag: str,
     text = config.get('TEST_COMMAND')
     if not text or not text.strip():
         return None
-    t = Tag(tag)
-    values = {
-        'tag': tag,
-        'old_tag': old_tag or '',
-        'upstream': t.base,
-        'series': f'v{t.major}.{t.minor}-{t.suffix}',
-        'worktree': os.path.abspath(worktree or os.getcwd()),
-    }
+    values = release_test_values(tag, old_tag, worktree)
     names = '|'.join(TEST_PLACEHOLDERS)
     return re.sub(r'\{(' + names + r')\}', lambda m: values[m[1]],
                   text.strip('\n'))

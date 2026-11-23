@@ -22,6 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE
 
+import argparse
 import io
 import sys
 import unittest
@@ -180,7 +181,8 @@ class TestTag(unittest.TestCase):
         self.run_tag('Linux 4.19.291-rt127', 1, config)
         self.assertIn('test with:\n'
                       '    lab-test v4.19.291-rt127-rc1 v4.19.290-rt126 '
-                      'v4.19-rt\nnext: test it', self.out.getvalue())
+                      'v4.19-rt\nnext: srt test, then srt announce',
+                      self.out.getvalue())
         # the release itself: tested as release candidate already
         self.run_tag('Linux 4.19.291-rt127', None, config)
         self.assertNotIn('test with:', self.out.getvalue())
@@ -225,3 +227,31 @@ class TestWithoutOffsets(unittest.TestCase):
         self.assertEqual(without_offsets(git), without_offsets(quilt))
         self.assertNotEqual(without_offsets(quilt),
                             without_offsets(quilt.replace('+c', '+d')))
+
+
+class TestSrtTest(unittest.TestCase):
+
+    def test_rc_at_head(self):
+        from stable_rt_tools import srt_testrun
+
+        with mock.patch.object(srt_testrun, 'git', return_value=(
+                'v4.19.291-rt127-rc1\nv4.19.291-rt127-rc2\nv4.19.291\n'
+                'v4.19.291-rt127-rebase\nv4.19.291-cip3-rc1')):
+            self.assertEqual(srt_testrun.rc_at_head('.', 'rt'),
+                             'v4.19.291-rt127-rc2')
+        with mock.patch.object(srt_testrun, 'git',
+                               return_value='v6.12.118-rt24'):
+            self.assertIsNone(srt_testrun.rc_at_head('.', 'rt'))
+
+    def test_exit_code(self):
+        from stable_rt_tools import srt_testrun
+
+        args = argparse.Namespace(dry_run=False)
+        with mock.patch.object(srt_testrun, 'get_config', return_value={}), \
+                mock.patch.object(srt_testrun, 'run_test', return_value=3):
+            with self.assertRaises(SystemExit) as e:
+                srt_testrun.execute(args)
+        self.assertEqual(e.exception.code, 3)
+        with mock.patch.object(srt_testrun, 'get_config', return_value={}), \
+                mock.patch.object(srt_testrun, 'run_test', return_value=0):
+            srt_testrun.execute(args)

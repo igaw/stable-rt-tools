@@ -56,7 +56,7 @@ The release at a glance
    git merge, git rebase  git: merge upstream, rebase -rebase
    srt commit, srt tag           commit and tag the release and -rebase
    srt check              sanity checks between the trees
-   (test the release)
+   srt test               test the release in your lab (TEST_COMMAND)
    srt create             write the patch and the tarball
    srt sign               sign them
    srt upload             upload them to kernel.org

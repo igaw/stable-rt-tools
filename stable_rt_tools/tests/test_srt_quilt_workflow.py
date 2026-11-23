@@ -57,6 +57,7 @@ from stable_rt_tools import (
     srt_quilt,
     srt_setup,
     srt_status,
+    srt_testrun,
 )
 from stable_rt_tools.srt_announce import announce
 from stable_rt_tools.srt_create import create
@@ -378,7 +379,7 @@ class TestQuiltRelease(TestQuiltBase):
                       '    srt-build round start --notes '
                       f'"{self.new_tag} after {self.old_tag}"\n'
                       f'    echo v6.1.2 {self.series} ${{HOME}} {{nothing}}\n'
-                      'next: test the release, then srt create', out)
+                      'next: srt test, then srt create', out)
         self.assertEqual(git(self.rt_dir, 'log', '-1', '--format=%s'),
                          self.new_tag)
         self.assertEqual(read(f'{self.rt_dir}/{self.localversion}'),
@@ -397,15 +398,66 @@ class TestQuiltRelease(TestQuiltBase):
         self.assertIn(f'{self.old_tag} -> {self.new_tag}', out)
         for step in srt_quilt.STEPS:
             self.assertIn(f'  [x] srt quilt {step}\n', out)
-        self.assertIn('  [ ] srt create\n  [ ] srt sign\n', out)
+        self.assertIn('  [x] srt quilt release\n  [ ] srt test\n'
+                      '  [ ] srt create\n  [ ] srt sign\n', out)
         self.assertIn('test with:\n    cd ', out)
-        self.assertIn('next: test the release, then srt create', out)
+        self.assertIn('next: srt test, then srt create', out)
         self.assertNotIn('warning', out)
         info = srt_status.status_info()
         self.assertTrue(cast(str, info['test']).startswith('cd '))
-        # without TEST_COMMAND: none
+        self.check_srt_test()
+        # without TEST_COMMAND: no srt test, testing is up to you
         del self.config['TEST_COMMAND']
-        self.assertNotIn('test', srt_status.status_info())
+        info = srt_status.status_info()
+        self.assertNotIn('test', info)
+        self.assertNotIn('srt test', [s['step'] for s in cast(
+            list[dict[str, object]], info['steps'])])
+        self.assertEqual(info['next'], 'test the release, then srt create')
+        with self.assertRaises(SystemExit) as e:
+            srt_testrun.run_test(self.config)
+        self.assertIn('TEST_COMMAND is not set', str(e.exception))
+
+    def check_srt_test(self):
+        """srt test runs TEST_COMMAND in the worktree of the series."""
+        out_file = os.path.join(self.tdir, 'tested')
+        command = self.config['TEST_COMMAND']
+        self.config['TEST_COMMAND'] = (
+            f'echo "{{tag}} $SRT_TAG $SRT_OLD_TAG $SRT_UPSTREAM $SRT_SERIES"'
+            f' > {out_file}\n'
+            f'pwd >> {out_file}\n'
+            'exit 3')
+        # a dry run and a no run nothing
+        stub_stdouts(self)
+        self.assertEqual(srt_testrun.run_test(self.config, dry_run=True), 0)
+        self.assertIn(f'testing {self.new_tag} (after {self.old_tag})',
+                      stdout_text())
+        stub_stdin(self, 'n\n')
+        with self.assertRaises(SystemExit):
+            srt_testrun.run_test(self.config)
+        self.assertFalse(os.path.exists(out_file))
+        # from the -patches worktree too: it runs in the series
+        os.chdir(self.patches_dir)
+        stub_stdin(self, 'y\n')
+        stub_stdouts(self)
+        self.assertEqual(srt_testrun.run_test(self.config), 3)
+        os.chdir(self.rt_dir)
+        self.assertIn(f'the test of {self.new_tag} exited with 3',
+                      stdout_text())
+        self.assertEqual(read(out_file).splitlines(), [
+            f'{self.new_tag} {self.new_tag} {self.old_tag} v6.1.2 '
+            f'{self.series}', os.path.realpath(self.rt_dir)])
+        event = srt_log.read_log(self.rt_dir)[-1]
+        self.assertEqual((event['step'], event['release'], event['old'],
+                          event['exit']),
+                         ('test', self.new_tag, self.old_tag, 3))
+        # ran, whatever came out: done, srt create next
+        info = srt_status.status_info()
+        steps = cast(list[dict[str, object]], info['steps'])
+        self.assertEqual(steps[5], {'step': 'srt test', 'done': True,
+                                    'exit': 3})
+        self.assertEqual(info['next'], 'srt create')
+        self.assertNotIn('test', info)
+        self.config['TEST_COMMAND'] = command
 
     def step8_create_sign(self):
         ctx = SrtContext(None, path=self.rt_dir)
@@ -627,8 +679,8 @@ class TestQuiltRelease(TestQuiltBase):
         # srt announce only printed the mail, srt status found it
         self.assertEqual([e['step'] for e in events], [
             'prep', 'quilt refresh', 'quilt queue', 'quilt rebase',
-            'quilt merge', 'quilt release', 'create', 'sign', 'upload',
-            'push', 'announced'])
+            'quilt merge', 'quilt release', 'test', 'create', 'sign',
+            'upload', 'push', 'announced'])
         for e in events:
             self.assertEqual(e['series'], self.series)
             self.assertEqual(e['release'], self.new_tag)

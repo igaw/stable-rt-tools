@@ -296,17 +296,37 @@ def leftover_warnings(path: str, tag: str, tagged: bool) -> list[str]:
             'create makes them after the release']
 
 
+# steps a release doesn't need: open, they are skipped once a later step
+# is done
+OPTIONAL_STEPS = ('srt test',)
+
+
 def first_open(steps: Sequence[Step]) -> Step | None:
     """The first step not done. An unknown step followed by a done one
-    counts as done: srt upload comes before srt push. None when all are
-    done: the release is complete."""
+    counts as done: srt upload comes before srt push. So does an optional
+    one (srt test): srt create doesn't need it. None when all are done:
+    the release is complete."""
     for i, (name, done) in enumerate(steps):
         if done is True:
             continue
-        if done is None and any(d is True for _, d in steps[i + 1:]):
+        if (done is None or name in OPTIONAL_STEPS) and \
+                any(d is True for _, d in steps[i + 1:]):
             continue
         return name, done
     return None
+
+
+def test_step(path: str, tag: str) -> tuple[Step, dict[str, object]]:
+    """srt test of the release tag: done once the history has it ran
+    (whatever its exit code), and the exit code of the last run."""
+    try:
+        events = [e for e in srt_log.read_log(path)
+                  if e.get('step') == 'test' and e.get('release') == tag]
+    except (OSError, SystemExit):
+        events = []
+    if not events:
+        return ('srt test', False), {}
+    return ('srt test', True), {'exit': events[-1].get('exit')}
 
 
 def release_next(tag: str, steps: Sequence[Step],
@@ -372,6 +392,13 @@ def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
                          for step in srt_quilt.STEPS]
     publish, details = publish_steps(rel.rt_dir, rel.release_tag, tagged,
                                      offline, rel.config, str(rel.old))
+    overrides = {'srt create': srt_quilt.RELEASE_NEXT}
+    if rel.config.get('TEST_COMMAND'):
+        tested, detail = test_step(rel.rt_dir, rel.release_tag)
+        steps.append(tested)
+        if detail:
+            details['srt test'] = detail
+        overrides = {'srt test': srt_quilt.TEST_NEXT}
     steps += publish
     warnings = stale_warnings(rel.rt_dir, str(rel.old), rel.release_tag,
                               from_state)
@@ -381,8 +408,7 @@ def quilt_status_info(rel: srt_quilt.Release, offline: bool = False,
             is_upstream_release(last_stable) and last_stable != rel.base:
         warnings.append(f'upstream is at {last_stable}, the release was '
                         f'prepared for {rel.base}: run "srt prep" again')
-    nxt = release_next(rel.release_tag, steps, warnings,
-                       {'srt create': srt_quilt.RELEASE_NEXT})
+    nxt = release_next(rel.release_tag, steps, warnings, overrides)
     return _info('quilt', str(rel.old), rel.release_tag, steps, warnings,
                  nxt, details, dropped=dropped, added=added)
 
@@ -550,7 +576,8 @@ def with_test(info: dict[str, object]) -> dict[str, object]:
     """info with 'test', the test command (TEST_COMMAND), when testing
     the release is the next step."""
     if not info.get('prepared') or \
-            info.get('next') != srt_quilt.RELEASE_NEXT:
+            info.get('next') not in (srt_quilt.RELEASE_NEXT,
+                                     srt_quilt.TEST_NEXT):
         return info
     path = series_dir(os.getcwd())
     try:

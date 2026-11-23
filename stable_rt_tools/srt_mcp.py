@@ -28,7 +28,8 @@ JSON-RPC 2.0 over stdin and stdout, one message per line. The server
 runs in a work area (the parent of the worktrees) and every tool runs
 srt itself in the worktree of a series, without a terminal. Whoever
 starts the server decides what leaves the machine: upload and push only
-show what they would do, unless the server runs with --allow-publish.
+show what they would do, unless the server runs with --allow-publish,
+and test (the maintainer's lab) unless it runs with --allow-test.
 """
 
 import argparse
@@ -81,7 +82,9 @@ an upstream update lists "- none" as changes, as srt generates it; then
 queue without message. Don't propose new wording.
 
 Then STOP: the maintainer tests the release (status has "test", the
-commands of their lab, when TEST_COMMAND is set). Then create, sign, check,
+commands of their lab, when TEST_COMMAND is set). test runs them (srt
+test) only when the maintainer asks and the server allows it: it uses
+their lab. Then create, sign, check,
 upload and push (dry runs; the real ones only with the maintainer's OK and
 when the server allows them) and announce, which returns the mail for the
 maintainer to send. undo takes a release back as long as nothing is
@@ -159,6 +162,7 @@ class Options:
 
     root: str
     allow_publish: bool = False
+    allow_test: bool = False
     run: Callable[[list[str], str], Result] = field(default=run_srt)
 
 
@@ -279,6 +283,16 @@ class Server:
                  'Undo queue..release as long as nothing is pushed: delete '
                  'the local tags, reset the series, keep the refreshed '
                  'patches.', destructive=True),
+            Tool('test',
+                 "Test the release in the maintainer's lab: srt test runs "
+                 'TEST_COMMAND of srt.conf in the worktree of the series. '
+                 'A dry run shows the command; the real run only when the '
+                 'maintainer asks for it, the server runs with --allow-test '
+                 'and dry_run is false. It returns the output and the exit '
+                 'code; whether the release passed is for the maintainer to '
+                 'judge.',
+                 self._publish_schema(series), self._test,
+                 destructive=True, open_world=True),
             step('create', ['create'],
                  'Write the patch and the tarball of the release.'),
             step('sign', ['sign'],
@@ -466,6 +480,29 @@ class Server:
         return self._step(args, [what, '--dry-run'] if dry_run
                           else ['-y', what])
 
+    def _test(self, args: dict[str, Any]) -> dict[str, Any]:
+        dry_run = args.get('dry_run', True)
+        if not isinstance(dry_run, bool):
+            raise ToolError('dry_run must be a boolean')
+        if dry_run:
+            return self._step(args, ['test', '--dry-run'])
+        if not self.opts.allow_test:
+            raise ToolError('srt test is not allowed: the server runs '
+                            'without --allow-test. Ask the maintainer to '
+                            'run "srt test" or to restart the server with '
+                            '--allow-test.')
+        path = self._worktree(args)
+        # a failed test is a result, not an error of the tool
+        r = self._srt(path, ['-y', 'test'], ok=tuple(range(256)))
+        output = r.stdout + r.stderr
+        return {
+            'command': 'srt -y test',
+            'exit': r.exit_code,
+            'output': _clip(output),
+            'next': _next(output),
+            'status': self._status_of(path),
+        }
+
     # --- protocol -----------------------------------------------------------
 
     def handle(self, msg: Any) -> dict[str, Any] | None:
@@ -562,21 +599,25 @@ def add_argparser(parser: SubParsers) -> argparse.ArgumentParser:
                             'srt in its worktree, without a terminal. '
                             'upload and push are dry runs unless the server '
                             'runs with --allow-publish and the call asks for '
-                            'it; announce returns the mail, it sends '
-                            'nothing.')
+                            'it, test unless it runs with --allow-test; '
+                            'announce returns the mail, it sends nothing.')
     prs.add_argument('--dir', default=os.curdir,
                      help='the work area, the parent of the worktrees '
                      '(default: the current directory)')
     prs.add_argument('--allow-publish', action='store_true',
                      help='let the agent run srt upload and srt push for '
                      'real, not only as dry run')
+    prs.add_argument('--allow-test', action='store_true',
+                     help="let the agent run srt test for real: it runs "
+                     "TEST_COMMAND, your test lab's commands")
     return prs
 
 
 def execute(args: argparse.Namespace) -> None:
     if not os.path.isdir(args.dir):
         sys.exit(f'{args.dir} is not a directory')
-    server = Server(Options(root=args.dir, allow_publish=args.allow_publish))
+    server = Server(Options(root=args.dir, allow_publish=args.allow_publish,
+                            allow_test=args.allow_test))
     # the client is gone
     with contextlib.suppress(KeyboardInterrupt, BrokenPipeError):
         server.serve(sys.stdin, sys.stdout)

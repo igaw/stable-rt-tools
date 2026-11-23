@@ -21,7 +21,10 @@ describe the steps in detail.
   workflow: after the tags) with the maintainer's own setup (e.g.
   srt-build and LAVA); stop there and let them test. With
   `TEST_COMMAND` in srt.conf srt prints how (`test with:`, `srt status
-  --json`: `test`): pass it on as printed, don't run it.
+  --json`: `test`) and `srt test` runs it: it submits to the
+  maintainer's lab, so run it (MCP `test` with `dry_run` false) only
+  when they ask; otherwise pass the command on as printed. `srt test` is
+  optional: `srt create` doesn't need it.
 - The linux-6.18.y-rt branches (Sebastian Andrzej Siewior) are the
   reference for how a release looks: merge messages, the queue commit as
   announcement, the tarball, tag order -patches, -rebase, release.

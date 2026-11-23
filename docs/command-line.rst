@@ -26,6 +26,10 @@ The options of all commands, as ``srt --help`` and ``srt <command>
         What it reads and changes, its questions and an example:
         :ref:`cmd-tag`.
 
+    test : @after
+        What it reads and changes, its questions and an example:
+        :ref:`cmd-test`.
+
     create : @after
         What it reads and changes, its questions and an example:
         :ref:`cmd-create`.

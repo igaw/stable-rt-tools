@@ -42,6 +42,7 @@ from stable_rt_tools import (
     srt_sign,
     srt_status,
     srt_tag,
+    srt_testrun,
     srt_upload,
 )
 from stable_rt_tools.srt_config import convert_config_files
@@ -52,6 +53,7 @@ sub_cmd = {
     'prep': srt_prep,
     'commit': srt_commit,
     'tag': srt_tag,
+    'test': srt_testrun,
     'create': srt_create,
     'sign': srt_sign,
     'upload': srt_upload,
