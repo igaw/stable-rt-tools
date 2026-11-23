@@ -25,6 +25,7 @@
 import argparse
 import json
 import os
+import re
 import sys
 from collections import ChainMap
 from collections.abc import Mapping, Sequence
@@ -534,6 +535,51 @@ def get_gpg_fingerprint(config: Config) -> str:
             # the primary key comes first
             return format_fingerprint(fields[9])
     sys.exit(f'no fingerprint for key {key_id}')
+
+
+# The placeholders of TEST_COMMAND; other braces (a shell's ${VAR} or
+# {a,b}) stay as they are.
+TEST_PLACEHOLDERS = ('tag', 'old_tag', 'upstream', 'series', 'worktree')
+
+
+def release_testing_command(config: Mapping[str, str], tag: str,
+                            old_tag: str | None = None,
+                            worktree: str | None = None) -> str | None:
+    """TEST_COMMAND of srt.conf for the release tag, the placeholders
+    replaced: {tag} (e.g. v6.12.119-rt25, or its -rc1), {old_tag} (the
+    release before it), {upstream} (v6.12.119), {series} (v6.12-rt) and
+    {worktree} (the worktree of the series). None when it is unset."""
+    text = config.get('TEST_COMMAND')
+    if not text or not text.strip():
+        return None
+    t = Tag(tag)
+    values = {
+        'tag': tag,
+        'old_tag': old_tag or '',
+        'upstream': t.base,
+        'series': f'v{t.major}.{t.minor}-{t.suffix}',
+        'worktree': os.path.abspath(worktree or os.getcwd()),
+    }
+    names = '|'.join(TEST_PLACEHOLDERS)
+    return re.sub(r'\{(' + names + r')\}', lambda m: values[m[1]],
+                  text.strip('\n'))
+
+
+def print_test_command(config: Mapping[str, str], tag: str,
+                       old_tag: str | None = None,
+                       worktree: str | None = None) -> None:
+    """At the time to test: how, as TEST_COMMAND says (nothing if it is
+    unset)."""
+    text = release_testing_command(config, tag, old_tag, worktree)
+    if text is not None:
+        print_test(text)
+
+
+def print_test(text: str) -> None:
+    """The test command, indented below 'test with:'."""
+    print('test with:')
+    for line in text.splitlines():
+        print(f'    {line}')
 
 
 def next_step(text: str, file: IO[str] | None = None) -> None:

@@ -414,13 +414,17 @@ shows the difference and stops: commit a fixup in ``v6.12-rt`` and rerun.
 srt asks ``OK to tag? (y/n):``.
 
 Now ``v6.12-rt`` holds what gets released and nothing has left the
-machine: test the release before ``srt create``.
+machine: test the release before ``srt create``. With ``TEST_COMMAND``
+in ``srt.conf`` (:doc:`userguide`) srt prints how your lab tests it.
 
 .. code-block:: console
 
   $ srt quilt release
   tagging HEAD of .../rt/v6.12-rt as v6.12.118-rt24
   OK to tag? (y/n): y
+  test with:
+      cd /home/wagi/rt/v6.12-rt
+      srt-build round start --notes "v6.12.118-rt24"
   next: test the release, then srt create
 
 .. _cmd-quilt-undo:
@@ -774,7 +778,13 @@ step is found.
     [ ] srt upload
     [ ] srt push
     [ ] srt announce
+  test with:
+      cd /home/wagi/rt/v6.12-rt
+      srt-build round start --notes "v6.12.118-rt24"
   next: test the release, then srt create
+
+``test with:`` and, in ``--json``, ``test`` are there while testing is
+the next step and ``TEST_COMMAND`` is set.
 
 Without a release in progress it prints ``No release in progress, the
 last one:`` with the steps of the last release and ``next: srt prep``

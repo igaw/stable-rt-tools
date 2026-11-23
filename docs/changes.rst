@@ -26,6 +26,11 @@ New
   file, ``--no-edit`` commits the generated announcement as it is.
 - ``srt upload --dry-run`` shows the kup command, ``srt push --dry-run``
   runs ``git push -n``; neither asks or changes anything.
+- ``TEST_COMMAND`` in ``srt.conf``: how your test lab tests a release,
+  with placeholders for the release (``{tag}``, ``{old_tag}``,
+  ``{upstream}``, ``{series}``, ``{worktree}``). ``srt quilt release``,
+  ``srt tag -r N`` and ``srt status`` print it when it is time to test
+  (``srt status --json``: ``test``); srt never runs it.
 - All commands tell the next step (``next: srt sign``), like the
   ``srt quilt`` steps, in the git workflow too. ``srt quilt release``
   reminds to test the release before ``srt create``. ``srt sign`` lists

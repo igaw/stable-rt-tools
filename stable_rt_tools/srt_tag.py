@@ -34,7 +34,10 @@ from stable_rt_tools.srt_util import (
     confirm,
     get_config,
     get_gpg_env,
+    get_last_release,
+    get_suffix,
     next_step,
+    print_test_command,
     require,
 )
 from stable_rt_tools.srt_util_tag import Tag, release_in_message
@@ -69,6 +72,9 @@ def tag(config: Config, rc: int | None) -> None:
         env=get_gpg_env(config))
     log_step('tag', name.removesuffix('-rebase'), tag=name,
              commit=cmd(['git', 'rev-parse', 'HEAD']))
+    if Tag(name).is_rc and config.get('TEST_COMMAND'):
+        print_test_command(config, name,
+                           get_last_release('HEAD', get_suffix(config)))
     next_step(tag_next_step(name))
 
 

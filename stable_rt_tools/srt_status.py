@@ -62,7 +62,9 @@ from stable_rt_tools.srt_util import (
     get_workflow_branch,
     is_quilt_workflow,
     next_step,
+    print_test,
     read_srt_state,
+    release_testing_command,
 )
 from stable_rt_tools.srt_util_context import release_dir, release_files
 from stable_rt_tools.srt_util_tag import Tag, is_upstream_release
@@ -535,12 +537,30 @@ def status_info(offline: bool = False) -> dict[str, object]:
     prep prepared, else the one the trees show (tree_status_info)."""
     state = read_srt_state()
     if not state or not state.get('new_tag'):
-        return tree_status_info(offline)
+        return with_test(tree_status_info(offline))
     if state.get('quilt_workflow'):
         info = quilt_status_info(srt_quilt.Release(state), offline)
     else:
         info = git_status_info(state['old_tag'], state['new_tag'], offline)
     info['source'] = 'state'
+    return with_test(info)
+
+
+def with_test(info: dict[str, object]) -> dict[str, object]:
+    """info with 'test', the test command (TEST_COMMAND), when testing
+    the release is the next step."""
+    if not info.get('prepared') or \
+            info.get('next') != srt_quilt.RELEASE_NEXT:
+        return info
+    path = series_dir(os.getcwd())
+    try:
+        config = get_config(path)
+    except SystemExit:
+        return info
+    text = release_testing_command(config, str(info['new_tag']),
+                                   str(info['old_tag']), path)
+    if text is not None:
+        info['test'] = text
     return info
 
 
@@ -581,6 +601,8 @@ def print_status(info: Mapping[str, object]) -> None:
             print(f"      {mail.get('link') or mail['message_id']}")
     for w in cast(list[str], info['warnings']):
         print(f'warning: {w}')
+    if info.get('test'):
+        print_test(cast(str, info['test']))
     next_step(cast(str, info['next']))
 
 

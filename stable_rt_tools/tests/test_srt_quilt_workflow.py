@@ -367,8 +367,18 @@ class TestQuiltRelease(TestQuiltBase):
                          'Signed-off-by: Mighty Eagle <me@incredible.com>')
 
     def step6_release(self):
+        # the test lab's command, as srt.conf has it
+        self.config['TEST_COMMAND'] = (
+            '\ncd {worktree}\n'
+            'srt-build round start --notes "{tag} after {old_tag}"\n'
+            'echo {upstream} {series} ${HOME} {nothing}')
         out = self.run_step('release')
-        self.assertIn('next: test the release, then srt create', out)
+        self.assertIn('test with:\n'
+                      f'    cd {os.path.realpath(self.rt_dir)}\n'
+                      '    srt-build round start --notes '
+                      f'"{self.new_tag} after {self.old_tag}"\n'
+                      f'    echo v6.1.2 {self.series} ${{HOME}} {{nothing}}\n'
+                      'next: test the release, then srt create', out)
         self.assertEqual(git(self.rt_dir, 'log', '-1', '--format=%s'),
                          self.new_tag)
         self.assertEqual(read(f'{self.rt_dir}/{self.localversion}'),
@@ -388,8 +398,14 @@ class TestQuiltRelease(TestQuiltBase):
         for step in srt_quilt.STEPS:
             self.assertIn(f'  [x] srt quilt {step}\n', out)
         self.assertIn('  [ ] srt create\n  [ ] srt sign\n', out)
+        self.assertIn('test with:\n    cd ', out)
         self.assertIn('next: test the release, then srt create', out)
         self.assertNotIn('warning', out)
+        info = srt_status.status_info()
+        self.assertTrue(cast(str, info['test']).startswith('cd '))
+        # without TEST_COMMAND: none
+        del self.config['TEST_COMMAND']
+        self.assertNotIn('test', srt_status.status_info())
 
     def step8_create_sign(self):
         ctx = SrtContext(None, path=self.rt_dir)

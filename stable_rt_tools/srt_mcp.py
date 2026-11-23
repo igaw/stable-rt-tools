@@ -80,7 +80,8 @@ announcement, which queue_draft returns too: e.g. a release which is only
 an upstream update lists "- none" as changes, as srt generates it; then
 queue without message. Don't propose new wording.
 
-Then STOP: the maintainer tests the release. Then create, sign, check,
+Then STOP: the maintainer tests the release (status has "test", the
+commands of their lab, when TEST_COMMAND is set). Then create, sign, check,
 upload and push (dry runs; the real ones only with the maintainer's OK and
 when the server allows them) and announce, which returns the mail for the
 maintainer to send. undo takes a release back as long as nothing is

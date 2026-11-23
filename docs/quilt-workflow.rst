@@ -221,7 +221,9 @@ the tags are local, the tarballs are not created and nothing is pushed.
 Build and boot ``v6.12-rt`` with your test setup and run the RT tests on
 the target boards, e.g. with `srt-build <https://github.com/igaw/srt-build>`_
 and LAVA, from within the ``v6.12-rt`` worktree. srt itself doesn't run
-tests.
+tests, but it tells you how: set ``TEST_COMMAND`` in ``srt.conf``
+(:doc:`userguide`) to your lab's commands, and ``srt quilt release`` and
+``srt status`` print them for the release.
 
 If a test fails, undo the release with ``srt quilt undo``, fix the patch
 queue and redo the release:

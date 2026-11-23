@@ -154,10 +154,11 @@ class TestNextStep(unittest.TestCase):
 
 class TestTag(unittest.TestCase):
 
-    def run_tag(self, msg, rc):
+    def run_tag(self, msg, rc, config=None):
         from stable_rt_tools import srt_tag
 
         calls = []
+        self.out = io.StringIO()
 
         def fake_cmd(args, env=None):
             calls.append(args)
@@ -166,9 +167,23 @@ class TestTag(unittest.TestCase):
         with mock.patch.object(srt_tag, 'cmd', side_effect=fake_cmd), \
                 mock.patch.object(srt_tag, 'confirm', return_value=True), \
                 mock.patch.object(srt_tag, 'get_gpg_env', return_value={}), \
-                mock.patch('sys.stdout', io.StringIO()):
-            srt_tag.tag({'GPG_KEY_ID': 'KEY'}, rc)
+                mock.patch.object(srt_tag, 'get_last_release',
+                                  return_value='v4.19.290-rt126'), \
+                mock.patch('sys.stdout', self.out):
+            srt_tag.tag(config or {'GPG_KEY_ID': 'KEY'}, rc)
         return [c for c in calls if c[:2] == ['git', 'tag']]
+
+    def test_test_command(self):
+        # the release candidate is the time to test: TEST_COMMAND
+        config = {'GPG_KEY_ID': 'KEY',
+                  'TEST_COMMAND': 'lab-test {tag} {old_tag} {series}'}
+        self.run_tag('Linux 4.19.291-rt127', 1, config)
+        self.assertIn('test with:\n'
+                      '    lab-test v4.19.291-rt127-rc1 v4.19.290-rt126 '
+                      'v4.19-rt\nnext: test it', self.out.getvalue())
+        # the release itself: tested as release candidate already
+        self.run_tag('Linux 4.19.291-rt127', None, config)
+        self.assertNotIn('test with:', self.out.getvalue())
 
     def test_release(self):
         tags = self.run_tag('Linux 4.19.291-rt127\n\nSigned-off-by: x', None)

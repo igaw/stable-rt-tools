@@ -19,7 +19,9 @@ describe the steps in detail.
   release. An OK for one release is not one for the next.
 - Don't test the kernel. Testing happens after `srt quilt release` (git
   workflow: after the tags) with the maintainer's own setup (e.g.
-  srt-build and LAVA); stop there and let them test.
+  srt-build and LAVA); stop there and let them test. With
+  `TEST_COMMAND` in srt.conf srt prints how (`test with:`, `srt status
+  --json`: `test`): pass it on as printed, don't run it.
 - The linux-6.18.y-rt branches (Sebastian Andrzej Siewior) are the
   reference for how a release looks: merge messages, the queue commit as
   announcement, the tarball, tag order -patches, -rebase, release.

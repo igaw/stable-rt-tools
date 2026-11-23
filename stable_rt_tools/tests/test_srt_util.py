@@ -28,7 +28,11 @@ from logging import debug
 from shutil import rmtree
 from unittest import TestCase
 
-from stable_rt_tools.srt_util import cmd, get_gpg_fingerprint
+from stable_rt_tools.srt_util import (
+    cmd,
+    get_gpg_fingerprint,
+    release_testing_command,
+)
 from stable_rt_tools.tests.helpers import (
     generate_key,
     gnupg_config,
@@ -693,3 +697,28 @@ def test_gnupghome_expands_the_home(monkeypatch):
     assert get_gnupghome({'GNUPGHOME': '~/keys'}) == '/home/someone/keys'
     monkeypatch.setenv('GNUPGHOME', '~/other')
     assert get_gnupghome({}) == '/home/someone/other'
+
+
+class TestTestCommand(TestCase):
+
+    def test_unset(self):
+        self.assertIsNone(release_testing_command({}, 'v6.12.119-rt25'))
+        self.assertIsNone(release_testing_command(
+            {'TEST_COMMAND': ' \n'}, 'v6.12.119-rt25'))
+
+    def test_placeholders(self):
+        config = {'TEST_COMMAND': '\nrun {series} {upstream} {tag} '
+                  '{old_tag} {worktree}\nfor f in {a,b}; do echo ${f}; done'}
+        self.assertEqual(
+            release_testing_command(config, 'v6.12.119-rt25', 'v6.12.118-rt24',
+                         '/rt/v6.12-rt'),
+            'run v6.12-rt v6.12.119 v6.12.119-rt25 v6.12.118-rt24 '
+            '/rt/v6.12-rt\nfor f in {a,b}; do echo ${f}; done')
+
+    def test_rc_and_other_suffix(self):
+        config = {'TEST_COMMAND': '{tag} {upstream} {series} [{old_tag}]'}
+        self.assertEqual(
+            release_testing_command(config, 'v4.19.291-rt127-rc1'),
+            'v4.19.291-rt127-rc1 v4.19.291 v4.19-rt []')
+        self.assertEqual(release_testing_command(config, 'v6.1.5-foo3'),
+                         'v6.1.5-foo3 v6.1.5 v6.1-foo []')

@@ -67,6 +67,7 @@ from stable_rt_tools.srt_util import (
     get_gpg_env,
     get_template_path,
     next_step,
+    print_test_command,
     read_srt_state,
     require,
     update_srt_state,
@@ -598,6 +599,8 @@ def merge(rel: Release) -> None:
 def release(rel: Release) -> None:
     if rel.done('release'):
         print(f'{rel.release_tag} already tagged')
+        print_test_command(rel.config, rel.release_tag, str(rel.old),
+                           rel.rt_dir)
         next_step(RELEASE_NEXT)
         return
     if not rel.done('merge'):
@@ -627,6 +630,8 @@ def release(rel: Release) -> None:
     rel.tag(rel.rt_dir, rel.release_tag, rel.release_tag)
     rel.log('release', tag=rel.release_tag,
             commit=rev(rel.rt_dir, rel.release_tag))
+    print_test_command(rel.config, rel.release_tag, str(rel.old),
+                       rel.rt_dir)
     next_step(RELEASE_NEXT)
 
 

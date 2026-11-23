@@ -181,6 +181,35 @@ The settings:
     minutes, never with ``srt status --offline``; it never uses the search
     or the web pages of the archive. The same for all series, so set it in
     ``[DEFAULT]``; empty turns the step off (unknown).
+``TEST_COMMAND``
+    How you test a release in your test lab: srt prints it when it is time
+    to test, after ``srt quilt release`` and ``srt tag -r N`` (a release
+    candidate of the git workflow), and ``srt status`` shows it while
+    testing is the next step. srt only prints it, it never runs it. In it
+    ``{tag}`` is replaced with the release (``v6.12.119-rt25``, or
+    ``v4.19.291-rt127-rc1``), ``{old_tag}`` with the release before it,
+    ``{upstream}`` with the upstream release it is made on
+    (``v6.12.119``), ``{series}`` with the series (``v6.12-rt``) and
+    ``{worktree}`` with the worktree of the series; other braces, e.g. a
+    shell's ``${VAR}``, stay as they are. Several lines are fine, indent
+    the lines after the first; write ``%`` as ``%%``. One lab for all
+    series goes into ``[DEFAULT]``, a group can have its own. For
+    example, with srt-build and LAVA:
+
+    .. code-block:: ini
+
+       TEST_COMMAND =
+           cd {worktree}
+           srt-build round start --notes "{tag}"
+           srt-build round wait --report
+
+    and srt prints::
+
+       test with:
+           cd /home/wagi/rt/v6.12-rt
+           srt-build round start --notes "v6.12.119-rt25"
+           srt-build round wait --report
+       next: test the release, then srt create
 ``ANNOUNCE``, ``RC_TEXT``, ``COMMIT_TMPL``
     Own templates for the announcement, the review mails and the patch
     queue commit, instead of the ones srt ships.
