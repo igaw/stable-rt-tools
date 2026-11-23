@@ -45,6 +45,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+from datetime import datetime
 from typing import Any
 
 from stable_rt_tools import srt_status
@@ -144,6 +146,16 @@ def print_result(result: dict[str, Any]) -> None:
         print(f"        {result['url']}")
 
 
+def duration(seconds: float) -> str:
+    """'5h12m', '3m20s', '12s'."""
+    s = int(seconds)
+    if s >= 3600:
+        return f'{s // 3600}h{s % 3600 // 60:02d}m'
+    if s >= 60:
+        return f'{s // 60}m{s % 60:02d}s'
+    return f'{s}s'
+
+
 def run_test(config: Config, dry_run: bool = False) -> int:
     """Run TEST_COMMAND for the release; its exit code."""
     path = srt_status.series_dir(os.getcwd())
@@ -170,15 +182,24 @@ def run_test(config: Config, dry_run: bool = False) -> int:
             f.write('\n')
         env['SRT_TEST_RESULT'] = os.path.join(tmp, 'result.json')
         open(env['SRT_TEST_RESULT'], 'w').close()
+        print(f'started {datetime.now().strftime("%Y-%m-%d %H:%M")}: '
+              'srt test runs as long as the command does, Ctrl-C stops '
+              'both')
         sys.stdout.flush()
-        code = subprocess.run(['sh', '-c', text], cwd=path,
-                              env=env).returncode
+        start = time.monotonic()
+        try:
+            code = subprocess.run(['sh', '-c', text], cwd=path,
+                                  env=env).returncode
+        except KeyboardInterrupt:
+            # sh got the Ctrl-C too: note that the test didn't finish
+            code = 130
+        took = time.monotonic() - start
         result = read_result(env['SRT_TEST_RESULT'], code)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     log_step('test', tag, old, path=path, exit=code, command=text,
-             result=result)
-    print(f'the test of {tag} exited with {code}')
+             seconds=round(took), result=result)
+    print(f'the test of {tag} exited with {code} after {duration(took)}')
     if result:
         print_result(result)
     return code

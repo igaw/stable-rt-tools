@@ -540,7 +540,10 @@ need it, and without ``TEST_COMMAND`` srt test only says to set it.
 
 It runs as long as the command does: a command which only submits the
 jobs returns at once, one which waits for them takes as long as the
-tests.
+tests. srt says when it started and, at the end, how long it took (in
+the history as ``seconds``); what happens in between is the command's
+output, e.g. srt-build's build and round progress. Ctrl-C stops the
+command and srt test, which notes exit code 130.
 
 .. code-block:: console
 
@@ -552,8 +555,9 @@ tests.
       $HOME/rt/srt-build/srt-build round wait --report
       $HOME/rt/srt-build/srt-build round compare --check --result "$SRT_TEST_RESULT"
   OK to run? (y/n): y
+  started 2026-11-24 09:12: srt test runs as long as the command does, Ctrl-C stops both
   ...
-  the test of v6.12.118-rt24 exited with 0
+  the test of v6.12.118-rt24 exited with 0 after 26h41m
   result: pass - round 15 (v6.12.118-rt24) against 13: 54 jobs, no regressions
 
 .. _cmd-create:

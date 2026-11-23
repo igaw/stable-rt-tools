@@ -443,8 +443,9 @@ class TestQuiltRelease(TestQuiltBase):
         stub_stdouts(self)
         self.assertEqual(srt_testrun.run_test(self.config), 3)
         os.chdir(self.rt_dir)
-        self.assertIn(f'the test of {self.new_tag} exited with 3',
-                      stdout_text())
+        out = stdout_text()
+        self.assertIn('started ', out)
+        self.assertIn(f'the test of {self.new_tag} exited with 3 after ', out)
         self.assertEqual(read(out_file).splitlines(), [
             f'{self.new_tag} {self.new_tag} {self.old_tag} v6.1.2 '
             f'{self.series}', os.path.realpath(self.rt_dir)])

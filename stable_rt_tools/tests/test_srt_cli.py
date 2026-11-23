@@ -338,3 +338,12 @@ class TestSrtTestResult(unittest.TestCase):
         _, _, _, err = self.run_test(
             'echo \'{"status": "flaky"}\' > "$SRT_TEST_RESULT"; exit 1')
         self.assertEqual(err, '')
+
+
+class TestTestDuration(unittest.TestCase):
+
+    def test_duration(self):
+        from stable_rt_tools.srt_testrun import duration
+        self.assertEqual(duration(12.7), '12s')
+        self.assertEqual(duration(200), '3m20s')
+        self.assertEqual(duration(5 * 3600 + 12 * 60 + 5), '5h12m')
